@@ -16,7 +16,7 @@ const App = {
     Store.load();
     Shop.apply();
     this.sport = Store.data.profile.sports[0] || 'run';
-    this.sim = !/Android|iPhone|iPad/i.test(navigator.userAgent); // no computador começa em modo teste
+    this.sim = false;
     if ('serviceWorker' in navigator && location.protocol !== 'file:' && !Native.on) {
       // quando sair versão nova, recarrega sozinho (exceto no meio de um treino)
       const had = !!navigator.serviceWorker.controller;

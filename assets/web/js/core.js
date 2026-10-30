@@ -16,7 +16,7 @@ const Store = {
 
   defaults() {
     return {
-      profile: { name: 'Atleta', sports: ['run'], experience: 'iniciante', goalWeek: 10, goalMonth: 40, weight: 70, age: 30, theme: 'dark', onboarded: false },
+      profile: { name: 'Atleta', sports: ['run'], experience: 'iniciante', goalWeek: 10, goalMonth: 40, weight: 70, age: 30, theme: 'light', onboarded: false },
       xp: 0, coins: 0,
       activities: [],
       unlocked: {},       // id -> data do desbloqueio

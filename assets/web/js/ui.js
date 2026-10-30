@@ -30,25 +30,39 @@ const UI = {
     this.baseLayer(m, dark);
     this.maps.push(m); return m;
   },
+  // ruas de verdade: OpenFreeMap (vetorial, sem chave e sem limite). Se o aparelho
+  // não desenhar o mapa vetorial (sem WebGL, erro ou demora), cai para o OpenStreetMap.
   baseLayer(m, dark) {
-    const M = CONFIG.maps, raster = () => L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(m);
-    if (!L.maplibreGL || !window.maplibregl) { m.getContainer().classList.toggle('map-dim', dark); return raster(); }
+    const M = CONFIG.maps;
+    const raster = () => {
+      if (m._raster) return m._raster;
+      m.getContainer().classList.toggle('map-dim', dark);
+      m._raster = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(m);
+      try { m._raster.bringToBack(); } catch (e) {}
+      return m._raster;
+    };
+    if (!L.maplibreGL || !window.maplibregl || !this.webgl()) return raster();
     try {
       const gl = L.maplibreGL({ style: dark ? M.dark : M.color, attribution: M.attribution, interactive: false }).addTo(m);
       const glMap = gl.getMaplibreMap && gl.getMaplibreMap();
       if (glMap) {
-        let fell = false;
+        let fell = false, ok = false;
+        const giveUp = () => { if (ok) return; try { m.removeLayer(gl); } catch (e) {} raster(); };
+        glMap.once('load', () => { ok = true; });
         glMap.on('error', (e) => {
-          if (fell || !e || !e.error || !/style|fetch|load|404|Failed/i.test(String(e.error.message || e.error.status || ''))) return;
-          fell = true; glMap.setStyle(M.fallback);
-          if (dark) m.getContainer().classList.add('map-invert');
+          if (!e || !e.error || !/style|fetch|load|404|Failed|network/i.test(String(e.error.message || e.error.status || ''))) return;
+          if (!fell) { fell = true; glMap.setStyle(M.fallback); if (dark) m.getContainer().classList.add('map-invert'); } else giveUp();
         });
+        setTimeout(() => { if (!ok && !(glMap.loaded && glMap.loaded())) giveUp(); }, 9000);
       }
       return gl;
     } catch (err) {
-      m.getContainer().classList.toggle('map-dim', dark);
       return raster();
     }
+  },
+  webgl() {
+    if (this._webgl == null) { try { const c = document.createElement('canvas'); this._webgl = !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { this._webgl = false; } }
+    return this._webgl;
   },
   // linha do percurso com contorno (destaca sobre o mapa colorido)
   routeLine(m, latlngs, color, weight = 5) {
@@ -190,16 +204,17 @@ const UI = {
      ========================================================= */
   onboarding(step = 0) {
     const slides = [
-      { ic: MARK('hero'), t: 'Bem-vindo ao JustGo', p: 'Registre corridas, pedais e natação. Cada treino vira progresso que você enxerga.' },
-      { ic: `<div class="ob-ring">${I('lock')}<i class="orb o1"></i><i class="orb o2"></i></div>`, t: 'Desbloqueie o app treinando', p: 'Você começa com cronômetro, GPS e histórico. Gráficos, treinador por voz, Fantasma, território e muito mais abrem conforme você soma quilômetros.' },
-      { ic: `<div class="ob-ring">${I('trophy')}<i class="orb o1"></i><i class="orb o2"></i></div>`, t: 'Missões, ligas e amigos', p: 'Missões diárias, temporadas mensais, clubes e desafios. Ganhe XP, suba de liga e domine o mapa da sua cidade.' },
+      { img: 'img/ob1.jpg', k: ['zap', 'Treino que vira jogo'], t: 'Corra. Pedale. Nade.<br>Evolua de verdade.', p: 'Registre cada treino com GPS e veja seu progresso crescer a cada quilômetro.' },
+      { img: 'img/ob2.jpg', k: ['lock', 'Desbloqueie o app'], t: 'Cada treino libera<br>algo novo.', p: 'Gráficos, treinador por voz, corrida contra o Fantasma, território e muito mais abrem conforme você treina.' },
+      { img: 'img/ob3.jpg', k: ['trophy', 'Missões, ligas e amigos'], t: 'Suba de liga e domine<br>a sua cidade.', p: 'Missões diárias, temporadas mensais, clubes e desafios. Ganhe XP e dispute com a sua galera.' },
     ];
     if (step < 3) {
       const s = slides[step];
-      return this.render(`<main class="onb"><div class="onb-top">${step < 2 ? '<button class="link" data-act="ob" data-v="3">Pular</button>' : ''}</div>
-        <div class="onb-art">${s.ic}</div><h1>${s.t}</h1><p>${s.p}</p>
+      return this.render(`<main class="onb"><div class="onb-photo" style="background-image:url(${s.img})"></div>
+        <div class="onb-top">${this.brand()}${step < 2 ? '<button class="link" data-act="ob" data-v="3">Pular</button>' : ''}</div>
+        <div class="onb-art"><span class="onb-kicker">${I(s.k[0])}${s.k[1]}</span></div><h1>${s.t}</h1><p>${s.p}</p>
         <div class="dots">${slides.map((_, i) => `<i class="${i === step ? 'on' : ''}"></i>`).join('')}</div>
-        <button class="btn primary lg" data-act="ob" data-v="${step + 1}">${step < 2 ? 'Continuar' : 'Começar'}</button></main>`, false);
+        <button class="btn primary lg" data-act="ob" data-v="${step + 1}">${step < 2 ? 'Continuar' : 'Começar agora'}</button></main>`, false);
     }
     const P = Store.data.profile;
     this.render(`<main class="onb form"><h1>Monte seu perfil</h1><p>Leva 20 segundos. Dá pra mudar depois.</p>
@@ -246,25 +261,25 @@ const UI = {
       <section class="hello"><span class="eyebrow">${this.today()}</span><h1>${this.greeting()}, ${esc(D.profile.name.split(' ')[0])}</h1></section>
       ${this.loginCard()}
 
+      <section class="card week tap" data-act="go" data-v="stats">
+        <div class="week-top">
+          <div><span class="eyebrow">Esta semana</span><div class="week-n"><b class="num">${Fmt.num(wkKm)}</b><span>km</span></div><small>${week.length} ${week.length === 1 ? 'treino' : 'treinos'} · ${Fmt.time(wkTime)}</small></div>
+          <div class="goal-ring" style="--p:${gp}"><div><b class="num">${Math.round(gp)}%</b><small>de ${goal} km</small></div></div>
+        </div>
+        <div class="week-bars">${days.map((v, i) => `<div class="wb ${i === todayI ? 'today' : ''}"><i style="height:${Math.max(v ? 10 : 4, (v / maxD) * 100)}%" class="${v ? 'has' : ''}"></i><small>${WEEKDAYS[i]}</small></div>`).join('')}</div>
+      </section>
+
+      <button class="start-cta" data-act="go" data-v="record"><div class="cta-ic">${I('play')}</div><div class="grow"><b>Iniciar treino</b><small>${plan && plan.session ? `Hoje: ${esc(plan.session.type)} · ${Fmt.num(plan.session.km)} km` : 'Corrida, pedal ou natação com GPS'}</small></div>${I('chevronRight', 'chev')}</button>
+
       <section class="card level-card tap" data-act="sub" data-v="progress:tree">
-        <div class="lv-top"><div class="lv-num"><span class="eyebrow">Nível</span><b class="display">${lv.l}</b></div>
-          <div class="grow"><b>${Game.title(lv.l)}</b><small class="num">${lv.txt} para o nível ${lv.l + 1}</small>${this.bar(lv.pct, 'brand')}</div></div>
+        <div class="lv-top"><div class="lv-num"><span class="eyebrow">Nível</span><b class="num">${lv.l}</b></div>
+          <div class="grow"><div class="row-t"><b>${Game.title(lv.l)}</b><span class="xp num">${lv.txt}</span></div>${this.bar(lv.pct, 'brand')}<small>Faltam ${Math.max(0, Game.xpFor(lv.l + 1) - D.xp)} XP para o nível ${lv.l + 1}</small></div></div>
         <div class="lv-stats">
           <div>${I('flame')}<b class="num">${streak}</b><small>dias seguidos</small></div>
           <div style="--lc:${L0.color}">${I('crown')}<b>${L0.name}</b><small>liga do mês</small></div>
           <div>${I('coin')}<b class="num">${D.coins}</b><small>moedas</small></div>
         </div>
       </section>
-
-      <section class="card week tap" data-act="go" data-v="stats">
-        <div class="week-top">
-          <div><span class="eyebrow">Esta semana</span><div class="week-n"><b class="display">${Fmt.num(wkKm)}</b><span>km</span></div><small>${week.length} ${week.length === 1 ? 'treino' : 'treinos'} · ${Fmt.time(wkTime)}</small></div>
-          <div class="goal-ring" style="--p:${gp}"><div><b class="num">${Math.round(gp)}%</b><small>de ${goal} km</small></div></div>
-        </div>
-        <div class="week-bars">${days.map((v, i) => `<div class="wb ${i === todayI ? 'today' : ''}"><i style="height:${Math.max(v ? 10 : 4, (v / maxD) * 100)}%" class="${v ? 'has' : ''}"></i><small>${WEEKDAYS[i]}</small></div>`).join('')}</div>
-      </section>
-
-      <button class="cta" data-act="go" data-v="record"><div class="cta-ic">${I('play')}</div><div class="grow"><b>Pronto para treinar?</b><small>${plan && plan.session ? `Hoje: ${esc(plan.session.type)} · ${Fmt.num(plan.session.km)} km` : 'Corrida, pedal ou natação com GPS'}</small></div>${I('chevronRight', 'chev')}</button>
 
       ${plan ? `${this.sectionHead('Plano de treino', ['Ver plano', 'plans'])}<div class="list"><div class="row tap" data-act="go" data-v="plans">${this.iconBox('clipboard', CONFIG.sports[plan.def.sport].color)}<div class="grow"><b>${plan.session ? `${esc(plan.session.type)} · ${Fmt.num(plan.session.km)} km` : plan.P.finished ? 'Plano concluído!' : 'Semana completa'}</b><small>${esc(plan.def.name)} · semana ${Math.min(plan.w + 1, plan.weeks.length)} de ${plan.weeks.length}</small></div>${I('chevronRight', 'chev')}</div></div>` : ''}
 
@@ -298,11 +313,11 @@ const UI = {
         ${s === 'swim' ? `<div class="seg">${[['pool', 'Piscina'], ['open', 'Águas abertas']].map(([m, n]) => `<button class="${App.swimMode === m ? 'on' : ''}" data-act="swimMode" data-v="${m}">${n}</button>`).join('')}</div>` : ''}
         ${this.modeChips()}${this.modeInfo()}
         <div class="rec-start">
-          ${pool ? '<span class="side"></span>' : `<button class="side" data-act="simToggle" aria-pressed="${App.sim}"><i class="${App.sim ? 'on' : ''}">${I('flask')}</i><small>${App.sim ? `Teste ${App.simMult}×` : 'Teste'}</small></button>`}
+          <button class="side" data-act="go" data-v="settings"><i>${I('settings')}</i><small>Ajustes</small></button>
           <button class="start" data-act="start" aria-label="${startLbl}">${pool ? I(App.mode === 'set' ? 'repeat' : 'clipboard') : I('play')}<span>${startLbl}</span></button>
           <button class="side" data-act="go" data-v="safety"><i>${I('shield')}</i><small>Segurança</small></button>
         </div>
-        <small class="rec-note">${pool ? 'Registro manual ou série guiada' : App.sim ? 'Modo teste ligado: o GPS será simulado' : `${sp.name} · GPS de alta precisão`}</small>
+        <small class="rec-note">${pool ? 'Registro manual ou série guiada' : `${sp.name} · GPS de alta precisão`}</small>
       </section>
     </main>`, true);
     if (pool) return;
@@ -334,7 +349,7 @@ const UI = {
     const tr = App.tracker, sp = CONFIG.sports[tr.sport], unit = Fmt.paceUnit(tr.sport);
     this.setSportColor(tr.sport);
     this.render(`<main class="train">
-      <div class="t-top"><span class="t-sport">${I(SPORT_IC[tr.sport])}${sp.name}${tr.sim ? `<em>Teste ${tr.mult}×</em>` : ''}</span><span id="tGps" class="gps"></span>
+      <div class="t-top"><span class="t-sport">${I(SPORT_IC[tr.sport])}${sp.name}</span><span id="tGps" class="gps"></span>
         <button class="t-icon ${Cloud.liveId ? 'on' : ''}" id="tLive" data-act="live" title="Compartilhar localização">${I('signal')}</button><button class="sos" data-act="sos">SOS</button></div>
       <div id="tState" class="t-state"></div>
       <div id="tPhase" class="t-phase" hidden></div>
@@ -357,7 +372,7 @@ const UI = {
       // recalcula o tamanho depois do layout (o mapa nasce antes de a tela terminar de montar)
       setTimeout(() => { try { map.invalidateSize(); if (App.route) map.fitBounds(L.latLngBounds(App.route.points.map((p) => [p[0], p[1]])), { padding: [18, 18] }); } catch (e) {} }, 250);
       this.liveLine = this.routeLine(map, [], Shop.lineColor(tr.sport), 5);
-      this.ghostDot = null; this.liveMap = map;
+      this.ghostDot = null; this.liveMap = map; this.trainStartPin = null;
     }
     this.trainButtons(); this.updateTraining();
   },
@@ -399,7 +414,10 @@ const UI = {
       }
     }
     if (this.liveMap) {
-      if (tr.points.length) this.liveLine.setLatLngs(Geo.segments(tr.points));
+      if (tr.points.length) {
+        this.liveLine.setLatLngs(Geo.segments(tr.points));
+        if (!this.trainStartPin) { const p0 = tr.points[0]; this.trainStartPin = L.marker([p0[0], p0[1]], { icon: L.divIcon({ className: 'pin start', html: '<i></i>', iconSize: [18, 18], iconAnchor: [9, 9] }), interactive: false, keyboard: false }).addTo(this.liveMap); }
+      }
       const last = tr.points.length ? tr.points[tr.points.length - 1] : tr.fix;
       if (last) {
         const ll = [last[0], last[1]];
@@ -534,7 +552,7 @@ const UI = {
     this.render(`<header class="top"><div class="top-l"><button class="back" data-act="go" data-v="${isNew ? 'home' : 'history'}">${I('chevronLeft')}</button></div>
       <div class="top-r">${!isNew ? `<button class="icon-btn" data-act="del" data-v="${act.id}" title="Excluir">${I('trash')}</button>` : ''}</div></header>
     <main class="screen summary">
-      <div class="post-h">${this.avatar()}<div class="grow"><b>${esc(Store.data.profile.name)}</b><small>${Fmt.date(act.start)}${act.mode === 'sim' ? ' · modo teste' : act.mode === 'gpx' ? ' · importado' : ''}</small></div><span class="weather" id="sWeather">${W ? `${I(W.rain >= 0.2 ? 'cloudRain' : 'cloud', 'xs')} ${W.temp}°C` : ''}</span></div>
+      <div class="post-h">${this.avatar()}<div class="grow"><b>${esc(Store.data.profile.name)}</b><small>${Fmt.date(act.start)}${act.mode === 'gpx' ? ' · importado' : ''}</small></div><span class="weather" id="sWeather">${W ? `${I(W.rain >= 0.2 ? 'cloudRain' : 'cloud', 'xs')} ${W.temp}°C` : ''}</span></div>
       <h1 class="act-title">${this.actTitle(act)}</h1>
       ${act.flagged ? `<div class="notice bad">${I('alert')}<div><b>Não conta para missões e rankings</b><small>${esc(act.flagReason)}</small></div></div>` : ''}
       <div class="big-stats">${stats.map(([l, v, u]) => `<div><span class="eyebrow">${l}</span><b class="num">${v}</b>${u ? `<small>${u}</small>` : ''}</div>`).join('')}</div>
@@ -555,6 +573,7 @@ const UI = {
       const line = this.routeLine(map, Geo.segments(act.points), color, 5);
       this.endpoints(map, act.points[0], act.points[act.points.length - 1]);
       map.fitBounds(line.getBounds(), { padding: [28, 28] });
+      setTimeout(() => { try { map.invalidateSize(); map.fitBounds(line.getBounds(), { padding: [28, 28] }); } catch (e) {} }, 300);
     }
     const s = hasMap ? FX.series(act.points) : null;
     if ($('#cPace')) FX.chart($('#cPace'), s.x, s.v.map((v) => (v > 0.5 ? 1000 / v : NaN)), { color: sp.color, invert: true, fmtY: (v) => Fmt.time(v), label: 'min/km', minRange: 60 });
@@ -578,7 +597,7 @@ const UI = {
         <label class="chip-btn">${I('upload')}Importar GPX<input type="file" id="gpxIn" accept=".gpx,application/gpx+xml" hidden></label>
         <button class="chip-btn" data-act="go" data-v="stats">${I('barChart')}Estatísticas</button></div>
       ${list.length ? list.map((a) => this.postCard(a, name)).join('')
-        : `<div class="empty">${I('activity')}<h3>Nenhuma atividade ainda</h3><p>Seu primeiro treino aparece aqui. No computador, use o modo teste.</p><button class="btn primary" data-act="go" data-v="home">Começar um treino</button></div>`}`;
+        : `<div class="empty">${I('activity')}<h3>Nenhuma atividade ainda</h3><p>Seu primeiro treino aparece aqui.</p><button class="btn primary" data-act="go" data-v="home">Começar um treino</button></div>`}`;
     }
     this.render(`${this.back('home', 'Atividades')}<main class="screen">${tabs}${body}</main>`);
     if (sub === 'territory') this.drawTerritory();
@@ -587,7 +606,7 @@ const UI = {
     const color = opts.color || Shop.lineColor(a.sport);
     const pts = opts.route || a.points;
     return `<article class="post" ${opts.noTap ? '' : `data-act="detail" data-v="${a.id}"`}>
-      <div class="post-h">${opts.avatar || this.avatar('sm')}<div class="grow"><b>${name}</b><small>${I(SPORT_IC[a.sport], 'xs')} ${Fmt.date(typeof a.start === 'string' ? Date.parse(a.start) : a.start)}${a.mode === 'sim' ? ' · teste' : ''}</small></div>${a.flagged ? '<span class="badge bad">Não conta</span>' : a.xp ? `<span class="badge">+${a.xp} XP</span>` : ''}</div>
+      <div class="post-h">${opts.avatar || this.avatar('sm')}<div class="grow"><b>${name}</b><small>${I(SPORT_IC[a.sport], 'xs')} ${Fmt.date(typeof a.start === 'string' ? Date.parse(a.start) : a.start)}</small></div>${a.flagged ? '<span class="badge bad">Não conta</span>' : a.xp ? `<span class="badge">+${a.xp} XP</span>` : ''}</div>
       <h3>${esc(this.actTitle(a))}</h3>
       <div class="post-stats"><div><span>Distância</span><b class="num">${Fmt.km(a.distance)} km</b></div><div><span>${a.sport === 'ride' ? 'Vel. média' : 'Ritmo'}</span><b class="num">${Fmt.pace(a.sport, a.duration ? a.distance / a.duration : 0)}${a.sport === 'ride' ? ' km/h' : a.sport === 'swim' ? ' /100m' : ' /km'}</b></div><div><span>Tempo</span><b class="num">${Fmt.time(a.duration)}</b></div></div>
       ${pts && pts.length > 1 ? `<div class="post-map" data-color="${color}" data-route='${JSON.stringify(this.thinRoute(pts))}'>${this.routeSVG(pts, color)}</div>` : a.pool || (a.stats && a.stats.pool) ? `<div class="post-map pool">${I('swim')}<span>Natação na piscina</span></div>` : ''}
@@ -715,7 +734,7 @@ const UI = {
   },
   shopView() {
     const D = Store.data, cats = [['line', 'Cor do traçado'], ['frame', 'Moldura do perfil'], ['avatar', 'Avatar'], ['theme', 'Tema do app'], ['finish', 'Efeito de chegada']];
-    const def = { line: 'Cor do esporte', frame: 'Laranja JustGo', avatar: 'Grafite', theme: 'Padrão', finish: 'Confete' };
+    const def = { line: 'Cor do esporte', frame: 'Azul JustGo', avatar: 'Grafite', theme: 'Padrão', finish: 'Confete' };
     const swatch = (it) => it.cat === 'line' ? `<i class="sw" style="background:${it.value}"></i>` : it.cat === 'frame' ? `<i class="sw ring-sw" style="background:${it.value}"></i>` : it.cat === 'avatar' ? `<i class="sw" style="background:${it.value}"></i>` : it.cat === 'theme' ? `<i class="sw theme-${it.value}"></i>` : `<i class="sw fx">${I(it.value === 'fireworks' ? 'sparkles' : 'activity')}</i>`;
     return `<section class="card wallet"><div>${I('coin')}<b class="num">${D.coins}</b><small>moedas</small></div><small>Ganhe moedas treinando, cumprindo missões e subindo de liga. Tudo na loja é visual: nada dá vantagem.</small></section>
       ${cats.map(([c, n]) => `${this.sectionHead(n)}<div class="shop">
@@ -910,7 +929,6 @@ const UI = {
       <div class="list cfg-list">
         ${link('', 'download', 'Exportar backup', 'Salva todos os seus dados em um arquivo', 'backup')}
         <label class="cfg-row tap">${this.iconBox('upload')}<div class="grow"><b>Restaurar backup</b><small>Carrega um arquivo exportado antes</small></div>${I('chevronRight', 'chev')}<input type="file" id="backupIn" accept=".json,application/json" hidden></label>
-        ${link('', 'flask', 'Dados de demonstração', 'Cria treinos simulados para testar', 'demo')}
         <button class="cfg-row tap danger" data-act="reset">${this.iconBox('trash', 'var(--bad)')}<div class="grow"><b>Apagar todos os dados</b><small>Remove treinos, XP e desbloqueios deste aparelho</small></div></button>
       </div>
 

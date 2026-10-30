@@ -1,7 +1,7 @@
 name: justgo
 description: "JustGo — corra, pedale e nade desbloqueando funções com missões."
 publish_to: "none"
-version: 2.4.0+24
+version: 2.5.0+25
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -23,6 +23,7 @@ flutter:
     - assets/web/js/
     - assets/web/css/
     - assets/web/icons/
+    - assets/web/img/
 
 flutter_launcher_icons:
   android: "ic_launcher"
@@ -34,8 +35,8 @@ flutter_launcher_icons:
   min_sdk_android: 21
 
 flutter_native_splash:
-  color: "#0A0A0B"
+  color: "#1F6BFF"
   image: assets/brand/splash.png
   android_12:
-    color: "#0A0A0B"
+    color: "#1F6BFF"
     image: assets/brand/splash12.png

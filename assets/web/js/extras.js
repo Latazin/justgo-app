@@ -104,10 +104,16 @@ const Shop = {
   // tema, moldura e avatar viram variáveis CSS
   apply() {
     const root = document.documentElement, P = Store.data.profile;
+    // v5: o novo visual estreia no tema claro (uma vez); depois vale a escolha da pessoa
+    if (!P.v5) { P.v5 = 1; if (P.theme === 'dark' && !Store.data.equipped.theme) P.theme = 'light'; try { Store.save(); } catch (e) {} }
     const t = P.theme === 'auto' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : P.theme;
     root.dataset.theme = this.val('theme') || t;
     root.style.setProperty('--frame', this.val('frame') || 'var(--brand)');
-    root.style.setProperty('--avatar-bg', this.val('avatar') || 'linear-gradient(145deg,#3A3A3C,#1C1C1E)');
+    root.style.setProperty('--avatar-bg', this.val('avatar') || 'linear-gradient(145deg,#5B6475,#2F3540)');
+    // barra de status do Android acompanha o tema
+    const light = root.dataset.theme === 'light';
+    const meta = document.querySelector('meta[name=theme-color]'); if (meta) meta.content = light ? '#F3F4F6' : '#0B0C0E';
+    if (window.Native && Native.on) Native.call('ui', { bg: light ? '#F3F4F6' : '#0B0C0E', light });
   },
 };
 

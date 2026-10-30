@@ -44,6 +44,19 @@ const Native = {
     return 'exit';
   },
 
+  // nova versão do visual baixada em segundo plano pelo app
+  updateReady(build) {
+    if (document.querySelector('.upd')) return;
+    const el = document.createElement('div'); el.className = 'upd';
+    el.innerHTML = '<div class="grow"><b>Nova versão do JustGo</b><small>Toque para atualizar agora</small></div><button class="go">Atualizar</button><button class="x" aria-label="Depois">✕</button>';
+    el.querySelector('.go').onclick = () => {
+      if (window.App && App.tracker) { el.remove(); window.FX && FX.toast('Atualiza sozinho quando o treino terminar.'); return; }
+      el.remove(); this.call('reload');
+    };
+    el.querySelector('.x').onclick = () => el.remove();
+    document.body.appendChild(el);
+  },
+
   // arquivo (Blob) → menu de compartilhar do Android
   async shareBlob(name, blob, mime) {
     const b64 = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.readAsDataURL(blob); });

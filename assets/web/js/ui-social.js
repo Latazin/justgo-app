@@ -22,7 +22,7 @@ Object.assign(UI, {
     } else if (!Cloud.loggedIn()) {
       const mode = App.authMode || 'signin', st = Cloud.settings || {};
       const g = `<svg viewBox="0 0 24 24" class="ic"><path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2.1-1.9 3.3-4.8 3.3-8z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.8c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.1a6.6 6.6 0 0 1 0-4.2V7.1H2.1a11 11 0 0 0 0 9.8z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.1 7.1l3.7 2.8C6.7 7.3 9.1 5.4 12 5.4z"/></svg>`;
-      body = `<div class="auth">
+      body = `<div class="auth"><div class="auth-hero"></div>
         <div class="auth-head">${MARK('lg')}<h2>${mode === 'signup' ? 'Crie sua conta' : 'Entre no JustGo'}</h2><p class="muted">${mode === 'signup' ? 'Leva 10 segundos. Seus treinos ficam salvos na nuvem.' : 'Bom te ver de novo. Bora treinar?'}</p></div>
         <button class="btn google" data-act="loginGoogle">${g}Continuar com Google</button>
         <div class="or"><span>ou com e-mail</span></div>
@@ -64,8 +64,7 @@ Object.assign(UI, {
     const searchBtn = Cloud.loggedIn() ? `<button class="icon-btn" data-act="go" data-v="search" title="Buscar atletas">${I('search')}</button>` : '';
     if (!Cloud.loggedIn()) {
       return this.render(`${this.header('Social')}<main class="screen">
-        <div class="hero-ic">${I('users')}</div><h2 class="center">Treine com a sua galera</h2>
-        <p class="muted center lead">Siga amigos, curta e comente treinos, crie clubes da empresa ou da igreja, entre nos rankings da sua cidade e desafie quem quiser.</p>
+        <section class="social-hero"><h2>Treine com a sua galera</h2><p>Siga amigos, curta e comente treinos, crie clubes, entre nos rankings da sua cidade e desafie quem quiser.</p></section>
         <button class="btn primary lg" data-act="go" data-v="account">${Cloud.configured() ? 'Entrar ou criar conta' : 'Como ativar o social'}</button>
         ${this.sectionHead('Já funciona sem conta')}
         <div class="list"><div class="row">${this.iconBox('share')}<div class="grow"><b>Card para Instagram e WhatsApp</b><small>Abra qualquer atividade e toque em Compartilhar</small></div></div>
