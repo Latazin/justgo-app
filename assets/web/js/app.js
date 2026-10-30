@@ -4,13 +4,13 @@
    ========================================================= */
 const App = {
   tab: 'home', nav: 'home',
-  sub: { progress: 'missions', history: 'mine', social: 'feed' },
+  sub: { progress: 'missions', history: 'mine', social: 'feed', profile: 'overview' },
   sport: 'run', swimMode: 'pool', mode: 'free', preset: null, route: null,
   sim: false, simMult: 5,
   tracker: null, coach: null, routeLive: null, wl: null,
 
   // tela -> aba da barra inferior que fica acesa
-  parents: { stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', club: 'social', history: 'home', heatmap: 'home' },
+  parents: { settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', club: 'social', history: 'home', heatmap: 'home' },
 
   init() {
     Store.load();
@@ -58,6 +58,8 @@ const App = {
   },
   go(tab) {
     if (tab !== 'record') this.stopRecWatch();
+    if (tab === 'safety') this.from = this.tab;
+    if (tab === 'record' && this.tab !== 'record' && !this.tracker && Pref('defaultSport') && !this.route) { this.sport = Pref('defaultSport'); if (this.sport !== 'swim') this.mode = this.mode === 'manual' || this.mode === 'set' ? 'free' : this.mode; }
     this.tab = tab; this.nav = this.parents[tab] || tab;
     const fn = UI[tab]; (typeof fn === 'function' ? fn : UI.home).call(UI);
   },
@@ -88,13 +90,25 @@ const App = {
     if (f.np.length < 6) { FX.toast('A senha precisa ter pelo menos 6 caracteres.'); return this.askNewPassword(); }
     try { await Cloud.newPassword(f.np); FX.toast('Senha alterada!'); } catch (e) { FX.toast(Cloud.msg(e)); }
   },
+  countdown() {
+    return new Promise((res) => {
+      const el = document.createElement('div'); el.className = 'countdown'; document.body.appendChild(el);
+      let n = 3;
+      const step = () => {
+        if (n === 0) { el.innerHTML = '<b>Vai!</b>'; FX.beep([880, 1320]); FX.vibrate([200]); setTimeout(() => { el.remove(); res(); }, 450); return; }
+        el.innerHTML = `<b>${n}</b><small>Prepare-se</small>`; FX.beep([660]); FX.vibrate([60]); n--; setTimeout(step, 850);
+      };
+      el.onclick = () => { n = 0; };
+      step();
+    });
+  },
   stopRecWatch() { if (this.recWatch != null) { try { navigator.geolocation.clearWatch(this.recWatch); } catch (e) {} this.recWatch = null; } },
   // nuvem conectada: atualiza a tela atual (mostra/esconde o "Entrar")
   onCloudReady() { if (!Store.data.profile.onboarded) return; if (['home', 'progress', 'social', 'profile', 'history', 'account'].includes(this.tab) && !this.tracker) this.go(this.tab); },
   async firstLocate() { const p = await Geo.locate(false); if (p && this.tab === 'home') {} },
 
   /* ---------- tela ativa durante o treino ---------- */
-  async wake() { try { if ('wakeLock' in navigator) this.wl = await navigator.wakeLock.request('screen'); } catch (e) {} },
+  async wake() { if (!Pref('keepAwake')) return; try { if ('wakeLock' in navigator) this.wl = await navigator.wakeLock.request('screen'); } catch (e) {} },
   release() { try { this.wl && this.wl.release(); } catch (e) {} this.wl = null; },
 
   /* ---------- escolha do modo de treino ---------- */
@@ -124,8 +138,9 @@ const App = {
     if (this.mode === 'interval' && !this.preset && !(await this.pickInterval())) return;
     if (this.mode === 'route' && !this.route && !(await this.pickRoute())) return;
     if (this.mode === 'plan' && !Plans.active()) return this.go('plans');
+    if (Pref('countdown') && !this._counted) { this._counted = true; await this.countdown(); this._counted = false; if (this.tab !== 'record') return; }
     const tr = new Tracker(this.sport, {
-      sim: this.sim, mult: this.simMult, autoPause: Game.has('autopause'), simPath: this.mode === 'route' && this.route ? this.route.points : null,
+      sim: this.sim, mult: this.simMult, autoPause: Game.has('autopause') && Pref('autoPause'), simPath: this.mode === 'route' && this.route ? this.route.points : null,
       onUpdate: () => this.onTick(), onSplit: (n, t) => this.onSplit(n, t),
       onAwayBack: (d, dt) => FX.toast(`Bem-vindo de volta! +${Fmt.km(d)} km somados enquanto o app estava minimizado.`),
     });
@@ -241,12 +256,14 @@ const App = {
     else if (t.id === 'privZone') { D.privacy.zone = t.checked; Store.save(); if (t.checked && D.privacy.lat == null) FX.toast('Agora marque onde fica sua casa.'); }
     else if (t.id === 'privEnds') { D.privacy.trimEnds = t.checked; Store.save(); }
     else if (t.name === 'privR') { D.privacy.radius = +t.value; Store.save(); }
+    else if (t.dataset.pref) { P[t.dataset.pref] = t.checked; Store.save(); FX.toast(t.checked ? 'Ativado' : 'Desativado'); }
     else if (t.dataset.trust) { D.trusted[t.dataset.trust] = t.value.trim(); Store.save(); FX.toast('Contato salvo'); }
     else if (t.dataset.set) {
       const k = t.dataset.set, num = ['weight', 'age', 'goalWeek', 'goalMonth'].includes(k);
       P[k] = num ? Math.max(1, +t.value || 1) : t.value.trim() || 'Atleta';
       Store.save();
-      if (k.startsWith('goal')) UI.progress();
+      if (k.startsWith('goal') && this.tab === 'progress') UI.progress();
+      else if (k.startsWith('goal')) FX.toast('Meta salva');
     }
   },
   find(id) { return Store.data.activities.find((a) => a.id === id); },
@@ -303,6 +320,28 @@ const App = {
       const v = await FX.modal(`<h3>Modo teste</h3><p class="muted">Simula o GPS para testar o app no computador, sem sair de casa.</p><div class="col">${[['off', 'Desligado (GPS real)'], ['1', '1× velocidade real'], ['5', '5× mais rápido'], ['20', '20× mais rápido']].map(([k, n]) => `<button class="btn ghost ${(k === 'off' && !App.sim) || (App.sim && +k === App.simMult) ? 'is-on' : ''}" data-m="${k}">${n}</button>`).join('')}</div>`);
       if (v === 'off') App.sim = false; else { App.sim = true; App.simMult = +v; }
       App.go('record');
+    },
+    profTab: (el) => { App.sub.profile = el.dataset.v; UI.profile(); },
+    setPref: (el) => {
+      const [k, v] = el.dataset.v.split(':'), P = Store.data.profile;
+      P[k] = v; if (k === 'theme') { Store.data.equipped.theme = null; Shop.apply(); }
+      Store.save(); UI.settings();
+    },
+    editProfile: async () => {
+      const P = Store.data.profile;
+      const f = await FX.prompt('Editar perfil', [
+        ['epName', 'Nome', 'text', P.name],
+        ['epCity', 'Cidade', 'text', (Cloud.me && Cloud.me.city) || Pref('city'), 'ex.: Vitória'],
+        ['epBio', 'Bio', 'text', Pref('bio'), 'ex.: Correndo atrás dos 21K 🏃', 'maxlength="80"'],
+        ['epWeight', 'Peso (kg) · para calcular calorias', 'number', P.weight],
+        ['epAge', 'Idade', 'number', P.age],
+      ], 'Salvar');
+      if (!f) return;
+      P.name = (f.epName || '').trim() || 'Atleta'; P.city = (f.epCity || '').trim(); P.bio = (f.epBio || '').trim().slice(0, 80);
+      P.weight = Math.max(20, +f.epWeight || P.weight); P.age = Math.max(5, +f.epAge || P.age);
+      Store.save();
+      if (Cloud.loggedIn() && Cloud.me && Cloud.me.username) Cloud.saveProfile(Cloud.me.username, P.name, P.city).catch(() => {});
+      FX.toast('Perfil atualizado'); App.go(App.tab === 'settings' ? 'settings' : 'profile');
     },
     hideLogin: () => { Store.data.profile.loginHiddenAt = Date.now(); Store.save(); App.go('home'); },
     mode: async (el) => {

@@ -760,3 +760,63 @@ code { font-family: ui-monospace, monospace; font-size: 13px; background: var(--
 @keyframes zoomIn { from { transform: translateX(-14px); opacity: 0; } }
 :root { --brand: #FC4A00; --brand-2: #FF7A2E; --grad: linear-gradient(150deg, #FF7A2E 0%, #FC4A00 55%, #DB3800 100%); }
 .logo-tile .glyph { width: 78%; height: 78%; }
+
+/* =========================================================
+   v4 — PERFIL, CONFIGURAÇÕES, CONTAGEM
+   ========================================================= */
+/* perfil */
+.prof-cover { position: relative; height: 112px; }
+.cover-edit { position: absolute; right: 12px; top: 12px; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 99px; background: rgba(0, 0, 0, .32); backdrop-filter: blur(10px); color: #fff; font-size: 12.5px; font-weight: 650; }
+.prof-body { position: relative; z-index: 2; margin-top: -50px; }
+.prof-meta { display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+.prof-bio { margin-top: 10px; max-width: 320px; font-size: 14.5px; color: var(--text); line-height: 1.45; }
+.prof-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 12px; }
+.prof-tags .league-pill { margin-top: 0; }
+.lvl-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 99px; font-size: 12px; font-weight: 650; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--line); }
+.lvl-pill .ic { color: var(--brand); }
+.profile .subtabs { margin-top: 18px; }
+.sport-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.sport-card { position: relative; overflow: hidden; padding: 14px 12px; border-radius: 18px; border: 1px solid transparent; background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--c) 22%, transparent), transparent 65%), linear-gradient(var(--surface), var(--surface)) padding-box, var(--edge) border-box; }
+.sc-ic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 18%, transparent); color: var(--c); margin-bottom: 10px; }
+.sc-ic .ic { width: 18px; height: 18px; }
+.sport-card b { display: block; font-size: 26px; line-height: 1; } .sport-card b span { font-family: var(--font); font-style: normal; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.sport-card small { font-size: 11.5px; margin-top: 4px; } .sport-card small + small { margin-top: 0; color: var(--text-3); }
+.shortcuts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.shortcut { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 14px 4px; border-radius: 16px; border: 1px solid transparent; background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--edge) border-box; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.shortcut .ic { color: var(--brand); }
+.ach-sum b { display: block; font-size: 44px; line-height: 1; margin: 4px 0 2px; } .ach-sum b span { font-size: 22px; color: var(--text-3); }
+.medal-list { display: flex; flex-direction: column; gap: 8px; }
+.medal-row { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 18px; border: 1px solid transparent; background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--edge) border-box; }
+.medal-row .hex { width: 46px; height: 51px; flex: none; } .medal-row .hex .ic { width: 20px; height: 20px; }
+.medal-row:not(.on) { opacity: .62; } .medal-row:not(.on) b { color: var(--text-2); }
+.medal-row.on .hex { background: linear-gradient(160deg, #FF8A4C, var(--brand) 55%, #A83600); color: #fff; }
+.ok-badge { background: var(--brand-soft); color: var(--brand); gap: 4px; }
+
+/* configurações */
+.settings h3.group:first-child { margin-top: 8px; }
+.cfg-list { padding: 2px 0; }
+.cfg-row { display: flex; align-items: center; gap: 13px; width: 100%; min-height: 58px; padding: 11px 15px; text-align: left; }
+.cfg-list > .cfg-row + .cfg-row { border-top: 1px solid var(--line); }
+.cfg-row b { font-size: 15px; font-weight: 600; } .cfg-row small { margin-top: 2px; }
+.cfg-row .ibox { width: 34px; height: 34px; border-radius: 10px; } .cfg-row .ibox .ic { width: 17px; height: 17px; }
+.cfg-row .switch { flex: none; } .cfg-row.tap:active { background: var(--surface-2); }
+.cfg-row.is-locked { opacity: .7; cursor: pointer; } .cfg-row.is-locked small { display: flex; align-items: center; gap: 4px; }
+.cfg-row.danger b { color: var(--bad); }
+.col-row { flex-direction: column; align-items: stretch; gap: 10px; }
+.pref-seg { margin: 0; }
+.num-in { display: flex; align-items: center; gap: 6px; flex: none; } .num-in input { width: 74px; height: 40px; padding: 0 10px; text-align: right; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--text); font-size: 16px; font-weight: 600; outline: none; } .num-in input:focus { border-color: var(--brand); } .num-in span { color: var(--text-3); font-size: 13px; }
+.about { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 34px 0 6px; text-align: center; }
+.about .logo-tile { --s: 56px; margin-bottom: 4px; }
+.about b { font: italic 900 22px/1 var(--font); letter-spacing: -.05em; } .about b span { color: var(--brand); }
+.about small { font-size: 12px; color: var(--text-3); }
+
+/* contagem regressiva */
+.countdown { position: fixed; inset: 0; z-index: 1800; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: radial-gradient(60% 45% at 50% 45%, rgba(252, 74, 0, .35), transparent 70%), rgba(0, 0, 0, .86); backdrop-filter: blur(8px); color: #fff; }
+.countdown b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 180px; line-height: 1; animation: cd .85s cubic-bezier(.2, .9, .3, 1) both; }
+.countdown small { color: rgba(255, 255, 255, .7); font-size: 15px; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+@keyframes cd { from { transform: scale(1.6); opacity: 0; } 60% { opacity: 1; } to { transform: scale(.95); } }
+
+/* app Android: área segura já é tratada pelo Flutter */
+.is-native .top { padding-top: 0; min-height: var(--top-h); }
+.is-native .train, .is-native .onb { padding-top: 12px; }
+.is-native .rec-top { top: 12px; } .is-native .rec-gps { top: 68px; }

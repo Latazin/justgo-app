@@ -1,7 +1,7 @@
 .dart_tool/
 build/
-android/
-ios/
+/android/
+/ios/
 .flutter-plugins*
 pubspec.lock
 .idea/

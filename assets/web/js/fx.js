@@ -5,6 +5,7 @@
 const FX = {
   /* ---------- som (Web Audio, sem arquivos) ---------- */
   beep(notes = [523, 659, 784, 1046]) {
+    if (!Pref('sounds')) return;
     try {
       const ctx = this.audio || (this.audio = new (window.AudioContext || window.webkitAudioContext)());
       if (ctx.state === 'suspended') ctx.resume();
@@ -18,10 +19,11 @@ const FX = {
       });
     } catch (e) {}
   },
-  vibrate(p = [60, 40, 60]) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} },
+  vibrate(p = [60, 40, 60]) { if (!Pref('haptics')) return; try { if (Native.on) { Native.call('haptic'); } navigator.vibrate && navigator.vibrate(p); } catch (e) {} },
 
   /* ---------- voz (Web Speech API) ---------- */
   say(text) {
+    if (!Pref('voice')) return;
     if (Native.on) { Native.call('say', { text }); return; }
     try {
       if (!('speechSynthesis' in window)) return;

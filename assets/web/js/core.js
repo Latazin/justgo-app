@@ -53,6 +53,10 @@ const Store = {
   clearLive() { try { localStorage.removeItem(this.liveKey); } catch (e) {} },
 };
 
+/* ---------- Preferências (tela Configurações) ---------- */
+const PREF_DEFAULTS = { autoPause: true, voice: true, countdown: true, sounds: true, haptics: true, mapStyle: 'color', keepAwake: true, defaultSport: '', bio: '', city: '' };
+const Pref = (k) => { const P = Store.data && Store.data.profile; return P && P[k] !== undefined ? P[k] : PREF_DEFAULTS[k]; };
+
 /* ---------- Formatação pt-BR ---------- */
 const Fmt = {
   time(s) {

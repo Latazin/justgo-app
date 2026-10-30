@@ -24,7 +24,7 @@ const UI = {
   // estilo colorido (parques, água, ruas) por padrão, como no Strava
   map(el, opts = {}) {
     if (!window.L || !$('#' + el)) return null;
-    const { dark = false, attr = true, light, ...rest } = opts;
+    const { dark = Pref('mapStyle') === 'dark', attr = true, light, ...rest } = opts;
     const m = L.map(el, { zoomControl: false, attributionControl: attr, ...rest });
     if (m.attributionControl) m.attributionControl.setPrefix(false);
     this.baseLayer(m, dark);
@@ -438,7 +438,7 @@ const UI = {
   swimSet() {
     this.render(`<main class="train set"><div class="t-top"><span class="t-sport">${I('swim')}Série guiada</span><button class="link" data-act="setCancel">Cancelar</button></div>
       <div class="set-main"><span class="eyebrow" id="ssPhase">Pronto</span><b class="num set-time" id="ssTime">0:00</b><div class="set-rep num" id="ssRep"></div><div class="ph-bar"><i id="ssBar"></i></div></div>
-      <div class="set-list" id="ssList"></div>
+      <div class="cfg-list" id="ssList"></div>
       <button class="set-btn" id="ssBtn" data-act="setTap">Começar</button></main>`, false);
     this.updateSwimSet(SwimSet.s);
   },
@@ -806,53 +806,113 @@ const UI = {
      PERFIL
      ========================================================= */
   profile() {
-    const D = Store.data, P = D.profile, acts = Game.acts(), lv = this.levelLine(), pred = Game.predictions();
-    const L0 = Game.league(Game.monthXp());
+    const D = Store.data, P = D.profile, acts = Game.acts(), lv = this.levelLine();
+    const L0 = Game.league(Game.monthXp()), tab = App.sub.profile || 'overview';
     const login = Cloud.configured() && !Cloud.loggedIn();
-    const menu = (items) => `<div class="list menu">${items.map(([v, ic, t, sub, act = 'go', extra = '']) => `<button class="row tap" data-act="${act}" data-v="${v}">${this.iconBox(ic)}<div class="grow"><b>${t}</b>${sub ? `<small>${sub}</small>` : ''}</div>${extra}${I('chevronRight', 'chev')}</button>`).join('')}</div>`;
-    this.render(`${this.header('Perfil')}<main class="screen profile">
+    const city = (Cloud.me && Cloud.me.city) || Pref('city');
+    const handle = Cloud.me && Cloud.me.username ? '@' + esc(Cloud.me.username) : '';
+    const sportsTxt = (P.sports || []).map((k) => CONFIG.sports[k] && CONFIG.sports[k].name).filter(Boolean).join(' · ');
+    const medals = Object.keys(D.medals).length;
+    let body = '';
+    if (tab === 'medals') {
+      body = `<section class="card ach-sum"><div><span class="eyebrow">Medalhas</span><b class="display">${medals}<span>/${CONFIG.medals.length}</span></b></div>${this.bar((medals / CONFIG.medals.length) * 100, 'brand')}<small>Treine em horários diferentes, bata recordes e complete planos para ganhar mais.</small></section>
+        <div class="medal-list">${CONFIG.medals.map((m) => { const on = D.medals[m.id]; return `<div class="medal-row ${on ? 'on' : ''}"><div class="hex">${I(m.icon)}</div><div class="grow"><b>${esc(m.name)}</b><small>${esc(m.desc)}</small></div>${on ? `<span class="badge ok-badge">${I('check', 'xs')} ${new Date(on).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>` : `<span class="badge">${I('lock', 'xs')}</span>`}</div>`; }).join('')}</div>`;
+    } else if (tab === 'records') {
+      const pred = Game.predictions();
+      body = `${this.sectionHead('Recordes pessoais')}${this.recordsHtml()}
+        ${this.sectionHead('Previsão de prova')}
+        ${Game.has('racePredict') ? `<section class="card">${pred ? `<div class="kv four">${pred.map((x) => `<div><span class="eyebrow">${x.n}</span><b class="num">${Fmt.time(x.t)}</b></div>`).join('')}</div><small class="muted">Estimativa pela fórmula de Riegel, com base no seu melhor tempo de corrida.</small>` : '<p class="muted">Corra pelo menos 1 km para gerar a previsão.</p>'}</section>`
+          : this.lockedBox('racePredict', '<div class="fake-field"><span>5K</span><b>25:10</b><span>10K</span><b>52:30</b></div>')}`;
+    } else {
+      // visão geral: últimas 8 semanas + esportes + atalhos
+      const ws = Game.weekStart(Date.now()), wk = Array(8).fill(0);
+      acts.forEach((a) => { const i = 7 - Math.round((ws - Game.weekStart(a.start)) / (7 * 864e5)); if (i >= 0 && i < 8) wk[i] += a.distance / 1000; });
+      const avg = wk.reduce((x, y) => x + y, 0) / 8;
+      body = `<section class="card"><div class="row-t"><div><span class="eyebrow">Últimas 8 semanas</span><div class="week-n"><b class="display">${Fmt.num(wk.reduce((x, y) => x + y, 0))}</b><span>km</span></div></div><small class="num">média ${Fmt.num(avg)} km/sem</small></div>
+          ${this.bars(wk, wk.map((_, i) => (i === 7 ? 'atual' : '')), { hi: 7 })}</section>
+        <div class="sport-cards">${Object.entries(CONFIG.sports).map(([k, sp]) => { const l = acts.filter((a) => a.sport === k), km = Game.km(l), t = l.reduce((x, a) => x + a.duration, 0); return `<div class="sport-card" style="--c:${sp.color}"><div class="sc-ic">${I(SPORT_IC[k])}</div><b class="display">${Fmt.num(km, km >= 100 ? 0 : 1)}<span> km</span></b><small>${sp.name} · ${l.length} treino${l.length === 1 ? '' : 's'}</small><small class="num">${Fmt.time(t)}</small></div>`; }).join('')}</div>
+        <div class="shortcuts">${[['history', 'activity', 'Atividades'], ['stats', 'barChart', 'Estatísticas'], ['plans', 'clipboard', 'Planos'], ['gear', 'shoe', 'Equipamentos']].map(([v, ic, n]) => `<button class="shortcut" data-act="go" data-v="${v}">${I(ic)}<span>${n}</span></button>`).join('')}</div>`;
+    }
+    this.render(`${this.header('Perfil', `<button class="icon-btn" data-act="go" data-v="settings" aria-label="Configurações">${I('settings')}</button>`)}<main class="screen profile">
       <section class="prof-card">
-        <div class="prof-cover" style="--lc:${L0.color}"></div>
+        <div class="prof-cover" style="--lc:${L0.color}"><button class="cover-edit" data-act="editProfile">${I('settings', 'xs')} Editar perfil</button></div>
         <div class="prof-body">${this.avatar('lg')}
-          <h2>${esc(P.name)}</h2><small>${Cloud.me && Cloud.me.username ? '@' + esc(Cloud.me.username) + ' · ' : ''}Nível ${lv.l} · ${Game.title(lv.l)}</small>
-          <span class="league-pill" style="--lc:${L0.color}">${I('crown', 'xs')} Liga ${L0.name}</span>
+          <h2>${esc(P.name)}</h2>
+          <small class="prof-meta">${[handle, city ? `${I('mapPin', 'xs')} ${esc(city)}` : ''].filter(Boolean).join(' · ') || 'Toque em Editar perfil para completar'}</small>
+          ${Pref('bio') ? `<p class="prof-bio">${esc(Pref('bio'))}</p>` : ''}
+          <div class="prof-tags"><span class="league-pill" style="--lc:${L0.color}">${I('crown', 'xs')} Liga ${L0.name}</span><span class="lvl-pill">${I('zap', 'xs')} Nível ${lv.l} · ${Game.title(lv.l)}</span>${sportsTxt ? `<span class="lvl-pill">${esc(sportsTxt)}</span>` : ''}</div>
           <div class="lv">${this.bar(lv.pct, 'brand')}<small class="num">${lv.txt} para o nível ${lv.l + 1}</small></div>
         </div>
-        <div class="prof-stats"><div><b class="num">${acts.length}</b><small>Atividades</small></div><div><b class="num">${Fmt.num(Game.km(acts), 0)}</b><small>Km totais</small></div><div><b class="num">${Object.keys(D.medals).length}</b><small>Medalhas</small></div><div><b class="num">${D.bestStreak || 0}</b><small>Maior ofensiva</small></div></div>
+        <div class="prof-stats"><div><b class="num">${acts.length}</b><small>Atividades</small></div><div><b class="num">${Fmt.num(Game.km(acts), 0)}</b><small>Km totais</small></div><div><b class="num">${medals}</b><small>Medalhas</small></div><div><b class="num">${Math.max(D.bestStreak || 0, Game.streakDays())}</b><small>Melhor ofensiva</small></div></div>
       </section>
-
       ${login ? `<button class="cta login" data-act="go" data-v="account"><div class="cta-ic">${I('user')}</div><div class="grow"><b>Entrar ou criar conta</b><small>Salve na nuvem e treine com amigos</small></div>${I('chevronRight', 'chev')}</button>` : ''}
+      ${this.tabsBar([['overview', 'Visão geral'], ['medals', 'Conquistas'], ['records', 'Recordes']], tab, 'profTab')}
+      ${body}
+    </main>`);
+  },
 
-      <h3 class="group">Treinos</h3>
-      ${menu([['history', 'activity', 'Minhas atividades', `${acts.length} treino${acts.length === 1 ? '' : 's'} · rotas · território`], ['stats', 'barChart', 'Estatísticas', 'Semana, mês, ano e evolução'], ['plans', 'clipboard', 'Planos de treino', D.plan ? esc((CONFIG.plans.find((x) => x.id === D.plan.id) || {}).name || '') : '5K, 10K, 21K, 42K, pedal e travessia'], ['gear', 'shoe', 'Equipamentos', `${D.gear.filter((g) => !g.retired).length} em uso`]])}
+  /* =========================================================
+     CONFIGURAÇÕES
+     ========================================================= */
+  settings() {
+    const D = Store.data, P = D.profile;
+    const sw = (k, t, sub, lock) => {
+      if (lock && !Game.has(lock)) return `<div class="cfg-row is-locked" data-act="sub" data-v="progress:tree"><div class="grow"><b>${t}</b><small>${I('lock', 'xs')} Desbloqueie: ${esc(Game.reqText(Game.unlock(lock).req))}</small></div></div>`;
+      return `<label class="cfg-row"><div class="grow"><b>${t}</b>${sub ? `<small>${sub}</small>` : ''}</div><span class="switch"><input type="checkbox" data-pref="${k}" ${Pref(k) ? 'checked' : ''}><i></i></span></label>`;
+    };
+    const link = (v, ic, t, sub, act = 'go') => `<button class="cfg-row tap" data-act="${act}" data-v="${v}">${this.iconBox(ic)}<div class="grow"><b>${t}</b>${sub ? `<small>${sub}</small>` : ''}</div>${I('chevronRight', 'chev')}</button>`;
+    const seg = (k, opts) => `<div class="seg pref-seg">${opts.map(([v, n]) => `<button class="${(Pref(k) || '') === v ? 'on' : ''}" data-act="setPref" data-v="${k}:${v}">${n}</button>`).join('')}</div>`;
+    const acc = Cloud.loggedIn() ? (Cloud.me && Cloud.me.username ? '@' + esc(Cloud.me.username) : 'Conta conectada') : Cloud.configured() ? 'Não conectado' : 'Nuvem desativada';
+    this.render(`${this.back('profile', 'Configurações')}<main class="screen settings">
+      <h3 class="group">Conta</h3>
+      <div class="list cfg-list">
+        <button class="cfg-row tap" data-act="editProfile">${this.avatar('sm')}<div class="grow"><b>${esc(P.name)}</b><small>Nome, cidade, bio, peso e esportes</small></div>${I('chevronRight', 'chev')}</button>
+        ${link('account', 'cloud', 'Conta e sincronização', acc)}
+      </div>
 
-      <h3 class="group">Conquistas <em>${Object.keys(D.medals).length} de ${CONFIG.medals.length} medalhas</em></h3>
-      <div class="medals">${CONFIG.medals.map((m) => `<div class="medal ${D.medals[m.id] ? 'on' : ''}" title="${esc(m.desc)}"><div class="hex">${I(m.icon)}</div><small>${esc(m.name)}</small></div>`).join('')}</div>
+      <h3 class="group">Treino</h3>
+      <div class="list cfg-list">
+        ${sw('autoPause', 'Pausa automática', 'Pausa o cronômetro quando você para', 'autopause')}
+        ${sw('voice', 'Treinador por voz', 'Avisos falados a cada km', 'voice')}
+        ${sw('countdown', 'Contagem regressiva', '3, 2, 1 antes de começar a gravar')}
+        ${sw('keepAwake', 'Manter tela acesa', 'Durante o treino')}
+        <div class="cfg-row col-row"><div class="grow"><b>Esporte ao abrir o Gravar</b></div>${seg('defaultSport', [['', 'Último'], ...Object.entries(CONFIG.sports).map(([k, s]) => [k, s.name])])}</div>
+      </div>
 
-      <h3 class="group">Recordes pessoais</h3>${this.recordsHtml()}
+      <h3 class="group">Metas</h3>
+      <div class="list cfg-list">
+        <div class="cfg-row"><div class="grow"><b>Meta semanal</b><small>Aparece no Início</small></div><div class="num-in"><input type="number" min="1" inputmode="numeric" data-set="goalWeek" value="${P.goalWeek}"><span>km</span></div></div>
+        <div class="cfg-row"><div class="grow"><b>Meta mensal</b>${Game.has('goals') ? '' : `<small>${I('lock', 'xs')} acompanhamento libera com Metas personalizadas</small>`}</div><div class="num-in"><input type="number" min="1" inputmode="numeric" data-set="goalMonth" value="${P.goalMonth}"><span>km</span></div></div>
+      </div>
 
-      <h3 class="group">Previsão de prova</h3>
-      ${Game.has('racePredict') ? `<section class="card">${pred ? `<div class="kv four">${pred.map((p) => `<div><span class="eyebrow">${p.n}</span><b class="num">${Fmt.time(p.t)}</b></div>`).join('')}</div><small class="muted">Estimativa pela fórmula de Riegel, com base no seu melhor tempo de corrida.</small>` : '<p class="muted">Corra pelo menos 1 km para gerar a previsão.</p>'}</section>`
-        : this.lockedBox('racePredict', '<div class="fake-field"><span>5K</span><b>25:10</b><span>10K</span><b>52:30</b></div>')}
+      <h3 class="group">Aparência</h3>
+      <div class="list cfg-list">
+        <div class="cfg-row col-row"><div class="grow"><b>Tema</b><small>${D.equipped.theme ? 'Um tema da Loja está ativo' : 'Escolha como o app aparece'}</small></div>${seg('theme', [['dark', 'Escuro'], ['light', 'Claro'], ['auto', 'Automático']])}</div>
+        <div class="cfg-row col-row"><div class="grow"><b>Estilo dos mapas</b></div>${seg('mapStyle', [['color', 'Colorido'], ['dark', 'Escuro']])}</div>
+        ${link('progress:shop', 'bag', 'Loja de visuais', 'Cores do traçado, molduras, temas', 'sub')}
+      </div>
 
-      <h3 class="group">Conta e segurança</h3>
-      ${menu([['account', 'cloud', Cloud.loggedIn() ? 'Conta conectada' : 'Conta e nuvem', Cloud.loggedIn() && Cloud.me ? '@' + esc(Cloud.me.username || '') : Cloud.configured() ? 'Entrar, sincronizar e social' : 'Configure o Supabase para ativar'], ['safety', 'shield', 'Segurança e privacidade', 'Zona de privacidade e contato de confiança']])}
+      <h3 class="group">Sons e vibração</h3>
+      <div class="list cfg-list">
+        ${sw('sounds', 'Sons', 'Conquistas, desbloqueios e alertas de treino')}
+        ${sw('haptics', 'Vibração', 'A cada km e nos alertas')}
+      </div>
 
-      <h3 class="group">Preferências</h3>
-      <section class="card form">
-        <label class="field"><span>Nome</span><input data-set="name" value="${esc(P.name)}"></label>
-        <div class="row2"><label class="field"><span>Peso (kg)</span><input type="number" inputmode="numeric" data-set="weight" value="${P.weight}"></label><label class="field"><span>Idade</span><input type="number" inputmode="numeric" data-set="age" value="${P.age}"></label></div>
-        <label class="switch"><input type="checkbox" id="themeChk" ${P.theme === 'light' ? 'checked' : ''}><i></i><span>Tema claro<small>Temas extras na Loja</small></span></label>
-      </section>
+      <h3 class="group">Privacidade e segurança</h3>
+      <div class="list cfg-list">
+        ${link('safety', 'shield', 'Zona de privacidade', D.privacy.zone ? 'Ativa' : 'Desativada')}
+        ${link('safety', 'signal', 'Contato de confiança', D.trusted.name ? esc(D.trusted.name) : 'Não definido')}
+      </div>
 
       <h3 class="group">Dados</h3>
-      <div class="list menu">
-        <button class="row tap" data-act="backup">${this.iconBox('download')}<div class="grow"><b>Exportar backup</b><small>Salva todos os seus dados em um arquivo</small></div>${I('chevronRight', 'chev')}</button>
-        <label class="row tap">${this.iconBox('upload')}<div class="grow"><b>Restaurar backup</b><small>Carrega um arquivo exportado antes</small></div>${I('chevronRight', 'chev')}<input type="file" id="backupIn" accept=".json,application/json" hidden></label>
-        <button class="row tap" data-act="demo">${this.iconBox('flask')}<div class="grow"><b>Dados de demonstração</b><small>Cria treinos simulados para testar</small></div>${I('chevronRight', 'chev')}</button>
-        <button class="row tap danger" data-act="reset">${this.iconBox('trash')}<div class="grow"><b>Apagar todos os dados</b><small>Remove treinos, XP e desbloqueios deste aparelho</small></div></button>
+      <div class="list cfg-list">
+        ${link('', 'download', 'Exportar backup', 'Salva todos os seus dados em um arquivo', 'backup')}
+        <label class="cfg-row tap">${this.iconBox('upload')}<div class="grow"><b>Restaurar backup</b><small>Carrega um arquivo exportado antes</small></div>${I('chevronRight', 'chev')}<input type="file" id="backupIn" accept=".json,application/json" hidden></label>
+        ${link('', 'flask', 'Dados de demonstração', 'Cria treinos simulados para testar', 'demo')}
+        <button class="cfg-row tap danger" data-act="reset">${this.iconBox('trash', 'var(--bad)')}<div class="grow"><b>Apagar todos os dados</b><small>Remove treinos, XP e desbloqueios deste aparelho</small></div></button>
       </div>
-      <p class="muted small center foot">${MARK('xs')} JustGo ${CONFIG.version}</p>
+
+      <div class="about">${MARK('lg')}<b>Just<span>Go</span></b><small>Versão ${CONFIG.version}${Native.on ? ' · app Android' : ''}</small><small>Mapas © OpenFreeMap · OpenMapTiles · OpenStreetMap</small></div>
     </main>`);
   },
 
@@ -861,7 +921,7 @@ const UI = {
      ========================================================= */
   safety() {
     const P = Store.data.privacy, T = Store.data.trusted;
-    this.render(`${this.back('profile', 'Segurança e privacidade')}<main class="screen">
+    this.render(`${this.back(App.from === 'settings' ? 'settings' : 'profile', 'Segurança e privacidade')}<main class="screen">
       ${this.sectionHead('Zona de privacidade')}
       <section class="card form">
         <label class="switch"><input type="checkbox" id="privZone" ${P.zone ? 'checked' : ''}><i></i><span>Esconder a área da minha casa<small>Some dos mapas públicos, do feed e do card compartilhado</small></span></label>

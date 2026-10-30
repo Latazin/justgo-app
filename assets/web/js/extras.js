@@ -104,7 +104,8 @@ const Shop = {
   // tema, moldura e avatar viram variáveis CSS
   apply() {
     const root = document.documentElement, P = Store.data.profile;
-    root.dataset.theme = this.val('theme') || P.theme;
+    const t = P.theme === 'auto' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : P.theme;
+    root.dataset.theme = this.val('theme') || t;
     root.style.setProperty('--frame', this.val('frame') || 'var(--brand)');
     root.style.setProperty('--avatar-bg', this.val('avatar') || 'linear-gradient(145deg,#3A3A3C,#1C1C1E)');
   },
