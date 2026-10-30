@@ -4,7 +4,7 @@
    Nada neste arquivo exige mexer no resto do código.
    ========================================================= */
 const CONFIG = {
-  version: '2.2.0',
+  version: '2.3.0',
 
   /* ---------- Esportes ----------
      xpPerKm: peso do XP por km (natação vale mais que pedal)
@@ -196,7 +196,7 @@ const CONFIG = {
      Cole aqui a URL e a chave "anon public" do seu projeto
      (Supabase → Project Settings → API). Veja supabase/schema.sql */
   supabase: {
-    url: 'https://hjnmzfqxpfusqoekxqbq.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhqbm16ZnF4cGZ1c3FvZWt4cWJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3MDkzMzMsImV4cCI6MjEwODI4NTMzM30.E0u6FAEY1PfcEXNIfSstJSaE5MVxhfe1f24beITqpy8',
+    url: 'https://wgorplmmlghjsyscrbki.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indnb3JwbG1tbGdoanN5c2NyYmtpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNjU0NDMsImV4cCI6MjEwODk0MTQ0M30.PFr85oD-vlStZBDgVRmFBQd2PPoAQPhNf1htl-uLiUs',
   },
 };
