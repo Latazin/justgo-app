@@ -60,7 +60,7 @@ Object.assign(UI, {
   /* ---------- aba Social ---------- */
   social() {
     const sub = App.sub.social;
-    const tabs = this.tabsBar([['feed', 'Seguindo'], ['discover', 'Descobrir'], ['rank', 'Rankings'], ['clubs', 'Clubes'], ['challenges', 'Desafios']], sub, 'subTab');
+    const tabs = this.tabsBar([['discover', 'Descobrir'], ['feed', 'Seguindo'], ['rank', 'Rankings'], ['clubs', 'Clubes'], ['challenges', 'Desafios']], sub, 'subTab');
     const searchBtn = Cloud.loggedIn() ? `<button class="icon-btn" data-act="go" data-v="search" title="Buscar atletas">${I('search')}</button>` : '';
     if (!Cloud.loggedIn()) {
       return this.render(`${this.header('Social')}<main class="screen">
@@ -96,7 +96,7 @@ Object.assign(UI, {
     const list = await Cloud.discover();
     if (!list.length) return `<div class="empty">${I('compass')}<h3>Nada por aqui ainda</h3><p>Quando outros atletas publicarem treinos, eles aparecem aqui para você descobrir e seguir.</p></div>`;
     const city = Cloud.me && Cloud.me.city;
-    return `<p class="muted small disc-note">${I('compass', 'xs')} Treinos públicos de quem você ainda não segue${city ? ` · primeiro de ${esc(city)}` : ''}</p>${list.map((a) => this.remotePost(a, { follow: true })).join('')}`;
+    return `<p class="muted small disc-note">${I('compass', 'xs')} Treinos públicos de todos os atletas${city ? ` · primeiro de ${esc(city)}` : ''}</p>${list.map((a) => this.remotePost(a, { follow: !(Cloud._fol && Cloud._fol.has(a.user_id)) })).join('')}`;
   },
   async socialRank() {
     const R = App.rank || (App.rank = { period: 'week', scope: 'all', sport: null });

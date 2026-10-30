@@ -148,15 +148,24 @@ const Cloud = {
   async publish(act) {
     if (!this.loggedIn() || !this.me || act.mode === 'sim' || act.private) return;
     const pts = Privacy.trim(act.points || []), step = Math.max(1, Math.floor(pts.length / 300));
-    const route = pts.filter((_, i) => i % step === 0).map((p) => [p[0], p[1]]);
-    await this.sb.from('activities').upsert({
+    // mantém as quebras de trecho (pausas) marcadas com 1 na 5ª posição
+    const route = pts.filter((p, i) => i % step === 0 || i === pts.length - 1 || p[4] || (pts[i + 1] && pts[i + 1][4])).map((p) => (p[4] ? [p[0], p[1], null, null, 1] : [p[0], p[1]]));
+    const { error } = await this.sb.from('activities').upsert({
       id: act.id, user_id: this.user.id, sport: act.sport, start: new Date(act.start).toISOString(), distance: act.distance, duration: act.duration,
       elapsed: act.elapsed, title: UI.actTitle(act), route, xp: act.xp || 0, flagged: !!act.flagged,
       stats: { elev: Geo.elevationGain(act.points), pool: act.pool || null, weather: act.weather || null },
     });
+    if (!error && !act.pub) { act.pub = 1; Store.save(); }
     this.pushProfile();
   },
-  async unpublish(id) { if (this.loggedIn()) await this.sb.from('activities').delete().eq('id', id); },
+  // treinos feitos antes de entrar na conta (ou que falharam sem internet) vão para o feed
+  async backfill() {
+    if (!this.loggedIn() || !this.me || this._backfilled) return; this._backfilled = true;
+    const since = Date.now() - 60 * 864e5;
+    const todo = Store.data.activities.filter((a) => !a.pub && !a.private && !a.flagged && a.mode !== 'sim' && a.start >= since).slice(-20);
+    for (const a of todo) { try { await this.publish(a); } catch (e) {} }
+  },
+  async unpublish(id) { const a = Store.data.activities.find((x) => x.id === id); if (a) delete a.pub; if (this.loggedIn()) await this.sb.from('activities').delete().eq('id', id); },
   async publishAll() {
     for (const a of Store.data.activities) await this.publish(a);
   },
@@ -182,7 +191,7 @@ const Cloud = {
   },
   // Descobrir: treinos públicos de quem você ainda não segue
   async discover() {
-    const fol = await this.following(), skip = new Set([...fol, this.user.id]);
+    const fol = await this.following(), skip = new Set([this.user.id]); this._fol = new Set(fol);
     const { data } = await this.sb.from('activities').select('*, profiles(name,username,frame,avatar,city)').eq('flagged', false).order('start', { ascending: false }).limit(80);
     const mine = (this.me && this.me.city || '').toLowerCase();
     const list = (data || []).filter((a) => !skip.has(a.user_id));

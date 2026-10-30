@@ -91,13 +91,16 @@ const UI = {
   },
   thumbMap(el) {
     let pts; try { pts = JSON.parse(el.dataset.route); } catch (e) { return; }
-    if (!pts || pts.length < 2) return;
+    if (!pts || !pts.length) return;
+    if (!Array.isArray(pts[0][0])) pts = [pts]; // formato antigo: uma linha só
+    pts = pts.filter((sg) => sg.length > 1); if (!pts.length) return;
     while (this.thumbs.length >= 6) this.dropThumb(this.thumbs[0].el);
     const box = document.createElement('div'); box.className = 'thumb-map'; el.appendChild(box);
     const m = L.map(box, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, tap: false });
     this.baseLayer(m, false);
     const r = this.routeLine(m, pts, el.dataset.color || '#1F6BFF', 4);
-    this.endpoints(m, pts[0], pts[pts.length - 1]);
+    const lastSeg = pts[pts.length - 1];
+    this.endpoints(m, pts[0][0], lastSeg[lastSeg.length - 1]);
     m.fitBounds(r.getBounds(), { padding: [22, 22] });
     el._map = m; el.classList.add('live'); this.thumbs.push({ el, map: m });
   },
@@ -150,7 +153,17 @@ const UI = {
     if (a.sport === 'ride') return `Pedal ${per === 'noturn' ? 'noturno' : per}`;
     return `${a.sport === 'run' ? 'Corrida' : 'Natação'} ${per === 'noturn' ? 'noturna' : per}`;
   },
-  thinRoute(pts) { const step = Math.max(1, Math.floor(pts.length / 120)); return pts.filter((_, i) => i % step === 0 || i === pts.length - 1).map((p) => [+(+p[0]).toFixed(5), +(+p[1]).toFixed(5)]); },
+  // miniatura: poucos pontos, mas respeitando as pausas (cada trecho é uma linha separada)
+  thinRoute(pts) {
+    const step = Math.max(1, Math.floor(pts.length / 140)), segs = []; let cur = [];
+    pts.forEach((p, i) => {
+      const brk = p[4] && cur.length, keep = i % step === 0 || i === pts.length - 1 || p[4] || (pts[i + 1] && pts[i + 1][4]);
+      if (brk) { if (cur.length > 1) segs.push(cur); cur = []; }
+      if (keep || brk) cur.push([+(+p[0]).toFixed(5), +(+p[1]).toFixed(5)]);
+    });
+    if (cur.length > 1) segs.push(cur);
+    return segs;
+  },
   // miniatura do trajeto em SVG (leve, sem carregar mapa)
   routeSVG(points, color) {
     const segs = Geo.segments(points);

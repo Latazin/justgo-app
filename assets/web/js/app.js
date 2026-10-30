@@ -4,7 +4,7 @@
    ========================================================= */
 const App = {
   tab: 'home', nav: 'home',
-  sub: { progress: 'missions', history: 'mine', social: 'feed', profile: 'overview' },
+  sub: { progress: 'missions', history: 'mine', social: 'discover', profile: 'overview' },
   sport: 'run', swimMode: 'pool', mode: 'free', preset: null, route: null,
   sim: false, simMult: 5,
   tracker: null, coach: null, routeLive: null, wl: null,
@@ -105,7 +105,7 @@ const App = {
   },
   stopRecWatch() { if (this.recWatch != null) { try { navigator.geolocation.clearWatch(this.recWatch); } catch (e) {} this.recWatch = null; } },
   // nuvem conectada: atualiza a tela atual (mostra/esconde o "Entrar")
-  onCloudReady() { if (!Store.data.profile.onboarded) return; if (['home', 'progress', 'social', 'profile', 'history', 'account', 'mapa'].includes(this.tab) && !this.tracker) this.go(this.tab); },
+  onCloudReady() { setTimeout(() => Cloud.backfill().catch(() => {}), 3000); if (!Store.data.profile.onboarded) return; if (['home', 'progress', 'social', 'profile', 'history', 'account', 'mapa'].includes(this.tab) && !this.tracker) this.go(this.tab); },
   async firstLocate() { const p = await Geo.locate(false); if (p && this.tab === 'home') {} },
 
   /* ---------- tela ativa durante o treino ---------- */

@@ -47,7 +47,7 @@ const Store = {
     this.data.updatedAt = Date.now();
     if (window.Cloud) Cloud.queuePush();
     try { localStorage.setItem(this.key, JSON.stringify(this.data)); }
-    catch (e) { FX.toast('Armazenamento cheio: exporte um backup e apague treinos antigos.'); }
+    catch (e) { if (/quota/i.test(e.name + e.message)) FX.toast('Armazenamento cheio: exporte um backup e apague treinos antigos.'); }
   },
   saveLive(snapshot) { try { localStorage.setItem(this.liveKey, JSON.stringify(snapshot)); } catch (e) {} },
   loadLive() { try { return JSON.parse(localStorage.getItem(this.liveKey)); } catch (e) { return null; } },
