@@ -290,14 +290,14 @@ const ShareCard = {
     // fundo
     const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#0D0D0F'); g.addColorStop(1, '#1A1A1D'); x.fillStyle = g; x.fillRect(0, 0, W, H);
     const glow = x.createRadialGradient(W * 0.5, 520, 50, W * 0.5, 520, 620); glow.addColorStop(0, color + '33'); glow.addColorStop(1, '#0000'); x.fillStyle = glow; x.fillRect(0, 0, W, H);
-    // marca: quadrado laranja + trajeto que vira seta
-    const tg = x.createLinearGradient(80, 70, 152, 142); tg.addColorStop(0, '#FF8A3D'); tg.addColorStop(.52, '#FC5200'); tg.addColorStop(1, '#D63E00');
+    // marca: quadrado azul + trajeto que vira seta
+    const tg = x.createLinearGradient(80, 70, 152, 142); tg.addColorStop(0, '#5B9BFF'); tg.addColorStop(.52, '#1F6BFF'); tg.addColorStop(1, '#0F47D6');
     x.fillStyle = tg; x.beginPath(); x.roundRect(80, 70, 72, 72, 17); x.fill();
     x.save(); x.translate(80, 70); x.scale(72 / 64, 72 / 64); x.translate(32, 32); x.transform(1, 0, Math.tan(-14 * Math.PI / 180), 1, 0, 0); x.translate(-30, -32); x.fillStyle = '#fff';
     x.fill(new Path2D('M29 15.5h11.5L56 32 40.5 48.5H29L44.5 32z'));
     [[11, 21.5, 15, .7], [5, 29.2, 21, 1], [13, 36.9, 13, .7]].forEach(([rx, ry, rw, o]) => { x.globalAlpha = o; x.beginPath(); x.roundRect(rx, ry, rw, 5.6, 2.8); x.fill(); });
     x.globalAlpha = 1; x.restore();
-    x.font = 'italic ' + F(900, 54); x.fillStyle = '#fff'; x.fillText('Just', 172, 126); const jw = x.measureText('Just').width; x.fillStyle = '#FC5200'; x.fillText('Go', 172 + jw, 126);
+    x.font = 'italic ' + F(900, 54); x.fillStyle = '#fff'; x.fillText('Just', 172, 126); const jw = x.measureText('Just').width; x.fillStyle = '#1F6BFF'; x.fillText('Go', 172 + jw, 126);
     x.fillStyle = '#8E8E93'; x.font = F(500, 30); x.textAlign = 'right'; x.fillText(Fmt.date(act.start), W - 80, 130); x.textAlign = 'left';
     // trajeto
     const pts = Privacy.trim(act.points || []);

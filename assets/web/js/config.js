@@ -4,7 +4,7 @@
    Nada neste arquivo exige mexer no resto do código.
    ========================================================= */
 const CONFIG = {
-  version: '2.3.0',
+  version: '2.4.0',
 
   /* ---------- Esportes ----------
      xpPerKm: peso do XP por km (natação vale mais que pedal)
@@ -12,9 +12,9 @@ const CONFIG = {
      met: usado na estimativa de calorias
      simSpeed: velocidade (m/s) do modo teste */
   sports: {
-    run:  { name: 'Corrida',  icon: 'run', color: '#FC5200', xpPerKm: 10, coinsPerKm: 2, maxKmh: 25, met: 9.8, verb: 'Corra',  simSpeed: 3.0 },
+    run:  { name: 'Corrida',  icon: 'run', color: '#1F6BFF', xpPerKm: 10, coinsPerKm: 2, maxKmh: 25, met: 9.8, verb: 'Corra',  simSpeed: 3.0 },
     ride: { name: 'Pedalada', icon: 'bike', color: '#12B886', xpPerKm: 3,  coinsPerKm: 1, maxKmh: 75, met: 7.5, verb: 'Pedale', simSpeed: 7.5 },
-    swim: { name: 'Natação',  icon: 'swim', color: '#1C9BEF', xpPerKm: 40, coinsPerKm: 8, maxKmh: 8,  met: 8.0, verb: 'Nade',   simSpeed: 0.9 },
+    swim: { name: 'Natação',  icon: 'swim', color: '#14C2D6', xpPerKm: 40, coinsPerKm: 8, maxKmh: 8,  met: 8.0, verb: 'Nade',   simSpeed: 0.9 },
   },
 
   /* ---------- GPS ---------- */

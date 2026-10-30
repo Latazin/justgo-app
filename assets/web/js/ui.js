@@ -82,7 +82,7 @@ const UI = {
     const box = document.createElement('div'); box.className = 'thumb-map'; el.appendChild(box);
     const m = L.map(box, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, tap: false });
     this.baseLayer(m, false);
-    const r = this.routeLine(m, pts, el.dataset.color || '#FC5200', 4);
+    const r = this.routeLine(m, pts, el.dataset.color || '#1F6BFF', 4);
     this.endpoints(m, pts[0], pts[pts.length - 1]);
     m.fitBounds(r.getBounds(), { padding: [22, 22] });
     el._map = m; el.classList.add('live'); this.thumbs.push({ el, map: m });
@@ -354,6 +354,8 @@ const UI = {
       map.setView(Geo.home(), 16);
       if (App.route) { const rl = L.polyline(App.route.points.map((p) => [p[0], p[1]]), { color: '#8E8E93', weight: 6, opacity: 0.5, dashArray: '2 10' }).addTo(map); map.fitBounds(rl.getBounds(), { padding: [20, 20] }); this._centered = true; } else this._centered = false;
       this.trainDot = null;
+      // recalcula o tamanho depois do layout (o mapa nasce antes de a tela terminar de montar)
+      setTimeout(() => { try { map.invalidateSize(); if (App.route) map.fitBounds(L.latLngBounds(App.route.points.map((p) => [p[0], p[1]])), { padding: [18, 18] }); } catch (e) {} }, 250);
       this.liveLine = this.routeLine(map, [], Shop.lineColor(tr.sport), 5);
       this.ghostDot = null; this.liveMap = map;
     }
@@ -623,7 +625,7 @@ const UI = {
     const group = L.featureGroup().addTo(map), O = this._terrOwners || {};
     ids.slice(0, 3000).forEach((h) => {
       const o = O[h], mine = !o || !Cloud.user || o.owner === Cloud.user.id;
-      L.polygon(Hex.polygon(h), { color: mine ? '#FC5200' : '#A78BFA', weight: 1, fillColor: mine ? '#FC5200' : '#A78BFA', fillOpacity: 0.18 + 0.5 * (T[h].n / maxN) })
+      L.polygon(Hex.polygon(h), { color: mine ? '#1F6BFF' : '#A78BFA', weight: 1, fillColor: mine ? '#1F6BFF' : '#A78BFA', fillOpacity: 0.18 + 0.5 * (T[h].n / maxN) })
         .bindPopup(mine ? `Seu · ${T[h].n} passagem${T[h].n > 1 ? 's' : ''}` : `Dono: ${esc(o.owner_name)} (${o.count}×) · você: ${T[h].n}×`).addTo(group);
     });
     Object.values(O).forEach((o) => { if (!T[o.hex]) L.polygon(Hex.polygon(o.hex), { color: '#A78BFA', weight: 1, fillOpacity: 0.25 }).bindPopup(esc(o.owner_name)).addTo(group); });
@@ -717,7 +719,7 @@ const UI = {
     const swatch = (it) => it.cat === 'line' ? `<i class="sw" style="background:${it.value}"></i>` : it.cat === 'frame' ? `<i class="sw ring-sw" style="background:${it.value}"></i>` : it.cat === 'avatar' ? `<i class="sw" style="background:${it.value}"></i>` : it.cat === 'theme' ? `<i class="sw theme-${it.value}"></i>` : `<i class="sw fx">${I(it.value === 'fireworks' ? 'sparkles' : 'activity')}</i>`;
     return `<section class="card wallet"><div>${I('coin')}<b class="num">${D.coins}</b><small>moedas</small></div><small>Ganhe moedas treinando, cumprindo missões e subindo de liga. Tudo na loja é visual: nada dá vantagem.</small></section>
       ${cats.map(([c, n]) => `${this.sectionHead(n)}<div class="shop">
-        <button class="item ${!D.equipped[c] ? 'eq' : ''}" data-act="equip" data-v="${c}:">${c === 'line' ? '<i class="sw" style="background:conic-gradient(#FC5200 0 33%,#12B886 0 66%,#1C9BEF 0)"></i>' : c === 'frame' ? '<i class="sw ring-sw" style="background:#FC5200"></i>' : c === 'avatar' ? '<i class="sw" style="background:linear-gradient(145deg,#3A3A3C,#1C1C1E)"></i>' : c === 'theme' ? '<i class="sw theme-dark"></i>' : `<i class="sw fx">${I('sparkles')}</i>`}<b>${def[c]}</b><small>${!D.equipped[c] ? 'Em uso' : 'Grátis'}</small></button>
+        <button class="item ${!D.equipped[c] ? 'eq' : ''}" data-act="equip" data-v="${c}:">${c === 'line' ? '<i class="sw" style="background:conic-gradient(#1F6BFF 0 33%,#12B886 0 66%,#14C2D6 0)"></i>' : c === 'frame' ? '<i class="sw ring-sw" style="background:#1F6BFF"></i>' : c === 'avatar' ? '<i class="sw" style="background:linear-gradient(145deg,#3A3A3C,#1C1C1E)"></i>' : c === 'theme' ? '<i class="sw theme-dark"></i>' : `<i class="sw fx">${I('sparkles')}</i>`}<b>${def[c]}</b><small>${!D.equipped[c] ? 'Em uso' : 'Grátis'}</small></button>
         ${CONFIG.shop.filter((x) => x.cat === c).map((it) => { const own = Shop.owned(it.id), eq = D.equipped[c] === it.id; return `<button class="item ${eq ? 'eq' : ''} ${own ? 'own' : D.coins < it.price ? 'poor' : ''}" data-act="${own ? 'equip' : 'buy'}" data-v="${own ? c + ':' + it.id : it.id}">${swatch(it)}<b>${esc(it.name.replace(/^(Traçado|Moldura|Avatar|Tema|Chegada:) ?/, ''))}</b><small>${eq ? 'Em uso' : own ? 'Usar' : `${I('coin', 'xs')} ${it.price}`}</small></button>`; }).join('')}</div>`).join('')}`;
   },
 

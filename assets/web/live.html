@@ -22,7 +22,7 @@
 </head>
 <body>
   <div id="map"></div>
-  <div class="panel"><div class="h"><i class="dot" id="dot"></i><b id="name">Carregando…</b><span class="brand"><img src="icons/icon.svg" alt="" width="22" height="22" style="vertical-align:-5px;margin-right:6px">Just<span style="color:#FC5200">Go</span></span></div>
+  <div class="panel"><div class="h"><i class="dot" id="dot"></i><b id="name">Carregando…</b><span class="brand"><img src="icons/icon.svg" alt="" width="22" height="22" style="vertical-align:-5px;margin-right:6px">Just<span style="color:#1F6BFF">Go</span></span></div>
     <div class="st"><div><small>Distância</small><b id="dist">--</b></div><div><small>Tempo</small><b id="time">--</b></div><div><small>Status</small><b id="status">--</b></div></div>
     <div class="m" id="upd"></div></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -35,8 +35,8 @@
     const map = L.map('map', { zoomControl: false }).setView([-15.8, -47.9], 4);
     try { const gl = L.maplibreGL({ style: CONFIG.maps.color, attribution: CONFIG.maps.attribution, interactive: false }).addTo(map); gl.getMaplibreMap().on('error', (e) => { if (!window._fb) { window._fb = 1; gl.getMaplibreMap().setStyle(CONFIG.maps.fallback); } }); }
     catch (e) { L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map); }
-    const line = L.polyline([], { color: '#FC5200', weight: 5 }).addTo(map);
-    const me = L.circleMarker([0, 0], { radius: 9, color: '#fff', weight: 3, fillColor: '#FC5200', fillOpacity: 1 });
+    const line = L.polyline([], { color: '#1F6BFF', weight: 5 }).addTo(map);
+    const me = L.circleMarker([0, 0], { radius: 9, color: '#fff', weight: 3, fillColor: '#1F6BFF', fillOpacity: 1 });
     const t = (s) => { s = Math.round(s || 0); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
     let first = true;
     async function load() {

@@ -88,7 +88,7 @@ const FX = {
   fireworks() {
     const c = document.createElement('canvas'); c.className = 'confetti'; document.body.appendChild(c);
     const ctx = c.getContext('2d'), W = (c.width = innerWidth), H = (c.height = innerHeight), P = [];
-    const cols = ['#FC5200', '#FFB020', '#FFFFFF', '#A78BFA', '#7FD8F5'];
+    const cols = ['#1F6BFF', '#FFB020', '#FFFFFF', '#A78BFA', '#7FD8F5'];
     [0, 350, 700, 1000].forEach((t, k) => setTimeout(() => { const x = W * (0.2 + Math.random() * 0.6), y = H * (0.2 + Math.random() * 0.3), col = cols[k % cols.length]; for (let i = 0; i < 70; i++) { const a = (i / 70) * Math.PI * 2, v = 3 + Math.random() * 4; P.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, l: 1, c: col }); } }, t));
     const t0 = performance.now();
     const loop = (t) => { ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.globalCompositeOperation = 'destination-out'; ctx.fillRect(0, 0, W, H); ctx.globalCompositeOperation = 'source-over';
@@ -100,7 +100,7 @@ const FX = {
     const c = document.createElement('canvas'); c.className = 'confetti';
     document.body.appendChild(c);
     const ctx = c.getContext('2d'), W = (c.width = innerWidth), H = (c.height = innerHeight);
-    const colors = ['#FC5200', '#FFFFFF', '#FF8A4C', '#FFC5A6'];
+    const colors = ['#1F6BFF', '#FFFFFF', '#6AA5FF', '#BCD4FF'];
     const P = Array.from({ length: 120 }, () => ({ x: W / 2, y: H / 2.5, vx: (Math.random() - 0.5) * 16, vy: Math.random() * -16 - 4, s: 4 + Math.random() * 6, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, c: colors[(Math.random() * colors.length) | 0] }));
     const t0 = performance.now();
     const loop = (t) => {
@@ -147,7 +147,7 @@ const FX = {
   },
 
   /* ---------- gráfico de linha simples em canvas ---------- */
-  chart(canvas, xs, ys, { color = '#ff7a1a', fmtY = (v) => v.toFixed(0), invert = false, label = '', xEnd = '', minRange = 0 } = {}) {
+  chart(canvas, xs, ys, { color = '#4D8DFF', fmtY = (v) => v.toFixed(0), invert = false, label = '', xEnd = '', minRange = 0 } = {}) {
     if (!canvas || xs.length < 2) return;
     const dpr = devicePixelRatio || 1, W = canvas.clientWidth, H = canvas.clientHeight;
     canvas.width = W * dpr; canvas.height = H * dpr;
