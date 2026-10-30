@@ -27,8 +27,11 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 const kBrand = Color(0xFF1F6BFF);
 const kPort = 47621; // porta fixa: mantém os dados salvos entre aberturas
-const kSite = 'https://tejustgo.netlify.app'; // de onde vêm as atualizações
-const kNativeBuild = 25; // sobe quando o APK ganha recursos novos
+// atualizações vêm do próprio repositório do app no GitHub (grátis):
+// version.json direto do GitHub (sempre fresco) e os arquivos pela CDN jsDelivr
+const kRaw = 'https://raw.githubusercontent.com/Latazin/justgo-app/main/assets/web';
+const kCdn = 'https://cdn.jsdelivr.net/gh/Latazin/justgo-app@main/assets/web';
+const kNativeBuild = 26; // sobe quando o APK ganha recursos novos
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -157,7 +160,7 @@ class WebFiles {
     _busy = true;
     final c = HttpClient()..connectionTimeout = const Duration(seconds: 12);
     try {
-      final raw = utf8.decode(await _get(c, '$kSite/version.json?t=${DateTime.now().millisecondsSinceEpoch}'));
+      final raw = utf8.decode(await _get(c, '$kRaw/version.json?t=${DateTime.now().millisecondsSinceEpoch}'));
       final v = jsonDecode(raw) as Map<String, dynamic>;
       final b = (v['build'] as num).toInt();
       if (b <= current) return null;
@@ -171,7 +174,13 @@ class WebFiles {
         // reaproveita o que não mudou
         List<int>? data = await read('/$p');
         if (data == null || sha256.convert(data).toString() != f['s']) {
-          data = await _get(c, '$kSite/$p?v=$b');
+          try {
+            data = await _get(c, '$kCdn/$p');
+          } catch (_) {
+            data = null;
+          }
+          // a CDN pode demorar para pegar a versão nova: confere e, se preciso, busca direto no GitHub
+          if (data == null || sha256.convert(data).toString() != f['s']) data = await _get(c, '$kRaw/$p?v=$b');
           if (sha256.convert(data).toString() != f['s']) throw Exception('arquivo corrompido: $p');
         }
         final out = File('${tmp.path}/$p');

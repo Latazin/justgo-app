@@ -19,3 +19,10 @@ justgo://login-callback
 - `assets/brand/` — ícone e abertura
 - `native/android/` — AndroidManifest e configurações copiadas para o projeto Android no build
 - `tool/deps.txt` — pacotes Flutter usados
+
+## Atualizar o app sem reinstalar (OTA)
+O visual do app (pasta `assets/web`) é baixado pelo próprio app direto deste repositório.
+1. Mude os arquivos em `assets/web`.
+2. Rode `python3 tool/make_version_web.py` (gera o `assets/web/version.json`).
+3. Faça commit e push no `main`.
+Quem tem o app 2.5.1+ recebe "Nova versão do JustGo · Atualizar" na próxima abertura (até ~10 min).
