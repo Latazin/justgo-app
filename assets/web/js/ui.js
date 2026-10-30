@@ -560,6 +560,7 @@ const UI = {
       ${hasMap ? '<div id="sMap" class="s-map"></div>' : act.pool ? `<div class="pool-art">${I('swim')}<b class="num">${Fmt.km(act.distance)} km</b><small>${act.pool.laps} voltas</small></div>` : ''}
       <div class="actions wrap">${acts.join('')}</div>
       ${rewards}
+      ${this.proSection(act)}
       <section class="card kvl">${more.map(([l, v]) => `<div><span>${l}</span><b class="num">${v}</b></div>`).join('')}</section>
       ${gearHtml ? `<div class="list">${gearHtml}</div>` : ''}
       ${workout}${effortsHtml}${splits}${charts}
@@ -580,6 +581,91 @@ const UI = {
     if ($('#cPace')) FX.chart($('#cPace'), s.x, s.v.map((v) => (v > 0.5 ? 1000 / v : NaN)), { color: sp.color, invert: true, fmtY: (v) => Fmt.time(v), label: 'min/km', minRange: 60 });
     if ($('#cSpeed')) FX.chart($('#cSpeed'), s.x, s.v.map((v) => v * 3.6), { color: sp.color, fmtY: (v) => v.toFixed(0), label: 'km/h', minRange: 6 });
     if ($('#cAlt')) FX.chart($('#cAlt'), s.x, s.alt, { color: '#8E8E93', fmtY: (v) => v.toFixed(0), label: 'elevação (m)', minRange: 20 });
+  },
+
+  /* ---------- modo profissional: análise detalhada do treino ---------- */
+  proSection(act) {
+    if (!Pro.on()) return `<button class="pro-teaser" data-act="proOn"><span class="pro-badge">PRO</span><div class="grow"><b>Estatísticas profissionais</b><small>Calorias calculadas com seu corpo e equipamento, velocidade máxima, melhores trechos, potência e zonas de esforço.</small></div>${I('chevronRight', 'chev')}</button>`;
+    let R; try { R = Pro.analyze(act); } catch (e) { console.error(e); return ''; }
+    const sp = act.sport, run = sp === 'run', ride = sp === 'ride', kmh = (v) => Fmt.num(v * 3.6, 1);
+    const cell = (l, v, u = '') => `<div><span>${l}</span><b class="num">${v}${u ? `<small> ${u}</small>` : ''}</b></div>`;
+    const cells = [];
+    if (sp !== 'swim' && R.vmax) cells.push(cell('Velocidade máxima', kmh(R.vmax), 'km/h'));
+    if (run && R.vmax) cells.push(cell('Ritmo mais rápido', Fmt.pace('run', R.vmax), '/km'));
+    if (sp !== 'swim' && R.avgMoving) cells.push(ride ? cell('Vel. média em movimento', kmh(R.avgMoving), 'km/h') : cell('Ritmo em movimento', Fmt.pace(sp, R.avgMoving), '/km'));
+    if (sp === 'swim' && R.per100) cells.push(cell('Ritmo médio', Fmt.time(R.per100), '/100 m'));
+    cells.push(cell('Tempo em movimento', Fmt.time(R.moving)));
+    if (R.elapsed && R.elapsed !== R.moving) cells.push(cell('Tempo total', Fmt.time(R.elapsed)));
+    if (R.up != null) { cells.push(cell('Subida', R.up, 'm')); cells.push(cell('Descida', R.down, 'm')); }
+    if (R.altMax != null) cells.push(cell('Altitude máx · mín', `${R.altMax} · ${R.altMin}`, 'm'));
+    if (R.gradeMax) cells.push(cell('Inclinação máxima', Fmt.num(R.gradeMax, 1), '%'));
+    if (R.met) cells.push(cell('Esforço médio', Fmt.num(R.met, 1), 'MET'));
+    if (R.load) cells.push(cell(R.loadHr ? 'Carga (TRIMP)' : 'Carga de treino', R.load, 'pts'));
+    const zn = R.zones && R.zones.some((x) => x) ? (() => { const tot = R.zones.reduce((x, y) => x + y, 0), names = ['Leve', 'Moderado', 'Forte', 'Intenso', 'Máximo'];
+      return `${this.sectionHead('Zonas de esforço')}<section class="card zones">${R.zones.map((t, i) => `<div class="zn"><span class="zn-n">Z${i + 1}</span><span class="zn-l">${names[i]}</span><div class="zn-bar"><i class="z${i + 1}" style="width:${(t / tot) * 100}%"></i></div><b class="num">${Fmt.time(t)}</b></div>`).join('')}</section>`; })() : '';
+    const power = ride && R.pAvg ? `${this.sectionHead('Potência estimada')}<section class="card pro-grid">${[cell('Média', R.pAvg, 'W'), cell('Normalizada', R.pNorm, 'W'), cell('Máxima (30 s)', R.pMax, 'W'), cell('Watts por kg', Fmt.num(R.wkg, 2), 'W/kg'), cell('Trabalho', R.kj, 'kJ'), ...(R.tss ? [cell('Intensidade (IF)', Fmt.num(R.if, 2)), cell('TSS', R.tss)] : [])].join('')}</section>` : '';
+    const bests = R.best && R.best.length ? `${this.sectionHead('Melhores trechos')}<div class="list">${R.best.map(([n, t, L]) => `<div class="row">${this.iconBox('zap')}<div class="grow"><b>${n}</b><small>${run ? Fmt.pace('run', L / t) + ' /km' : kmh(L / t) + ' km/h'}</small></div><b class="num">${Fmt.time(t)}</b></div>`).join('')}</div>` : '';
+    const splits = R.splits && R.splits.length ? `${this.sectionHead('Parciais detalhadas')}<section class="card splits"><div class="sp-h pro4"><span>Km</span><span>${ride ? 'Tempo' : 'Ritmo'}</span><span>Vel.</span><span>Elev.</span></div>${(() => { const b = Math.min(...R.splits.map((x) => x.t)); return R.splits.map((x) => `<div class="sp-row pro4"><span class="num">${x.km}</span><b class="num ${x.t === b ? 'best' : ''}">${Fmt.time(x.t)}</b><span class="num">${kmh(1000 / x.t)} km/h</span><span class="num elev">${x.up ? `<em class="u">↑${x.up}</em>` : ''}${x.down ? `<em class="d">↓${x.down}</em>` : ''}${!x.up && !x.down ? '—' : ''}</span></div>`).join(''); })()}</section>` : '';
+    const hr = act.hr || {};
+    const hrBox = `${this.sectionHead('Frequência cardíaca')}<section class="card hr-box"><p class="muted small">Tem relógio ou cinta? Coloque os batimentos e as calorias passam a ser calculadas por eles (bem mais preciso).</p>
+      <div class="row2"><label class="field"><span>Média (bpm)</span><input type="number" inputmode="numeric" data-hr="avg" data-id="${act.id}" value="${hr.avg || ''}" placeholder="ex.: 152"></label><label class="field"><span>Máxima (bpm)</span><input type="number" inputmode="numeric" data-hr="max" data-id="${act.id}" value="${hr.max || ''}" placeholder="ex.: 178"></label></div>
+      ${R.hrZone ? `<div class="hr-zone"><b>Zona ${R.hrZone}</b><small>${['', 'Recuperação', 'Aeróbico leve', 'Aeróbico', 'Limiar', 'Máximo'][R.hrZone]} · ${R.hrPct}% da sua FC máxima (${Pro.maxHr()} bpm)</small></div>` : ''}</section>`;
+    return `<section class="pro-card"><div class="pro-head"><span class="pro-badge">PRO</span><b>Análise detalhada</b><button class="link" data-act="go" data-v="pro">Ajustar dados</button></div>
+      <div class="kcal-big"><div><b class="num">${R.kcal.toLocaleString('pt-BR')}</b><span>kcal</span></div><small class="num">${R.moving ? `≈ ${Math.round(R.kcal / (R.moving / 3600))} kcal/h` : ''}</small></div>
+      <small class="pro-method">${I('info', 'xs')} ${esc(R.method)}</small>
+      ${R.kcalMotion ? `<small class="pro-method">Pelo movimento seriam ${R.kcalMotion} kcal.</small>` : ''}
+      <div class="pro-grid">${cells.join('')}</div>${R.notes.map((n) => `<p class="muted small">${esc(n)}</p>`).join('')}</section>
+      ${power}${bests}${zn}${splits}${hrBox}`;
+  },
+
+  /* =========================================================
+     MODO PROFISSIONAL: dados do corpo e equipamentos
+     ========================================================= */
+  pro() {
+    const c = Pro.cfg(), P = Store.data.profile, on = c.on;
+    const opt = (map, cur) => Object.entries(map).map(([k, v]) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${Array.isArray(v) ? v[0] : v}</option>`).join('');
+    const num = (k, label, val, unit, ph = '', sub = '') => `<div class="cfg-row"><div class="grow"><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</div><div class="num-in"><input type="number" inputmode="decimal" data-pro="${k}" value="${val || ''}" placeholder="${ph}"><span>${unit}</span></div></div>`;
+    const sel = (k, label, map, cur, sub = '') => `<div class="cfg-row"><div class="grow"><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</div><select class="mini-sel" data-pro="${k}">${opt(map, cur)}</select></div>`;
+    const bikes = Gear.list('bike').filter((g) => !g.retired);
+    this.render(`${this.back('profile', 'Modo profissional')}<main class="screen settings pro-screen">
+      <section class="pro-hero ${on ? 'on' : ''}"><div class="pro-hero-top"><span class="pro-badge">PRO</span><label class="switch"><input type="checkbox" data-pro="on" ${on ? 'checked' : ''}><i></i></label></div>
+        <h2>Estatísticas profissionais</h2><p>Calorias calculadas pela física do seu treino (subidas, descidas, velocidade, peso e equipamento), velocidade máxima, melhores trechos, potência estimada no pedal, zonas de esforço e carga de treino.</p></section>
+      <p class="muted small">Quanto mais você preencher, mais certeiro fica. Os dados ficam só no seu aparelho.</p>
+
+      <h3 class="group">Seu corpo</h3>
+      <div class="list cfg-list">
+        <div class="cfg-row col-row"><div class="grow"><b>Sexo</b><small>Usado no cálculo pelos batimentos</small></div><div class="seg pref-seg">${[['m', 'Masculino'], ['f', 'Feminino']].map(([v, n]) => `<button class="${c.sex === v ? 'on' : ''}" data-act="proSet" data-v="sex:${v}">${n}</button>`).join('')}</div></div>
+        ${num('weight', 'Peso', P.weight, 'kg', '70')}
+        ${num('age', 'Idade', P.age, 'anos', '30')}
+        ${num('height', 'Altura', c.height, 'cm', '175')}
+        ${num('restHr', 'FC de repouso', c.restHr, 'bpm', '60', 'Ao acordar, ainda deitado')}
+        ${num('maxHr', 'FC máxima', c.maxHr, 'bpm', String(Pro.maxHr()), c.maxHr ? '' : `Estimada: ${Pro.maxHr()} bpm`)}
+      </div>
+
+      <h3 class="group">Corrida e caminhada</h3>
+      <div class="list cfg-list">
+        ${sel('runSurface', 'Onde você mais corre', Pro.RUNS, c.runSurface)}
+        ${num('carry', 'Carga extra', c.carry, 'kg', '0', 'Mochila, colete de hidratação, carrinho…')}
+      </div>
+
+      <h3 class="group">Pedal</h3>
+      <div class="list cfg-list">
+        ${sel('bikeType', 'Tipo de bike', Pro.BIKES, c.bikeType)}
+        ${num('bikeWeight', 'Peso da bike', c.bikeWeight, 'kg', String((Pro.BIKES[c.bikeType] || Pro.BIKES.road)[1]))}
+        ${sel('position', 'Posição', Pro.POS, c.position, 'Quanto mais deitado, menos resistência do ar')}
+        ${sel('tire', 'Piso mais comum', Pro.TIRES, c.tire)}
+        ${num('ftp', 'FTP', c.ftp, 'W', '—', 'Opcional: potência de limiar, se você souber')}
+      </div>
+      ${bikes.length ? `<h3 class="group">Suas bikes <em>cada uma com seu tipo e peso</em></h3><div class="list cfg-list">${bikes.map((g) => `<div class="cfg-row"><div class="grow"><b>${esc(g.name)}</b><select class="mini-sel" data-gbt="${g.id}">${opt(Pro.BIKES, g.btype || c.bikeType)}</select></div><div class="num-in"><input type="number" inputmode="decimal" data-gbw="${g.id}" value="${g.bweight || ''}" placeholder="kg"><span>kg</span></div></div>`).join('')}</div>`
+        : `<button class="cfg-row tap list" data-act="go" data-v="gear">${this.iconBox('bike')}<div class="grow"><b>Cadastre suas bikes</b><small>Cada treino usa o tipo e o peso da bike escolhida</small></div>${I('chevronRight', 'chev')}</button>`}
+
+      <h3 class="group">Natação</h3>
+      <div class="list cfg-list">
+        ${sel('stroke', 'Estilo principal', Pro.STROKES, c.stroke)}
+        <label class="cfg-row"><div class="grow"><b>Roupa de neoprene</b><small>Em águas abertas (flutua mais, gasta um pouco menos)</small></div><span class="switch"><input type="checkbox" data-pro="wetsuit" ${c.wetsuit ? 'checked' : ''}><i></i></span></label>
+      </div>
+      <p class="muted small pro-foot">Como calculamos: na corrida, o custo energético por inclinação de Minetti (2002); no pedal, a potência necessária para vencer rolamento, ar e subidas; na natação, os METs do Compêndio de Atividades Físicas. Com batimentos informados, usamos a fórmula de Keytel (2005). São estimativas científicas — relógio com frequência cardíaca deixa ainda mais preciso.</p>
+    </main>`);
   },
 
   /* =========================================================
@@ -888,6 +974,7 @@ const UI = {
         <div class="stat-grid"><div><span class="eyebrow">Distância</span><b class="num">${Fmt.num(Game.km(yr), 1)} <small>km</small></b></div><div><span class="eyebrow">Tempo</span><b class="num">${Fmt.time(yr.reduce((x, a) => x + a.duration, 0))}</b></div><div><span class="eyebrow">Treinos</span><b class="num">${yr.length}</b></div><div><span class="eyebrow">Elevação</span><b class="num">${yr.reduce((x, a) => x + Geo.elevationGain(a.points), 0)} <small>m</small></b></div></div>
         <section class="card tap" data-act="go" data-v="stats"><div class="row-t"><div><span class="eyebrow">Últimas 8 semanas</span><div class="week-n"><b class="num">${Fmt.num(wk.reduce((x, y) => x + y, 0))}</b><span>km</span></div></div><small class="num">média ${Fmt.num(avg)} km/sem</small></div>${this.bars(wk, wk.map((_, i) => (i === 7 ? 'atual' : '')), { hi: 7 })}</section>
         <div class="sport-cards">${Object.entries(CONFIG.sports).map(([k, sp]) => { const l = acts.filter((x) => x.sport === k), km = Game.km(l); return `<div class="sport-card" style="--c:${sp.color}"><div class="sc-ic">${I(SPORT_IC[k])}</div><b class="num">${Fmt.num(km, km >= 100 ? 0 : 1)}<span> km</span></b><small>${sp.name} · ${l.length} treino${l.length === 1 ? '' : 's'}</small></div>`; }).join('')}</div>
+        <button class="pro-entry ${Pro.on() ? 'on' : ''}" data-act="go" data-v="pro"><span class="pro-badge">PRO</span><div class="grow"><b>Modo profissional</b><small>${Pro.on() ? 'Ativado · estatísticas detalhadas em cada treino' : 'Calorias exatas, velocidade máxima, potência e mais'}</small></div><span class="pro-state">${Pro.on() ? 'Ativo' : 'Ativar'}</span></button>
         <button class="terr-card" data-act="go" data-v="mapa"><div class="tc-ic">${I('flag')}</div><div class="grow"><span class="eyebrow">Território</span><b>${zones.length ? `${zones.length} área${zones.length > 1 ? 's' : ''} · ${Zones.areaTxt(Zones.totalArea())}` : 'Nenhuma área ainda'}</b><small>${zones.length ? 'Veja e defenda no mapa' : 'Feche um circuito correndo para conquistar'}</small></div>${I('chevronRight', 'chev')}</button>
         ${this.sectionHead('Progresso')}
         <div class="list">
@@ -910,7 +997,7 @@ const UI = {
         <div class="pf-cover"><button class="cover-edit" data-act="editProfile">${I('settings', 'xs')} Editar perfil</button></div>
         <div class="pf-id">${this.avatar('lg')}<div class="grow"><h2>${esc(P.name)}</h2><small class="prof-meta">${[handle, city ? `${I('mapPin', 'xs')} ${esc(city)}` : ''].filter(Boolean).join(' · ') || '<span class="link-like" data-act="editProfile">Adicionar cidade e bio</span>'}</small></div></div>
         ${Pref('bio') ? `<p class="pf-bio">${esc(Pref('bio'))}</p>` : ''}
-        <div class="prof-tags"><span class="league-pill" style="--lc:${L0.color}">${I('crown', 'xs')} Liga ${L0.name}</span><span class="lvl-pill">${I('zap', 'xs')} Nível ${lv.l} · ${Game.title(lv.l)}</span></div>
+        <div class="prof-tags"><span class="league-pill" style="--lc:${L0.color}">${I('crown', 'xs')} Liga ${L0.name}</span><span class="lvl-pill">${I('zap', 'xs')} Nível ${lv.l} · ${Game.title(lv.l)}</span>${Pro.on() ? '<span class="pro-badge">PRO</span>' : ''}</div>
         <div class="pf-stats"><div><b class="num">${acts.length}</b><small>Atividades</small></div><div><b class="num">${Fmt.num(Game.km(acts), 0)}</b><small>Km</small></div><div><b class="num">${zones.length}</b><small>Áreas</small></div><div><b class="num">${medals}</b><small>Medalhas</small></div></div>
         <div class="pf-level"><div class="row-t"><small>Nível ${lv.l + 1}</small><small class="num">${lv.txt}</small></div>${this.bar(lv.pct, 'brand')}</div>
       </section>

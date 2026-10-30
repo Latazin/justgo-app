@@ -113,7 +113,7 @@ const Shop = {
     // barra de status do Android acompanha o tema
     const light = root.dataset.theme === 'light';
     const meta = document.querySelector('meta[name=theme-color]'); if (meta) meta.content = light ? '#F3F4F6' : '#0B0C0E';
-    if (window.Native && Native.on) Native.call('ui', { bg: light ? '#F3F4F6' : '#0B0C0E', light });
+    if (typeof Native !== 'undefined' && Native.on) Native.call('ui', { bg: light ? '#F3F4F6' : '#0B0C0E', light });
   },
 };
 

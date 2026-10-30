@@ -80,7 +80,7 @@ const FX = {
   /* ---------- confete ---------- */
   // efeito de chegada (loja): confete, fogos ou pulso
   finish() {
-    const fx = (window.Shop && Shop.val('finish')) || 'confetti';
+    const fx = (typeof Shop !== 'undefined' && Shop.val('finish')) || 'confetti';
     if (fx === 'fireworks') return this.fireworks();
     if (fx === 'pulse') { const d = document.createElement('div'); d.className = 'pulse-fx'; document.body.appendChild(d); setTimeout(() => d.remove(), 1400); return; }
     this.confetti();

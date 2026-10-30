@@ -134,6 +134,10 @@ const Game = {
   },
 
   calories(act) {
+    if (typeof Pro !== 'undefined' && Pro.on()) { try { return Pro.analyze(act).kcal; } catch (e) { console.error(e); } }
+    return this.caloriesBasic(act);
+  },
+  caloriesBasic(act) {
     const P = Store.data.profile, w = P.weight || 70, age = P.age || 30;
     const ageF = age > 40 ? 1 - Math.min(0.1, (age - 40) * 0.004) : 1; // gasto cai levemente com a idade
     return Math.round(CONFIG.sports[act.sport].met * w * (act.duration / 3600) * ageF);

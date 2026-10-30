@@ -10,7 +10,7 @@ const App = {
   tracker: null, coach: null, routeLive: null, wl: null,
 
   // tela -> aba da barra inferior que fica acesa
-  parents: { progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', club: 'social', history: 'home', heatmap: 'home' },
+  parents: { pro: 'profile', progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', club: 'social', history: 'home', heatmap: 'home' },
 
   init() {
     Store.load();
@@ -282,6 +282,24 @@ const App = {
     else if (t.id === 'privEnds') { D.privacy.trimEnds = t.checked; Store.save(); }
     else if (t.name === 'privR') { D.privacy.radius = +t.value; Store.save(); }
     else if (t.dataset.pref) { P[t.dataset.pref] = t.checked; Store.save(); FX.toast(t.checked ? 'Ativado' : 'Desativado'); }
+    else if (t.dataset.pro) {
+      const k = t.dataset.pro, num = t.type === 'number';
+      let v = t.type === 'checkbox' ? t.checked : num ? Math.max(0, +t.value || 0) : t.value;
+      if (k === 'weight' || k === 'age') { P[k] = Math.max(k === 'weight' ? 20 : 5, +t.value || P[k]); Store.save(); Pro._cache = new WeakMap(); }
+      else Pro.set(k, v);
+      if (k === 'on') { FX.toast(v ? 'Modo profissional ativado' : 'Modo profissional desativado'); UI.pro(); } else FX.toast('Salvo');
+    }
+    else if (t.dataset.gbt || t.dataset.gbw) {
+      const g = Gear.get(t.dataset.gbt || t.dataset.gbw); if (!g) return;
+      if (t.dataset.gbt) g.btype = t.value; else g.bweight = Math.max(0, +t.value || 0) || null;
+      Store.save(); Pro._cache = new WeakMap(); FX.toast('Bike atualizada');
+    }
+    else if (t.dataset.hr) {
+      const a = this.find(t.dataset.id); if (!a) return;
+      const v = Math.round(+t.value || 0); a.hr = { ...(a.hr || {}), [t.dataset.hr]: v >= 40 && v <= 230 ? v : undefined };
+      if (!a.hr.avg && !a.hr.max) delete a.hr;
+      Store.save(); UI.summary(a, null, false); FX.toast('Batimentos salvos');
+    }
     else if (t.dataset.trust) { D.trusted[t.dataset.trust] = t.value.trim(); Store.save(); FX.toast('Contato salvo'); }
     else if (t.dataset.set) {
       const k = t.dataset.set, num = ['weight', 'age', 'goalWeek', 'goalMonth'].includes(k);
@@ -365,6 +383,8 @@ const App = {
       document.querySelectorAll(`[data-act=followHere][data-v="${el.dataset.v}"]`).forEach((b) => { b.outerHTML = `<span class="react followed">${I('check')}Seguindo</span>`; });
       FX.toast('Seguindo!');
     },
+    proSet: (el) => { const [k, v] = el.dataset.v.split(':'); Pro.set(k, v); UI.pro(); },
+    proOn: () => { Pro.set('on', true); FX.toast('Modo profissional ativado'); App.go('pro'); },
     profTab: (el) => { App.sub.profile = el.dataset.v; UI.profile(); },
     setPref: (el) => {
       const [k, v] = el.dataset.v.split(':'), P = Store.data.profile;
