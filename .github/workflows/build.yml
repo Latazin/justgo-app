@@ -31,31 +31,39 @@ jobs:
 
       - name: Gerar projeto Android
         run: |
-          flutter --version | tee build.log
-          flutter create --org com.justgo --project-name justgo --platforms android . 2>&1 | tee -a build.log
+          exec > >(tee -a build.log) 2>&1
+          set -x
+          flutter --version
+          flutter create --org com.justgo --project-name justgo --platforms android .
           rm -rf test
           cp -r native/android/. android/
           # Android 7+ (minSdk 24)
           sed -i -E 's/minSdk *= *flutter\.minSdkVersion/minSdk = 24/; s/minSdkVersion +flutter\.minSdkVersion/minSdkVersion 24/' android/app/build.gradle* || true
-          grep -n "minSdk" android/app/build.gradle* | tee -a build.log || true
+          grep -n "minSdk" android/app/build.gradle* || true
+          ls android/app/src/main/res/xml
 
       - name: Dependências
         run: |
-          flutter pub add $(cat tool/deps.txt | tr '\n' ' ') 2>&1 | tee -a build.log
-          flutter pub add --dev $(cat tool/dev_deps.txt | tr '\n' ' ') 2>&1 | tee -a build.log
-          flutter pub get 2>&1 | tee -a build.log
+          exec > >(tee -a build.log) 2>&1
+          set -x
+          flutter pub add $(cat tool/deps.txt | tr '\n' ' ')
+          flutter pub add --dev $(cat tool/dev_deps.txt | tr '\n' ' ')
+          flutter pub get
           grep -A40 "^dependencies:" pubspec.yaml | tee -a build.log
 
       - name: Ícone e abertura
         run: |
-          dart run flutter_launcher_icons 2>&1 | tee -a build.log
-          dart run flutter_native_splash:create 2>&1 | tee -a build.log
+          exec > >(tee -a build.log) 2>&1
+          set -x
+          dart run flutter_launcher_icons
+          dart run flutter_native_splash:create
 
       - name: Compilar APK
         id: build
         run: |
-          set -o pipefail
-          flutter build apk --release 2>&1 | tee -a build.log
+          exec > >(tee -a build.log) 2>&1
+          set -x
+          flutter build apk --release
 
       - name: Publicar resultado na branch build-output
         if: always()

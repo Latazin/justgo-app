@@ -230,6 +230,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       case 'share':
         _reply(id, {'ok': await _shareFile('${m['name']}', '${m['mime']}', '${m['b64']}')});
         break;
+      case 'haptic':
+        HapticFeedback.mediumImpact();
+        _reply(id, {'ok': true});
+        break;
       case 'open':
         _openExternal('${m['url']}');
         _reply(id, {'ok': true});
