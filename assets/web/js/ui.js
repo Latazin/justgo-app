@@ -1089,8 +1089,19 @@ const UI = {
         <button class="cfg-row tap danger" data-act="reset">${this.iconBox('trash', 'var(--bad)')}<div class="grow"><b>Apagar todos os dados</b><small>Remove treinos, XP e desbloqueios deste aparelho</small></div></button>
       </div>
 
-      <div class="about">${MARK('lg')}<b>Just<span>Go</span></b><small>Versão ${CONFIG.version}${Native.on ? ' · app Android' : ''}</small><small>Mapas © OpenFreeMap · OpenMapTiles · OpenStreetMap</small></div>
+      <h3 class="group">Atualizações</h3>
+      <div class="list cfg-list">
+        <button class="cfg-row tap" data-act="checkUpdate">${this.iconBox('refresh')}<div class="grow"><b>Procurar atualização</b><small id="verInfo">Versão ${CONFIG.version}${Native.on ? ' · app Android' : ''}</small></div>${I('chevronRight', 'chev')}</button>
+      </div>
+
+      <div class="about" data-ver="1">${MARK('lg')}<b>Just<span>Go</span></b><small>Versão ${CONFIG.version}${Native.on ? ' · app Android' : ''}</small><small>Mapas © OpenFreeMap · OpenMapTiles · OpenStreetMap</small></div>
     </main>`);
+  },
+
+  async verInfo() {
+    if (!Native.on) return;
+    const v = await Native.call('version'), el = $('#verInfo'); if (!el) return;
+    el.textContent = v ? `Versão ${CONFIG.version} · instalador ${v.native}${v.ready ? ' · atualização pronta' : ''}` : `Versão ${CONFIG.version} · instalador antigo: baixe o APK novo`;
   },
 
   /* =========================================================

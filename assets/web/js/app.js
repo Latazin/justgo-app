@@ -48,6 +48,7 @@ const App = {
     window.addEventListener('beforeunload', (e) => { if (this.tracker && this.tracker.state !== 'done') { e.preventDefault(); e.returnValue = ''; } });
 
     Cloud.init().then(() => this.onCloudReady());
+    try { const lv = localStorage.getItem('justgo_ver'); if (lv && lv !== CONFIG.version) setTimeout(() => FX.toast(`JustGo atualizado para a versão ${CONFIG.version}`), 1500); localStorage.setItem('justgo_ver', CONFIG.version); } catch (e) {}
     setTimeout(() => { const sp = $('#splash'); if (sp) { sp.classList.add('out'); setTimeout(() => sp.remove(), 500); } }, 650);
     Geo.locate(false); // se a localização já foi permitida, atualiza a cidade
     if (!Store.data.profile.onboarded) return UI.onboarding(0);
@@ -63,6 +64,7 @@ const App = {
     if (tab === 'progress' && this.tab !== 'progress') this.backTo = ['home', 'profile', 'mapa', 'social'].includes(this.tab) ? this.tab : 'profile';
     this.tab = tab; this.nav = this.parents[tab] || tab;
     const fn = UI[tab]; (typeof fn === 'function' ? fn : UI.home).call(UI);
+    if (tab === 'settings') UI.verInfo();
   },
   applyTheme() { Shop.apply(); },
   // entrar ou criar conta com e-mail e senha
@@ -391,6 +393,21 @@ const App = {
       try { await Cloud.follow(el.dataset.v); } catch (e) {}
       document.querySelectorAll(`[data-act=followHere][data-v="${el.dataset.v}"]`).forEach((b) => { b.outerHTML = `<span class="react followed">${I('check')}Seguindo</span>`; });
       FX.toast('Seguindo!');
+    },
+    checkUpdate: async () => {
+      if (!Native.on) { FX.toast('No navegador o JustGo já abre sempre na versão mais nova.'); return; }
+      FX.toast('Procurando atualização…');
+      const r = await Native.call('checkUpdate');
+      if (!r) {
+        // instalador 2.5.1: sabe se atualizar, mas só ao abrir o app
+        if (await Native.call('version')) return FX.modal(`<div class="unlock"><div class="lock-anim open">${I('refresh')}</div><h3>Feche e abra o JustGo</h3><p class="muted">Feche o app por completo (tire da lista de apps abertos) e abra de novo. A atualização é baixada na abertura e aparece o aviso "Atualizar".</p><button class="btn primary" data-m="ok">Entendi</button></div>`);
+        return FX.modal(`<div class="unlock"><div class="lock-anim">${I('download')}</div><h3>Instale o app novo uma vez</h3><p class="muted">Este instalador do JustGo é de antes das atualizações automáticas. Baixe e instale o APK mais recente — seus treinos continuam salvos se você entrar com a mesma conta. Depois disso, tudo se atualiza sozinho.</p><button class="btn primary" data-m="ok">Entendi</button></div>`);
+      }
+      if (r.ready) { JG.updateReady(r.ready); FX.toast('Atualização pronta!'); }
+      else if (r.status === 'em dia') FX.toast(`Você já está na versão mais nova (${CONFIG.version}).`);
+      else if (/APK/.test(r.status)) FX.modal(`<div class="unlock"><div class="lock-anim">${I('download')}</div><h3>Precisa do app novo</h3><p class="muted">Esta atualização precisa de um instalador mais novo. Baixe e instale o APK mais recente do JustGo.</p><button class="btn primary" data-m="ok">Entendi</button></div>`);
+      else FX.toast('Não deu para verificar agora. Confira a internet e tente de novo.');
+      UI.verInfo();
     },
     proSet: (el) => { const [k, v] = el.dataset.v.split(':'); Pro.set(k, v); UI.pro(); },
     proOn: () => { Pro.set('on', true); FX.toast('Modo profissional ativado'); App.go('pro'); },

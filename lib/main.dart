@@ -31,7 +31,7 @@ const kPort = 47621; // porta fixa: mantém os dados salvos entre aberturas
 // version.json direto do GitHub (sempre fresco) e os arquivos pela CDN jsDelivr
 const kRaw = 'https://raw.githubusercontent.com/Latazin/justgo-app/main/assets/web';
 const kCdn = 'https://cdn.jsdelivr.net/gh/Latazin/justgo-app@main/assets/web';
-const kNativeBuild = 26; // sobe quando o APK ganha recursos novos
+const kNativeBuild = 27; // sobe quando o APK ganha recursos novos
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -95,8 +95,9 @@ class LocalServer {
 /* ---------------- arquivos do app: versão baixada ou a que veio no APK ---------------- */
 class WebFiles {
   static Directory? _live; // pasta com a versão baixada do site
-  static int assetBuild = 0, liveBuild = 0;
+  static int assetBuild = 0, liveBuild = 0, remoteBuild = 0;
   static bool _busy = false;
+  static String lastStatus = 'nunca verificado';
 
   static int get current => _live != null ? liveBuild : assetBuild;
 
@@ -163,8 +164,9 @@ class WebFiles {
       final raw = utf8.decode(await _get(c, '$kRaw/version.json?t=${DateTime.now().millisecondsSinceEpoch}'));
       final v = jsonDecode(raw) as Map<String, dynamic>;
       final b = (v['build'] as num).toInt();
-      if (b <= current) return null;
-      if (((v['minNative'] ?? 0) as num).toInt() > kNativeBuild) return null;
+      remoteBuild = b;
+      if (b <= current) { lastStatus = 'em dia'; return null; }
+      if (((v['minNative'] ?? 0) as num).toInt() > kNativeBuild) { lastStatus = 'precisa de APK novo'; return null; }
       final tmp = await _dir('web_new');
       if (await tmp.exists()) await tmp.delete(recursive: true);
       await tmp.create(recursive: true);
@@ -195,8 +197,10 @@ class WebFiles {
       _live = live;
       liveBuild = b;
       if (await old.exists()) await old.delete(recursive: true);
+      lastStatus = 'baixada';
       return b;
-    } catch (_) {
+    } catch (e) {
+      lastStatus = 'erro: $e';
       return null;
     } finally {
       c.close(force: true);
@@ -238,6 +242,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   Color _bg = kBrand;
   int? _updateReady;
   DateTime _lastCheck = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime? _pausedAt;
   final List<Map<String, dynamic>> _trainBuffer = []; // pontos do treino (reenviados ao voltar)
   int _sentUpTo = 0;
 
@@ -390,7 +395,11 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         await _web.reload();
         break;
       case 'version':
-        _reply(id, {'native': kNativeBuild, 'web': WebFiles.current});
+        _reply(id, {'native': kNativeBuild, 'web': WebFiles.current, 'remote': WebFiles.remoteBuild, 'status': WebFiles.lastStatus, 'ready': _updateReady});
+        break;
+      case 'checkUpdate': // botão "Procurar atualização"
+        await _checkUpdate(force: true);
+        _reply(id, {'native': kNativeBuild, 'web': WebFiles.current, 'remote': WebFiles.remoteBuild, 'status': WebFiles.lastStatus, 'ready': _updateReady});
         break;
       default:
         _reply(id, null);
@@ -398,12 +407,12 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   }
 
   /* ---------------- atualização automática ---------------- */
-  Future<void> _checkUpdate() async {
+  Future<void> _checkUpdate({bool force = false}) async {
     if (_updateReady != null) {
       _js('window.JG && JG.updateReady && JG.updateReady($_updateReady)');
       return;
     }
-    if (DateTime.now().difference(_lastCheck).inMinutes < 10) return;
+    if (!force && DateTime.now().difference(_lastCheck).inMinutes < 3) return;
     _lastCheck = DateTime.now();
     final b = await WebFiles.update();
     if (b == null) return;
@@ -487,7 +496,17 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   // voltou para o app: reenvia os pontos gravados em segundo plano
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && !_training) _checkUpdate();
+    if (state == AppLifecycleState.resumed && !_training) {
+      // atualização pronta e a pessoa ficou fora do app: aplica sozinho ao voltar
+      final away = _pausedAt == null ? 0 : DateTime.now().difference(_pausedAt!).inSeconds;
+      if (_updateReady != null && away >= 60) {
+        _updateReady = null;
+        _web.reload();
+      } else {
+        _checkUpdate();
+      }
+    }
+    if (state == AppLifecycleState.paused) _pausedAt = DateTime.now();
     if (state == AppLifecycleState.resumed && _training && _trainBuffer.isNotEmpty) {
       final from = _sentUpTo.clamp(0, _trainBuffer.length);
       final batch = _trainBuffer.sublist(from > 50 ? from - 50 : 0);

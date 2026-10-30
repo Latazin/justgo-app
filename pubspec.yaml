@@ -1,7 +1,7 @@
 name: justgo
 description: "JustGo — corra, pedale e nade desbloqueando funções com missões."
 publish_to: "none"
-version: 2.5.1+26
+version: 2.8.0+27
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
