@@ -364,6 +364,15 @@ const App = {
       if (v === 'off') App.sim = false; else { App.sim = true; App.simMult = +v; }
       App.go('record');
     },
+    visSet: async (el) => {
+      const [id, v] = el.dataset.v.split(':'); const a = App.find(id); if (!a) return;
+      const priv = v === 'private'; if (!!a.private === priv) return;
+      if (!priv && !Cloud.loggedIn()) { FX.toast('Entre na sua conta para publicar.'); return App.go('account'); }
+      a.private = priv; Store.save();
+      const box = $('#visCard'); if (box) box.outerHTML = UI.visRow(a);
+      try { if (priv) await Cloud.unpublish(a.id); else await Cloud.publish(a); FX.toast(priv ? 'Agora só você vê este treino.' : 'Treino publicado!'); }
+      catch (e) { FX.toast('Sem conexão: tente de novo em instantes.'); }
+    },
     visToggle: async (el) => {
       const a = App.find(el.dataset.v); if (!a) return;
       if (a.private && !Cloud.loggedIn()) { FX.toast('Entre na sua conta para publicar.'); return App.go('account'); }

@@ -554,8 +554,7 @@ const UI = {
     const gearHtml = gType ? `<label class="row gear-pick">${this.iconBox(gType === 'shoe' ? 'shoe' : 'bike')}<div class="grow"><small>${gType === 'shoe' ? 'Tênis' : 'Bike'}</small>${gList.length ? `<select id="actGear" data-id="${act.id}"><option value="">Nenhum</option>${gList.map((g) => `<option value="${g.id}" ${act.gear === g.id ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select>` : `<b class="link-like" data-act="go" data-v="gear">Cadastrar ${gType === 'shoe' ? 'tênis' : 'bike'}</b>`}</div></label>` : '';
 
     // ações
-    const acts = [`<button class="chip-btn" data-act="shareCard" data-v="${act.id}">${I('share')}Compartilhar</button>`,
-      `<button class="chip-btn" data-act="visToggle" data-v="${act.id}">${I(act.private ? 'lock' : 'globe')}${act.private ? 'Privado' : 'Público'}</button>`];
+    const acts = [`<button class="chip-btn" data-act="shareCard" data-v="${act.id}">${I('share')}Compartilhar</button>`];
     if (hasMap) {
       acts.push(Game.has('routes') ? `<button class="chip-btn" data-act="saveRoute" data-v="${act.id}">${I('bookmark')}Salvar rota</button>` : this.lockChip('routes', 'Salvar rota'));
       acts.push(Game.has('segments') ? `<button class="chip-btn" data-act="mkSegment" data-v="${act.id}">${I('scissors')}Criar segmento</button>` : this.lockChip('segments', 'Criar segmento'));
@@ -570,6 +569,7 @@ const UI = {
       <h1 class="act-title">${this.actTitle(act)}</h1>
       ${act.flagged ? `<div class="notice bad">${I('alert')}<div><b>Não conta para missões e rankings</b><small>${esc(act.flagReason)}</small></div></div>` : ''}
       <div class="big-stats">${stats.map(([l, v, u]) => `<div><span class="eyebrow">${l}</span><b class="num">${v}</b>${u ? `<small>${u}</small>` : ''}</div>`).join('')}</div>
+      ${this.visRow(act)}
       ${hasMap ? '<div id="sMap" class="s-map"></div>' : act.pool ? `<div class="pool-art">${I('swim')}<b class="num">${Fmt.km(act.distance)} km</b><small>${act.pool.laps} voltas</small></div>` : ''}
       <div class="actions wrap">${acts.join('')}</div>
       ${rewards}
@@ -594,6 +594,15 @@ const UI = {
     if ($('#cPace')) FX.chart($('#cPace'), s.x, s.v.map((v) => (v > 0.5 ? 1000 / v : NaN)), { color: sp.color, invert: true, fmtY: (v) => Fmt.time(v), label: 'min/km', minRange: 60 });
     if ($('#cSpeed')) FX.chart($('#cSpeed'), s.x, s.v.map((v) => v * 3.6), { color: sp.color, fmtY: (v) => v.toFixed(0), label: 'km/h', minRange: 6 });
     if ($('#cAlt')) FX.chart($('#cAlt'), s.x, s.alt, { color: '#8E8E93', fmtY: (v) => v.toFixed(0), label: 'elevação (m)', minRange: 20 });
+  },
+
+  /* ---------- quem pode ver o treino (bem visível no resumo) ---------- */
+  visRow(act) {
+    const pub = !act.private;
+    return `<section class="vis-card ${pub ? 'pub' : 'priv'}" id="visCard">
+      <div class="vis-top"><div class="vis-ic">${I(pub ? 'globe' : 'lock')}</div><div class="grow"><b>${pub ? 'Treino público' : 'Só você vê este treino'}</b><small>${pub ? 'Aparece no feed, no Descobrir e disputa território' : 'Publique para aparecer no feed e no Descobrir'}</small></div></div>
+      <div class="seg vis-seg"><button class="${pub ? 'on' : ''}" data-act="visSet" data-v="${act.id}:public">${I('globe')}Público</button><button class="${pub ? '' : 'on'}" data-act="visSet" data-v="${act.id}:private">${I('lock')}Só eu</button></div>
+    </section>`;
   },
 
   /* ---------- modo profissional: análise detalhada do treino ---------- */

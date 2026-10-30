@@ -878,3 +878,15 @@ section.card.pro-grid > div:nth-last-child(-n+2) { border-bottom: 0; }
 .cfg-row .grow .mini-sel { margin-top: 6px; }
 .pro-screen .cfg-row.list { border: 1px solid var(--line); }
 .pro-foot { margin-top: 18px; line-height: 1.5; }
+
+/* quem pode ver o treino */
+.vis-card { display: flex; flex-direction: column; gap: 12px; padding: 14px; margin: 0 0 16px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.vis-card.pub { border-color: color-mix(in srgb, var(--brand) 35%, var(--line)); background: color-mix(in srgb, var(--brand) 5%, var(--surface)); }
+.vis-top { display: flex; align-items: center; gap: 12px; }
+.vis-top b { font-size: 15.5px; } .vis-top small { margin-top: 1px; }
+.vis-ic { width: 40px; height: 40px; flex: none; border-radius: 12px; display: grid; place-items: center; background: var(--surface-2); color: var(--text-2); }
+.vis-card.pub .vis-ic { background: var(--brand); color: #fff; }
+.vis-seg { margin: 0; }
+.vis-seg button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; }
+.vis-seg button .ic { width: 16px; height: 16px; }
+.vis-card.pub .vis-seg button.on { color: var(--brand-ink); }
