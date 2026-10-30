@@ -85,7 +85,7 @@ const Hex = {
     r._hexes = hexes;
   },
 };
-Game.hooks.push(Hex.hook);
+// (o território por hexágonos foi substituído pelo território por circuito: js/zones.js)
 
 /* ---------- Loja e cosméticos ---------- */
 const Shop = {

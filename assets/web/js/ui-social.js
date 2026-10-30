@@ -60,7 +60,7 @@ Object.assign(UI, {
   /* ---------- aba Social ---------- */
   social() {
     const sub = App.sub.social;
-    const tabs = this.tabsBar([['feed', 'Feed'], ['rank', 'Rankings'], ['clubs', 'Clubes'], ['challenges', 'Desafios']], sub, 'subTab');
+    const tabs = this.tabsBar([['feed', 'Seguindo'], ['discover', 'Descobrir'], ['rank', 'Rankings'], ['clubs', 'Clubes'], ['challenges', 'Desafios']], sub, 'subTab');
     const searchBtn = Cloud.loggedIn() ? `<button class="icon-btn" data-act="go" data-v="search" title="Buscar atletas">${I('search')}</button>` : '';
     if (!Cloud.loggedIn()) {
       return this.render(`${this.header('Social')}<main class="screen">
@@ -76,19 +76,27 @@ Object.assign(UI, {
     const fill = (html) => { const el = $('#socialBody'); if (el) el.innerHTML = html; };
     const fail = (e) => { console.error(e); fill(`<div class="notice bad">${I('alert')}<div><b>Não foi possível carregar</b><small>${esc(e.message || 'Verifique a conexão e o schema do Supabase.')}</small></div></div>`); };
     if (sub === 'feed') this.socialFeed().then(fill).catch(fail);
+    if (sub === 'discover') this.socialDiscover().then(fill).catch(fail);
     if (sub === 'rank') this.socialRank().then(fill).catch(fail);
     if (sub === 'clubs') this.socialClubs().then(fill).catch(fail);
     if (sub === 'challenges') this.socialChallenges().then(fill).catch(fail);
   },
   remotePost(a, opts = {}) {
     const p = a.profiles || {}, name = esc(p.name || 'Atleta');
-    const footer = `<div class="post-foot"><button class="react ${a.liked ? 'on' : ''}" data-act="like" data-v="${a.id}" data-on="${a.liked ? 1 : 0}">${I('heart')}<span class="num">${a.likes || 0}</span></button><button class="react" data-act="comments" data-v="${a.id}">${I('message')}<span class="num">${a.comments || 0}</span></button></div>`;
+    const fol = opts.follow ? `<button class="react follow-btn" data-act="followHere" data-v="${a.user_id}">${I('plus')}Seguir</button>` : '';
+    const footer = `<div class="post-foot"><button class="react ${a.liked ? 'on' : ''}" data-act="like" data-v="${a.id}" data-on="${a.liked ? 1 : 0}">${I('heart')}<span class="num">${a.likes || 0}</span></button><button class="react" data-act="comments" data-v="${a.id}">${I('message')}<span class="num">${a.comments || 0}</span></button>${fol}</div>`;
     return this.postCard({ ...a, mode: null }, `<span data-act="userOpen" data-v="${a.user_id}">${name}</span>`, { route: a.route, avatar: this.avatarOf(p.name, p.frame, p.avatar), noTap: true, footer: opts.noFoot ? '' : footer, color: CONFIG.sports[a.sport].color });
   },
   async socialFeed() {
     const list = await Cloud.feed();
     if (!list.length) return `<div class="empty">${I('users')}<h3>Seu feed está vazio</h3><p>Siga amigos para ver os treinos deles aqui. Seus próprios treinos também aparecem.</p><button class="btn primary" data-act="go" data-v="search">Buscar atletas</button></div>`;
     return list.map((a) => this.remotePost(a)).join('');
+  },
+  async socialDiscover() {
+    const list = await Cloud.discover();
+    if (!list.length) return `<div class="empty">${I('compass')}<h3>Nada por aqui ainda</h3><p>Quando outros atletas publicarem treinos, eles aparecem aqui para você descobrir e seguir.</p></div>`;
+    const city = Cloud.me && Cloud.me.city;
+    return `<p class="muted small disc-note">${I('compass', 'xs')} Treinos públicos de quem você ainda não segue${city ? ` · primeiro de ${esc(city)}` : ''}</p>${list.map((a) => this.remotePost(a, { follow: true })).join('')}`;
   },
   async socialRank() {
     const R = App.rank || (App.rank = { period: 'week', scope: 'all', sport: null });

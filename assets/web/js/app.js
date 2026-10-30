@@ -10,7 +10,7 @@ const App = {
   tracker: null, coach: null, routeLive: null, wl: null,
 
   // tela -> aba da barra inferior que fica acesa
-  parents: { settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', club: 'social', history: 'home', heatmap: 'home' },
+  parents: { progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', club: 'social', history: 'home', heatmap: 'home' },
 
   init() {
     Store.load();
@@ -25,7 +25,7 @@ const App = {
     }
 
     // barra inferior com o botão Gravar no centro
-    $('#nav').innerHTML = [['home', 'home', 'Início'], ['progress', 'trophy', 'Progresso'], ['record', 'play', 'Gravar'], ['social', 'users', 'Social'], ['profile', 'user', 'Perfil']]
+    $('#nav').innerHTML = [['home', 'home', 'Início'], ['mapa', 'map', 'Mapa'], ['record', 'play', 'Gravar'], ['social', 'users', 'Social'], ['profile', 'user', 'Perfil']]
       .map(([v, ic, n]) => v === 'record' ? `<button class="nav-rec" data-act="go" data-v="${v}" aria-label="${n}"><span class="rec-btn">${I(ic)}</span><span>${n}</span></button>` : `<button data-act="go" data-v="${v}">${I(ic)}<span>${n}</span></button>`).join('');
     // título pequeno no topo aparece ao rolar
     window.addEventListener('scroll', () => { const t = document.querySelector('.top'); if (t) t.classList.toggle('scrolled', window.scrollY > 36); }, { passive: true });
@@ -60,6 +60,7 @@ const App = {
     if (tab !== 'record') this.stopRecWatch();
     if (tab === 'safety') this.from = this.tab;
     if (tab === 'record' && this.tab !== 'record' && !this.tracker && Pref('defaultSport') && !this.route) { this.sport = Pref('defaultSport'); if (this.sport !== 'swim') this.mode = this.mode === 'manual' || this.mode === 'set' ? 'free' : this.mode; }
+    if (tab === 'progress' && this.tab !== 'progress') this.backTo = ['home', 'profile', 'mapa', 'social'].includes(this.tab) ? this.tab : 'profile';
     this.tab = tab; this.nav = this.parents[tab] || tab;
     const fn = UI[tab]; (typeof fn === 'function' ? fn : UI.home).call(UI);
   },
@@ -104,7 +105,7 @@ const App = {
   },
   stopRecWatch() { if (this.recWatch != null) { try { navigator.geolocation.clearWatch(this.recWatch); } catch (e) {} this.recWatch = null; } },
   // nuvem conectada: atualiza a tela atual (mostra/esconde o "Entrar")
-  onCloudReady() { if (!Store.data.profile.onboarded) return; if (['home', 'progress', 'social', 'profile', 'history', 'account'].includes(this.tab) && !this.tracker) this.go(this.tab); },
+  onCloudReady() { if (!Store.data.profile.onboarded) return; if (['home', 'progress', 'social', 'profile', 'history', 'account', 'mapa'].includes(this.tab) && !this.tracker) this.go(this.tab); },
   async firstLocate() { const p = await Geo.locate(false); if (p && this.tab === 'home') {} },
 
   /* ---------- tela ativa durante o treino ---------- */
@@ -178,11 +179,26 @@ const App = {
     if (Game.has('splits')) FX.toast(`Km ${n}: ${Fmt.time(t)}`);
   },
   async finishTraining() {
-    const ok = await FX.confirm('Finalizar treino?', 'O treino será salvo e você verá o resumo.', 'Finalizar');
-    if (!ok) return;
+    const tr0 = this.tracker, logged = Cloud.loggedIn();
+    const defTitle = UI.actTitle({ start: tr0.startTs || Date.now(), sport: tr0.sport });
+    const v = await FX.modal(`<div class="finish"><h3>Finalizar treino</h3><p class="muted num">${Fmt.km(tr0.distance)} km · ${Fmt.time(tr0.moving / 1000)}</p>
+      <span class="fin-lbl">Esporte</span>
+      <div class="fin-sports">${Object.entries(CONFIG.sports).map(([k, sp]) => `<label><input type="radio" name="finSport" value="${k}" ${k === tr0.sport ? 'checked' : ''}><span style="--c:${sp.color}">${I(SPORT_IC[k])}${sp.name}</span></label>`).join('')}</div>
+      <label class="field"><span>Nome do treino <em>opcional</em></span><input id="finTitle" maxlength="60" placeholder="${esc(defTitle)}"></label>
+      <span class="fin-lbl">Quem pode ver</span>
+      <div class="fin-vis">
+        <label><input type="radio" name="finVis" value="public" ${logged ? 'checked' : ''} ${logged ? '' : 'disabled'}><span>${I('globe')}<b>Publicar</b><small>${logged ? 'Aparece no feed e no Descobrir, e disputa território' : 'Entre na sua conta para publicar'}</small></span></label>
+        <label><input type="radio" name="finVis" value="private" ${logged ? '' : 'checked'}><span>${I('lock')}<b>Só eu</b><small>Fica salvo só para você</small></span></label>
+      </div>
+      <div class="row2"><button class="btn ghost" data-m="no">Voltar ao treino</button><button class="btn primary" data-m="yes">Salvar treino</button></div></div>`);
+    if (v !== 'yes' || !this.tracker) return;
+    const F = FX.form || {};
     const tr = this.tracker; tr.stop(); this.release(); Background.stop(); Native.call('trainStop');
     clearInterval(this.liveTimer); Store.clearLive(); Cloud.liveStop();
     const act = tr.toActivity();
+    if (F.finSport && CONFIG.sports[F.finSport]) act.sport = F.finSport;
+    if (F.finTitle && F.finTitle.trim()) act.title = F.finTitle.trim().slice(0, 60);
+    act.private = F.finVis !== 'public';
     if (this.coach) act.workout = this.coach.summary();
     if (this.route) act.routeId = this.route.id;
     this.tracker = null; this.coach = null; this.routeLive = null;
@@ -207,7 +223,16 @@ const App = {
       const el = $('#sWeather'); if (el) el.innerHTML = `${I(w.weather.rain >= 0.2 ? 'cloudRain' : 'cloud', 'xs')} ${w.weather.temp}°C`;
       if (w.medal) { FX.toast('Medalha: Treino na chuva!'); FX.beep([659, 784, 988]); }
     });
-    Cloud.publish(act, res._hexes).catch(() => {});
+    Cloud.publish(act).catch(() => {});
+    // território: disputa as áreas fechadas neste treino
+    if (res.zones && res.zones.loops.length && !act.private) {
+      Zones.claim(act, res.zones.loops).then((r) => {
+        if (!r) return;
+        const names = [...new Set(r.stolen.map((z) => z.owner_name || 'outro atleta'))];
+        if (r.stolen.length) { FX.beep([523, 659, 784, 1047]); FX.toast(`Você roubou ${r.stolen.length} área${r.stolen.length > 1 ? 's' : ''} de ${names.join(', ')}!`); }
+        else if (r.created.length) FX.toast(`Área conquistada: ${Zones.areaTxt(r.created.reduce((x, z) => x + z.area, 0))}`);
+      }).catch((e) => console.error(e));
+    }
   },
   async checkLive() {
     const s = Store.loadLive();
@@ -320,6 +345,25 @@ const App = {
       const v = await FX.modal(`<h3>Modo teste</h3><p class="muted">Simula o GPS para testar o app no computador, sem sair de casa.</p><div class="col">${[['off', 'Desligado (GPS real)'], ['1', '1× velocidade real'], ['5', '5× mais rápido'], ['20', '20× mais rápido']].map(([k, n]) => `<button class="btn ghost ${(k === 'off' && !App.sim) || (App.sim && +k === App.simMult) ? 'is-on' : ''}" data-m="${k}">${n}</button>`).join('')}</div>`);
       if (v === 'off') App.sim = false; else { App.sim = true; App.simMult = +v; }
       App.go('record');
+    },
+    visToggle: async (el) => {
+      const a = App.find(el.dataset.v); if (!a) return;
+      if (a.private && !Cloud.loggedIn()) { FX.toast('Entre na sua conta para publicar.'); return App.go('account'); }
+      a.private = !a.private; Store.save();
+      try { if (a.private) await Cloud.unpublish(a.id); else await Cloud.publish(a); } catch (e) {}
+      FX.toast(a.private ? 'Agora só você vê este treino.' : 'Treino publicado!');
+      el.innerHTML = `${I(a.private ? 'lock' : 'globe')}${a.private ? 'Privado' : 'Público'}`;
+    },
+    mapLayer: (el) => { const L0 = App.mapLayers; L0[el.dataset.v] = !L0[el.dataset.v]; el.classList.toggle('on', L0[el.dataset.v]); UI.mapaDraw(); },
+    mapCenter: () => {
+      if (!('geolocation' in navigator)) return;
+      FX.toast('Buscando sua posição…');
+      navigator.geolocation.getCurrentPosition((p) => { Geo.remember(p.coords.latitude, p.coords.longitude); UI.mapa(); }, () => FX.toast('Permita a localização para ver o mapa da sua região.'), { enableHighAccuracy: true, timeout: 15000 });
+    },
+    followHere: async (el) => {
+      try { await Cloud.follow(el.dataset.v); } catch (e) {}
+      document.querySelectorAll(`[data-act=followHere][data-v="${el.dataset.v}"]`).forEach((b) => { b.outerHTML = `<span class="react followed">${I('check')}Seguindo</span>`; });
+      FX.toast('Seguindo!');
     },
     profTab: (el) => { App.sub.profile = el.dataset.v; UI.profile(); },
     setPref: (el) => {

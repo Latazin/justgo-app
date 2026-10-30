@@ -134,6 +134,7 @@ const Cloud = {
       (C.activities || []).forEach((a) => { if (!ids.has(a.id)) L.activities.push(a); });
       ['unlocked', 'medals', 'missionsDone', 'owned', 'seasons', 'territory'].forEach((k) => { L[k] = { ...(C[k] || {}), ...(L[k] || {}) }; });
       const gids = new Set(L.gear.map((g) => g.id)); (C.gear || []).forEach((g) => { if (!gids.has(g.id)) L.gear.push(g); });
+      const zids = new Set((L.zones || (L.zones = [])).map((z) => z.id)); (C.zones || []).forEach((z) => { if (!zids.has(z.id)) L.zones.push(z); });
       const rids = new Set(L.routes.map((g) => g.id)); (C.routes || []).forEach((g) => { if (!rids.has(g.id)) L.routes.push(g); });
       if ((C.xp || 0) > L.xp) { L.xp = C.xp; L.coins = C.coins; L.xpLog = C.xpLog || L.xpLog; L.records = { ...L.records, ...(C.records || {}) }; }
       if (!L.plan && C.plan) L.plan = C.plan;
@@ -144,8 +145,8 @@ const Cloud = {
   },
 
   /* ---------- atividades públicas ---------- */
-  async publish(act, hexes) {
-    if (!this.loggedIn() || !this.me || act.mode === 'sim') return;
+  async publish(act) {
+    if (!this.loggedIn() || !this.me || act.mode === 'sim' || act.private) return;
     const pts = Privacy.trim(act.points || []), step = Math.max(1, Math.floor(pts.length / 300));
     const route = pts.filter((_, i) => i % step === 0).map((p) => [p[0], p[1]]);
     await this.sb.from('activities').upsert({
@@ -153,12 +154,11 @@ const Cloud = {
       elapsed: act.elapsed, title: UI.actTitle(act), route, xp: act.xp || 0, flagged: !!act.flagged,
       stats: { elev: Geo.elevationGain(act.points), pool: act.pool || null, weather: act.weather || null },
     });
-    if (hexes && hexes.length && !act.flagged) await this.sb.rpc('add_passes', { hexes, uname: this.me.name });
     this.pushProfile();
   },
   async unpublish(id) { if (this.loggedIn()) await this.sb.from('activities').delete().eq('id', id); },
   async publishAll() {
-    for (const a of Store.data.activities) await this.publish(a, a.points ? Hex.fromPoints(a.points) : null);
+    for (const a of Store.data.activities) await this.publish(a);
   },
 
   /* ---------- amigos e feed ---------- */
@@ -178,7 +178,20 @@ const Cloud = {
   async feed() {
     const ids = [...(await this.following()), this.user.id];
     const { data } = await this.sb.from('activities').select('*, profiles(name,username,frame,avatar)').in('user_id', ids).order('start', { ascending: false }).limit(30);
-    const list = data || []; if (!list.length) return [];
+    return this.withReactions(data || []);
+  },
+  // Descobrir: treinos públicos de quem você ainda não segue
+  async discover() {
+    const fol = await this.following(), skip = new Set([...fol, this.user.id]);
+    const { data } = await this.sb.from('activities').select('*, profiles(name,username,frame,avatar,city)').eq('flagged', false).order('start', { ascending: false }).limit(80);
+    const mine = (this.me && this.me.city || '').toLowerCase();
+    const list = (data || []).filter((a) => !skip.has(a.user_id));
+    // primeiro quem é da sua cidade
+    if (mine) list.sort((a, b) => ((b.profiles && (b.profiles.city || '').toLowerCase() === mine) - (a.profiles && (a.profiles.city || '').toLowerCase() === mine)) || (Date.parse(b.start) - Date.parse(a.start)));
+    return this.withReactions(list.slice(0, 30));
+  },
+  async withReactions(list) {
+    if (!list.length) return [];
     const aids = list.map((a) => a.id);
     const [{ data: likes }, { data: comments }] = await Promise.all([
       this.sb.from('likes').select('activity_id,user_id').in('activity_id', aids),
@@ -253,6 +266,20 @@ const Cloud = {
   },
 
   /* ---------- território online ---------- */
+  /* ---------- território por circuito ---------- */
+  async zonesNear(lat, lng, km) {
+    const dl = km / 110.574, dg = km / (111.32 * Math.cos((lat * Math.PI) / 180));
+    const { data, error } = await this.sb.from('zones').select('id,owner,owner_name,poly,area,lat,lng,captured_at,prev_owner_name,steals')
+      .gte('lat', lat - dl).lte('lat', lat + dl).gte('lng', lng - dg).lte('lng', lng + dg).order('area', { ascending: false }).limit(500);
+    if (error) throw error;
+    return data || [];
+  },
+  async addZone(z, name) {
+    const { data, error } = await this.sb.from('zones').insert({ ...z, owner: this.user.id, owner_name: name }).select().single();
+    if (error) { console.error(error); return null; }
+    return data;
+  },
+  async stealZone(id, name) { const { error } = await this.sb.rpc('steal_zone', { zid: id, uname: name }); if (error) console.error(error); },
   async territoryOwners(hexes) {
     const out = {};
     for (let i = 0; i < hexes.length; i += 300) {

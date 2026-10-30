@@ -29,7 +29,8 @@ const Store = {
       gear: [],           // tênis e bikes
       routes: [],         // rotas salvas e segmentos
       plan: null,         // plano de treino ativo
-      territory: {},      // hexágono -> { n, first, last }
+      territory: {},      // (antigo, hexágonos)
+      zones: [],          // áreas conquistadas fechando circuitos
       owned: {},          // itens comprados na loja
       equipped: { line: null, frame: null, avatar: null, theme: null, finish: null },
       privacy: { zone: false, lat: null, lng: null, radius: 250, trimEnds: true },

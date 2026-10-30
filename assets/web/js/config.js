@@ -4,7 +4,7 @@
    Nada neste arquivo exige mexer no resto do código.
    ========================================================= */
 const CONFIG = {
-  version: '2.5.0',
+  version: '2.6.0',
 
   /* ---------- Esportes ----------
      xpPerKm: peso do XP por km (natação vale mais que pedal)
@@ -65,7 +65,6 @@ const CONFIG = {
     { id: 'plans',      tier: 4, icon: 'clipboard', name: 'Planos de treino guiados',  desc: '5K, 10K, 21K, 42K, pedal de 100 km, travessia.',          req: { type: 'km', sport: 'all', value: 200 },reward: { xp: 400, coins: 150 }, ready: true },
     { id: 'racePredict',tier: 4, icon: 'gauge', name: 'Previsão de tempo de prova',desc: 'Estimativa para 5K, 10K, 21K e 42K.',                      req: { type: 'dayStreak', value: 30 },        reward: { xp: 400, coins: 150 }, ready: true },
     { id: 'swolf',      tier: 4, icon: 'activity', name: 'Eficiência (SWOLF)',        desc: 'Tempo + braçadas por volta: quanto menor, melhor.',        req: { type: 'km', sport: 'swim', value: 25 },reward: { xp: 400, coins: 150 }, ready: true },
-    { id: 'territory',  tier: 4, icon: 'hexagon', name: 'Conquista de Território',   desc: 'Domine hexágonos do mapa e defenda dos amigos.',           req: { type: 'km', sport: 'all', value: 500 },reward: { xp: 800, coins: 300 }, ready: true },
   ],
 
   /* ---------- Missões diárias (3 sorteadas por dia) ----------
@@ -116,7 +115,7 @@ const CONFIG = {
     { id: 'streak7',  icon: 'flame', name: 'Ofensiva de 7 dias', desc: 'Treinar 7 dias seguidos',           type: 'dayStreak', value: 7 },
     { id: 'rain',     icon: 'cloudRain', name: 'Treino na chuva', desc: 'Treinar enquanto chove (clima automático)', type: 'rain' },
     { id: 'plan',     icon: 'clipboard', name: 'Plano concluído', desc: 'Terminar um plano de treino guiado',  type: 'plan' },
-    { id: 'conquer',  icon: 'hexagon', name: 'Conquistador',      desc: 'Dominar 50 hexágonos do mapa',        type: 'territory', value: 50 },
+    { id: 'conquer',  icon: 'flag',    name: 'Conquistador',      desc: 'Dominar 5 áreas fechando circuitos',  type: 'territory', value: 5 },
   ],
   medalReward: { xp: 30, coins: 10 },
 

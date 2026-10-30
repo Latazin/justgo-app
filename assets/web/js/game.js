@@ -262,7 +262,7 @@ const Game = {
         case 'weekSports': ok = new Set(this.scope('week', act.start).map((a) => a.sport)).size >= m.value; break;
         case 'dayStreak': ok = this.streakDays() >= m.value; break;
         case 'plan': ok = !!r.planFinished; break;
-        case 'territory': ok = Object.keys(D.territory || {}).length >= m.value; break;
+        case 'territory': ok = (D.zones || []).length >= m.value; break;
       }
       if (ok) { D.medals[m.id] = act.start; r.medals.push(m); r.xp += CONFIG.medalReward.xp; r.coins += CONFIG.medalReward.coins; }
     }
