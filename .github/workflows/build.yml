@@ -1,0 +1,83 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Gerar projeto Android
+        run: |
+          flutter --version | tee build.log
+          flutter create --org com.justgo --project-name justgo --platforms android . 2>&1 | tee -a build.log
+          rm -rf test
+          cp -r native/android/. android/
+          # Android 7+ (minSdk 24)
+          sed -i -E 's/minSdk *= *flutter\.minSdkVersion/minSdk = 24/; s/minSdkVersion +flutter\.minSdkVersion/minSdkVersion 24/' android/app/build.gradle* || true
+          grep -n "minSdk" android/app/build.gradle* | tee -a build.log || true
+
+      - name: Dependências
+        run: |
+          flutter pub add $(cat tool/deps.txt | tr '\n' ' ') 2>&1 | tee -a build.log
+          flutter pub add --dev $(cat tool/dev_deps.txt | tr '\n' ' ') 2>&1 | tee -a build.log
+          flutter pub get 2>&1 | tee -a build.log
+          grep -A40 "^dependencies:" pubspec.yaml | tee -a build.log
+
+      - name: Ícone e abertura
+        run: |
+          dart run flutter_launcher_icons 2>&1 | tee -a build.log
+          dart run flutter_native_splash:create 2>&1 | tee -a build.log
+
+      - name: Compilar APK
+        id: build
+        run: |
+          set -o pipefail
+          flutter build apk --release 2>&1 | tee -a build.log
+
+      - name: Publicar resultado na branch build-output
+        if: always()
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/out" && cd "$RUNNER_TEMP/out"
+          git init -q
+          cp "$GITHUB_WORKSPACE/build.log" . || echo "sem log" > build.log
+          if [ -f "$GITHUB_WORKSPACE/build/app/outputs/flutter-apk/app-release.apk" ]; then
+            cp "$GITHUB_WORKSPACE/build/app/outputs/flutter-apk/app-release.apk" JustGo.apk
+            echo "success" > STATUS
+          else
+            echo "failed" > STATUS
+          fi
+          echo "${GITHUB_SHA}" > COMMIT
+          git add -A
+          git -c user.name="JustGo CI" -c user.email="ci@justgo.app" commit -qm "Build #${GITHUB_RUN_NUMBER} ($(cat STATUS))"
+          git push -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/build-output
+
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: JustGo-apk
+          path: build/app/outputs/flutter-apk/app-release.apk

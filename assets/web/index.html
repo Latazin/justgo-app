@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0A0A0B">
+  <meta name="description" content="JustGo — corra, pedale e nade. Missões, desbloqueios, amigos, ligas e território.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>JustGo</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Barlow+Condensed:ital,wght@0,600;0,700;1,600;1,700;1,800&display=swap">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- abertura -->
+  <div id="splash"><span class="sp-tile"><svg viewBox="0 0 64 64" style="color:#fff"><g transform="translate(32 32) skewX(-14) translate(-30 -32)"><path d="M29 15.5h11.5L56 32 40.5 48.5H29L44.5 32z" fill="currentColor"/><rect class="sp-line" x="11" y="21.5" width="15" height="5.6" rx="2.8" fill="currentColor" opacity=".7"/><rect class="sp-line" x="5" y="29.2" width="21" height="5.6" rx="2.8" fill="currentColor"/><rect class="sp-line" x="13" y="36.9" width="13" height="5.6" rx="2.8" fill="currentColor" opacity=".7"/></g></svg></span><b>Just<span>Go</span></b></div>
+  <div id="app"></div>
+
+  <!-- Barra de navegação inferior -->
+  <nav id="nav"></nav>
+
+  <div id="toast"></div>
+  <div id="modal"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
+  <script src="js/native.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/extras.js"></script>
+  <script src="js/modes.js"></script>
+  <script src="js/cloud.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/ui-social.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

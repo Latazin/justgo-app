@@ -1,0 +1,240 @@
+/* =========================================================
+   JustGo — MODOS DE TREINO
+   Intervalado (Coach), séries de natação, planos guiados,
+   rotas salvas, segmentos e o Fantasma
+   ========================================================= */
+
+/* ---------- Treino intervalado: treinador que acompanha o Tracker ---------- */
+class Coach {
+  constructor(tracker, preset) {
+    this.tr = tracker; this.preset = preset; this.results = []; this.i = -1; this.done = false;
+    const ph = [];
+    if (preset.warm) ph.push({ k: 'warm', label: 'Aquecimento', dur: preset.warm });
+    for (let n = 1; n <= preset.reps; n++) {
+      ph.push({ k: 'work', label: `Tiro ${n} de ${preset.reps}`, rep: n, ...preset.work });
+      if (n < preset.reps && preset.rest) ph.push({ k: 'rest', label: 'Recuperação', dur: preset.rest });
+    }
+    if (preset.cool) ph.push({ k: 'cool', label: 'Desaquecimento', dur: preset.cool });
+    this.ph = ph;
+    this.next();
+  }
+  next() {
+    const tr = this.tr, c = this.cur;
+    if (c && c.k === 'work') {
+      const t = (tr.moving - this.m0) / 1000, d = tr.distance - this.d0;
+      this.results.push({ rep: c.rep, time: Math.round(t), dist: Math.round(d) });
+    }
+    this.i++;
+    if (this.i >= this.ph.length) {
+      this.done = true; this.view = { label: 'Treino concluído', k: 'done', pct: 1, left: '' };
+      FX.beep([784, 988, 1175, 1568]); FX.vibrate([200, 80, 200]); FX.say('Treino intervalado concluído. Ótimo trabalho!');
+      return;
+    }
+    this.cur = this.ph[this.i]; this.m0 = tr.moving; this.d0 = tr.distance; this._cnt = null;
+    const k = this.cur.k, what = this.cur.dist ? `${this.cur.dist} metros` : FX.spokenTime(this.cur.dur);
+    if (k === 'work') { FX.beep([880, 880, 1320]); FX.vibrate([300]); FX.say(`${this.cur.label}. ${what}. Vai!`); }
+    else if (k === 'rest') { FX.beep([660, 440]); FX.vibrate([100, 60, 100]); FX.say(`Recuperação. ${what}.`); }
+    else FX.say(`${this.cur.label}: ${what}.`);
+  }
+  tick() {
+    if (this.done || this.tr.state !== 'running') return;
+    const c = this.cur, tr = this.tr;
+    const el = (tr.moving - this.m0) / 1000, dd = tr.distance - this.d0;
+    let pct, left;
+    if (c.dist) { pct = dd / c.dist; left = `${Math.max(0, Math.round(c.dist - dd))} m`; }
+    else {
+      pct = el / c.dur; left = Fmt.time(Math.max(0, c.dur - el));
+      const rem = Math.ceil(c.dur - el);
+      if (rem <= 3 && rem > 0 && rem !== this._cnt) { this._cnt = rem; FX.beep([700]); }
+    }
+    const nx = this.ph[this.i + 1];
+    this.view = { label: c.label, k: c.k, pct: Math.min(1, pct), left, next: nx ? nx.label : 'Fim' };
+    if (pct >= 1) this.next();
+  }
+  summary() { return { type: 'interval', name: this.preset.name, results: this.results }; }
+}
+
+/* ---------- Rotas, segmentos e fantasma ---------- */
+const Routes = {
+  // simplifica o trajeto: um ponto a cada ~20 m, com distância acumulada
+  simplify(points, from = 0, to = Infinity) {
+    const out = []; let cum = 0, last = null;
+    points.forEach((p, i) => {
+      if (last && !p[4]) cum += Geo.dist(last, p);
+      last = p;
+      if (cum < from || cum > to) return;
+      const prev = out[out.length - 1];
+      if (!prev || cum - prev[2] >= 20) out.push([p[0], p[1], Math.round(cum - from)]);
+    });
+    return out;
+  },
+  create(act, name, from, to) {
+    const pts = this.simplify(act.points, from, to);
+    if (pts.length < 3) return null;
+    const r = { id: uid(), name, sport: act.sport, points: pts, distance: pts[pts.length - 1][2], created: Date.now(), segment: from != null, efforts: [] };
+    Store.data.routes.push(r);
+    // procura em todo o histórico quem já passou por esse trecho
+    Store.data.activities.filter((a) => a.sport === act.sport && !a.flagged).forEach((a) => {
+      const m = this.match(a, r); if (m) r.efforts.push({ act: a.id, time: m.time, date: a.start, i: m.i, j: m.j });
+    });
+    Store.save(); return r;
+  },
+  best(r) { return r.efforts.length ? r.efforts.reduce((a, b) => (b.time < a.time ? b : a)) : null; },
+  // procura o trecho da atividade que passa pelo início, meio e fim da rota
+  match(act, r) {
+    const P = act.points; if (!P || P.length < 3) return null;
+    const s = r.points[0], e = r.points[r.points.length - 1], mid = r.points[Math.floor(r.points.length / 2)];
+    const cum = [0];
+    for (let i = 1; i < P.length; i++) cum[i] = cum[i - 1] + (P[i][4] ? 0 : Geo.dist(P[i - 1], P[i]));
+    let best = null;
+    for (let i = 0; i < P.length; i++) {
+      if (Geo.dist(P[i], s) > 30) continue;
+      let midOk = false;
+      for (let j = i + 1; j < P.length; j++) {
+        const d = cum[j] - cum[i];
+        if (d > r.distance * 1.2) break;
+        if (!midOk && Geo.dist(P[j], mid) < 50) midOk = true;
+        if (midOk && d >= r.distance * 0.85 && Geo.dist(P[j], e) < 30) {
+          const t = (P[j][2] - P[i][2]) / 1000;
+          if (!best || t < best.time) best = { time: Math.round(t), i, j };
+          break;
+        }
+      }
+      if (best) i += 10; // evita reavaliar o mesmo início
+    }
+    return best;
+  },
+  // gancho: registra esforços e recordes em cada rota/segmento
+  hook(act, r) {
+    if (!Game.has('routes') && !Game.has('segments')) return;
+    r.efforts = [];
+    for (const route of Store.data.routes) {
+      if (route.sport !== act.sport || route.efforts.some((e) => e.act === act.id)) continue;
+      const m = Routes.match(act, route); if (!m) continue;
+      const prev = Routes.best(route);
+      route.efforts.push({ act: act.id, time: m.time, date: act.start, i: m.i, j: m.j });
+      const pr = !prev || m.time < prev.time;
+      r.efforts.push({ route: route.name, time: m.time, pr, segment: route.segment });
+      if (pr && prev) { r.records.push({ key: 'seg_' + route.id, label: `${route.segment ? 'Segmento' : 'Rota'}: ${route.name}`, value: m.time, fmt: 'time', broken: true }); r.xp += CONFIG.xp.perRecord; }
+    }
+  },
+
+  /* --- acompanhamento ao vivo: fora da rota, distância restante e fantasma --- */
+  live(tr, route) {
+    const last = tr.points[tr.points.length - 1];
+    const out = { off: false, left: route.distance - tr.distance, ghost: null };
+    if (last) {
+      let best = Infinity;
+      for (let k = 0; k < route.points.length; k += 2) best = Math.min(best, Geo.dist(last, route.points[k]));
+      out.off = best > 60;
+      const now = tr.now();
+      if (out.off && (!this._offWarn || now - this._offWarn > 30000)) { this._offWarn = now; FX.beep([440, 330]); FX.say('Atenção: você saiu do percurso.'); }
+    }
+    if (Game.has('ghost')) out.ghost = this.ghost(tr, route);
+    return out;
+  },
+  // compara seu tempo com o melhor esforço na mesma distância percorrida
+  ghost(tr, route) {
+    const b = this.best(route); if (!b) return null;
+    const act = Store.data.activities.find((a) => a.id === b.act); if (!act) return null;
+    if (!route._g || route._g.act !== b.act) {
+      const P = act.points.slice(b.i, b.j + 1); const g = [[0, 0, P[0][0], P[0][1]]]; let d = 0;
+      for (let k = 1; k < P.length; k++) { d += Geo.dist(P[k - 1], P[k]); g.push([d, (P[k][2] - P[0][2]) / 1000, P[k][0], P[k][1]]); }
+      route._g = { act: b.act, g };
+    }
+    const g = route._g.g, myT = tr.moving / 1000, myD = tr.distance;
+    const atDist = (d) => { for (let k = 1; k < g.length; k++) if (g[k][0] >= d) { const f = (d - g[k - 1][0]) / (g[k][0] - g[k - 1][0] || 1); return g[k - 1][1] + f * (g[k][1] - g[k - 1][1]); } return g[g.length - 1][1]; };
+    const atTime = (t) => { for (let k = 1; k < g.length; k++) if (g[k][1] >= t) return g[k]; return g[g.length - 1]; };
+    const gap = myD < 20 ? 0 : atDist(Math.min(myD, g[g.length - 1][0])) - myT; // + = você está na frente
+    const pos = atTime(myT);
+    const km = Math.floor(myD / 1000);
+    if (Game.has('voice') && km > 0 && km !== this._ghostKm) { this._ghostKm = km; FX.say(gap >= 0 ? `Você está ${Math.round(gap)} segundos à frente do fantasma.` : `O fantasma está ${Math.round(-gap)} segundos na sua frente.`); }
+    return { gap, pos: [pos[2], pos[3]], best: b.time };
+  },
+};
+Game.hooks.push(Routes.hook);
+
+/* ---------- Séries de natação (cronômetro guiado na piscina) ---------- */
+const SwimSet = {
+  start(preset, poolLen) {
+    this.s = { preset, poolLen, rep: 0, phase: 'ready', results: [], t0: null, repStart: 0, restEnd: 0 };
+    clearInterval(this.timer); this.timer = setInterval(() => this.tick(), 200);
+  },
+  go() { const s = this.s; if (!s.t0) s.t0 = Date.now(); s.rep++; s.phase = 'work'; s.repStart = Date.now(); FX.beep([880, 880, 1320]); FX.vibrate([250]); },
+  repDone() {
+    const s = this.s; if (s.phase !== 'work') return;
+    s.results.push({ rep: s.rep, time: Math.round((Date.now() - s.repStart) / 1000), dist: s.preset.dist });
+    if (s.rep >= s.preset.reps) { s.phase = 'done'; FX.beep([784, 988, 1175]); return this.finish(); }
+    s.phase = 'rest'; s.restEnd = Date.now() + s.preset.rest * 1000; s._cnt = null; FX.beep([660, 440]);
+  },
+  tick() {
+    const s = this.s; if (!s) return;
+    if (s.phase === 'rest') {
+      const rem = Math.ceil((s.restEnd - Date.now()) / 1000);
+      if (rem <= 3 && rem > 0 && rem !== s._cnt) { s._cnt = rem; FX.beep([700]); }
+      if (rem <= 0) this.go();
+    }
+    UI.updateSwimSet && UI.updateSwimSet(s);
+  },
+  cancel() { clearInterval(this.timer); this.s = null; },
+  finish() {
+    clearInterval(this.timer); const s = this.s;
+    const work = s.results.reduce((a, r) => a + r.time, 0), dist = s.results.reduce((a, r) => a + r.dist, 0);
+    const act = { id: uid(), sport: 'swim', start: s.t0, duration: work, elapsed: Math.round((Date.now() - s.t0) / 1000), distance: dist, points: [], splits: [], mode: 'pool',
+      pool: { length: s.poolLen, laps: Math.round(dist / s.poolLen), strokes: 0 }, workout: { type: 'swimset', name: s.preset.name, results: s.results } };
+    this.s = null; App.finalizeActivity(act);
+  },
+};
+
+/* ---------- Planos de treino guiados ---------- */
+const Plans = {
+  names: {
+    run: ['Corrida leve', 'Intervalado', 'Ritmo', 'Longão'],
+    ride: ['Pedal leve', 'Pedal de ritmo', 'Subidas', 'Pedal longo'],
+    swim: ['Técnica', 'Séries', 'Ritmo', 'Contínuo longo'],
+  },
+  build(p) {
+    const weeks = [], n = this.names[p.sport];
+    for (let w = 0; w < p.weeks; w++) {
+      const last = w === p.weeks - 1, deload = !last && w > 0 && (w + 1) % 4 === 0;
+      const prog = Math.min(1, w / Math.max(1, p.weeks - 2));
+      let long = p.base + (p.goal * (p.goal > 21 ? 0.75 : 0.9) - p.base) * prog;
+      if (deload) long *= 0.75;
+      const r1 = (x) => Math.max(0.2, Math.round(x * 10) / 10);
+      const s = [];
+      if (last) {
+        s.push({ type: n[0], km: r1(long * 0.3), note: 'Leve, só para soltar.' });
+        if (p.perWeek > 3) s.push({ type: n[0], km: r1(long * 0.25), note: 'Bem leve.' });
+        s.push({ type: n[2], km: r1(long * 0.2), note: 'Curto, com 3 acelerações.' });
+        s.push({ type: 'Prova!', km: r1(p.goal), note: 'É o dia. Bora!' });
+      } else {
+        s.push({ type: n[0], km: r1(long * 0.45), note: 'Conversando, sem forçar.' });
+        s.push({ type: n[1], km: r1(long * 0.4), note: p.sport === 'run' ? 'Inclua tiros: use o modo Intervalado.' : 'Blocos fortes com recuperação.' });
+        if (p.perWeek > 3) s.push({ type: n[2], km: r1(long * 0.5), note: 'Ritmo confortavelmente forte.' });
+        s.push({ type: n[3], km: r1(long), note: deload ? 'Semana de recuperação.' : 'O treino mais importante da semana.' });
+      }
+      weeks.push(s);
+    }
+    return weeks;
+  },
+  start(id) { Store.data.plan = { id, start: Game.weekStart(Date.now()), done: {} }; Store.save(); },
+  active() { const P = Store.data.plan; if (!P) return null; const def = CONFIG.plans.find((x) => x.id === P.id); return def ? { P, def, weeks: this.build(def) } : null; },
+  weekIndex(P, ts) { return Math.floor((Game.weekStart(ts) - P.start) / (7 * 864e5) + 0.01); },
+  today() {
+    const a = this.active(); if (!a) return null;
+    const w = this.weekIndex(a.P, Date.now()); if (w < 0 || w >= a.weeks.length) return { ...a, w, s: -1 };
+    const s = a.weeks[w].findIndex((_, i) => !a.P.done[`${w}-${i}`]);
+    return { ...a, w, s, session: s >= 0 ? a.weeks[w][s] : null };
+  },
+  hook(act, r) {
+    const a = Plans.active(); if (!a || act.sport !== a.def.sport) return;
+    const w = Plans.weekIndex(a.P, act.start); if (w < 0 || w >= a.weeks.length) return;
+    const i = a.weeks[w].findIndex((x, k) => !a.P.done[`${w}-${k}`] && act.distance / 1000 >= x.km * 0.8);
+    if (i < 0) return;
+    a.P.done[`${w}-${i}`] = act.id;
+    r.planSession = a.weeks[w][i]; r.xp += CONFIG.planReward.session;
+    const total = a.weeks.reduce((x, y) => x + y.length, 0);
+    if (Object.keys(a.P.done).length >= total) { r.planFinished = a.def; r.xp += CONFIG.planReward.finish; a.P.finished = Date.now(); }
+  },
+};
+Game.hooks.push(Plans.hook);

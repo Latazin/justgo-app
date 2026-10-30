@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>Ao vivo · JustGo</title>
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+  <style>
+    * { box-sizing: border-box; } html, body { margin: 0; height: 100%; background: #000; color: #F5F5F7; font-family: Inter, system-ui, sans-serif; }
+    #map { position: fixed; inset: 0; }
+    .panel { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 500; background: #121212ee; backdrop-filter: blur(16px); border: 1px solid #2C2C2E; border-radius: 20px; padding: 16px 18px; max-width: 520px; margin: 0 auto; }
+    .h { display: flex; align-items: center; gap: 10px; } .h b { font-size: 17px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #30D158; box-shadow: 0 0 0 0 #30D15880; animation: p 1.6s infinite; } .dot.off { background: #6E6E73; animation: none; }
+    @keyframes p { 70% { box-shadow: 0 0 0 10px #30D15800; } }
+    .st { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 12px; } .st small { display: block; font-size: 11px; color: #8E8E93; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; } .st b { font-size: 22px; font-variant-numeric: tabular-nums; }
+    .m { color: #8E8E93; font-size: 13px; margin-top: 8px; } .brand { margin-left: auto; color: #fff; font-weight: 900; font-style: italic; letter-spacing: -.04em; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="panel"><div class="h"><i class="dot" id="dot"></i><b id="name">Carregando…</b><span class="brand"><img src="icons/icon.svg" alt="" width="22" height="22" style="vertical-align:-5px;margin-right:6px">Just<span style="color:#FC5200">Go</span></span></div>
+    <div class="st"><div><small>Distância</small><b id="dist">--</b></div><div><small>Tempo</small><b id="time">--</b></div><div><small>Status</small><b id="status">--</b></div></div>
+    <div class="m" id="upd"></div></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script>
+    const id = new URLSearchParams(location.search).get('id');
+    const map = L.map('map', { zoomControl: false }).setView([-15.8, -47.9], 4);
+    try { const gl = L.maplibreGL({ style: CONFIG.maps.color, attribution: CONFIG.maps.attribution, interactive: false }).addTo(map); gl.getMaplibreMap().on('error', (e) => { if (!window._fb) { window._fb = 1; gl.getMaplibreMap().setStyle(CONFIG.maps.fallback); } }); }
+    catch (e) { L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map); }
+    const line = L.polyline([], { color: '#FC5200', weight: 5 }).addTo(map);
+    const me = L.circleMarker([0, 0], { radius: 9, color: '#fff', weight: 3, fillColor: '#FC5200', fillOpacity: 1 });
+    const t = (s) => { s = Math.round(s || 0); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+    let first = true;
+    async function load() {
+      if (!CONFIG.supabase.url || !id) { document.getElementById('name').textContent = 'Link inválido'; return; }
+      const sb = window._sb || (window._sb = supabase.createClient(CONFIG.supabase.url, CONFIG.supabase.anonKey));
+      const { data } = await sb.from('live_sessions').select('*').eq('id', id).maybeSingle();
+      if (!data) { document.getElementById('name').textContent = 'Sessão não encontrada'; return; }
+      const sport = { run: 'correndo', ride: 'pedalando', swim: 'nadando' }[data.sport] || 'treinando';
+      document.getElementById('name').textContent = `${data.name} está ${data.active ? sport : 'offline'}`;
+      document.getElementById('dot').classList.toggle('off', !data.active);
+      document.getElementById('dist').textContent = (data.distance / 1000).toFixed(2).replace('.', ',') + ' km';
+      document.getElementById('time').textContent = t(data.moving);
+      document.getElementById('status').textContent = data.active ? 'Ao vivo' : 'Finalizado';
+      document.getElementById('upd').textContent = 'Atualizado às ' + new Date(data.updated_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const pts = data.points || [];
+      if (pts.length) {
+        line.setLatLngs(pts); me.setLatLng(pts[pts.length - 1]).addTo(map);
+        if (first) { map.fitBounds(line.getBounds(), { padding: [40, 40], maxZoom: 16 }); first = false; } else map.panTo(pts[pts.length - 1]);
+      }
+    }
+    load(); setInterval(load, 10000);
+  </script>
+</body>
+</html>
