@@ -61,6 +61,7 @@ const ICONS = {
   bag: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/>',
   barChart: '<path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/>',
   shoe: '<path d="M2 16v-3.5c0-.8.7-1.5 1.5-1.5H5l2-4 4 2 1.5 2.5c3 .3 6 1.2 8 2.5.9.6 1.5 1.5 1.5 2.5v.5H2Z"/><path d="M2 19.5h20"/>',
+  minus: '<path d="M5 12h14"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
   camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',

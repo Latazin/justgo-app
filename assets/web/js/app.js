@@ -244,14 +244,16 @@ const App = {
   // recorta a foto em quadrado, reduz para 320 px (≈25 KB) e envia
   async setPhoto(file) {
     if (!/^image\//.test(file.type || 'image/')) return FX.toast('Escolha uma imagem.');
-    FX.toast('Preparando a foto…');
     let img;
     try { img = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
     catch (e) { img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = URL.createObjectURL(file); }).catch(() => null); }
     if (!img) return FX.toast('Não deu para abrir essa imagem.');
+    const crop = await this.cropPhoto(img);
+    if (!crop) return;
     const S = 320, c = document.createElement('canvas'); c.width = c.height = S;
-    const w = img.width, h = img.height, m = Math.min(w, h), g = c.getContext('2d');
-    g.imageSmoothingQuality = 'high'; g.drawImage(img, (w - m) / 2, (h - m) / 2, m, m, 0, 0, S, S);
+    const g = c.getContext('2d');
+    g.imageSmoothingQuality = 'high'; g.fillStyle = '#fff'; g.fillRect(0, 0, S, S);
+    g.drawImage(img, crop.sx, crop.sy, crop.sw, crop.sw, 0, 0, S, S);
     const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.86));
     const P = Store.data.profile;
     P.photo = c.toDataURL('image/jpeg', 0.7); Store.save(); // aparece na hora, mesmo sem internet
@@ -295,6 +297,46 @@ const App = {
       setTimeout(() => { changed.forEach((a) => { if (a.pub) Cloud.publish(a).catch(() => {}); }); }, 8000);
       setTimeout(() => FX.toast(`${changed.length} treino${changed.length > 1 ? 's' : ''} com GPS corrigido${changed.length > 1 ? 's' : ''} (distância mais precisa).`), 2500);
     }
+  },
+  // tela de ajuste: arrastar para centralizar, pinça/controle para zoom. Devolve o recorte (ou null)
+  cropPhoto(img) {
+    return new Promise((done) => {
+      const W = Math.min(window.innerWidth - 72, 360), dpr = Math.min(2, window.devicePixelRatio || 1);
+      const el = document.createElement('div'); el.className = 'crop';
+      el.innerHTML = `<div class="crop-box"><h3>Ajustar foto</h3><p class="muted small">Arraste para centralizar · use dois dedos ou a barra para aproximar</p>
+        <div class="crop-stage" style="width:${W}px;height:${W}px"><canvas width="${W * dpr}" height="${W * dpr}" style="width:${W}px;height:${W}px"></canvas></div>
+        <div class="crop-zoom">${I('minus')}<input type="range" min="100" max="400" value="100" aria-label="Zoom">${I('plus')}</div>
+        <div class="row2"><button class="btn ghost" data-c="no">Cancelar</button><button class="btn primary" data-c="ok">Usar foto</button></div></div>`;
+      document.body.appendChild(el);
+      const cv = el.querySelector('canvas'), g = cv.getContext('2d'), rng = el.querySelector('input');
+      const iw = img.width, ih = img.height, base = W / Math.min(iw, ih);
+      let s = base, x = (W - iw * s) / 2, y = (W - ih * s) / 2;
+      const clamp = () => { s = Math.max(base, Math.min(base * 4, s)); x = Math.min(0, Math.max(W - iw * s, x)); y = Math.min(0, Math.max(W - ih * s, y)); };
+      const draw = () => {
+        g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, W);
+        g.drawImage(img, x, y, iw * s, ih * s);
+        g.save(); g.fillStyle = 'rgba(8,12,24,.55)'; g.beginPath(); g.rect(0, 0, W, W); g.arc(W / 2, W / 2, W / 2 - 2, 0, Math.PI * 2, true); g.fill('evenodd'); g.restore();
+        g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 2; g.beginPath(); g.arc(W / 2, W / 2, W / 2 - 2, 0, Math.PI * 2); g.stroke();
+      };
+      const zoomAt = (ns, cx, cy) => { const k = ns / s; x = cx - (cx - x) * k; y = cy - (cy - y) * k; s = ns; clamp(); rng.value = Math.round((s / base) * 100); draw(); };
+      const pts = new Map(); let pinch = null;
+      const pos = (e) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+      cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, pos(e)); if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), s }; } });
+      cv.addEventListener('pointermove', (e) => {
+        if (!pts.has(e.pointerId)) return; const p = pos(e), old = pts.get(e.pointerId); pts.set(e.pointerId, p);
+        if (pts.size === 2 && pinch) { const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); zoomAt(pinch.s * (d / pinch.d), (a[0] + b[0]) / 2, (a[1] + b[1]) / 2); }
+        else if (pts.size === 1) { x += p[0] - old[0]; y += p[1] - old[1]; clamp(); draw(); }
+      });
+      const up = (e) => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
+      cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+      cv.addEventListener('wheel', (e) => { e.preventDefault(); const p = pos(e); zoomAt(s * (e.deltaY < 0 ? 1.1 : 0.9), p[0], p[1]); }, { passive: false });
+      rng.addEventListener('input', () => zoomAt(base * (rng.value / 100), W / 2, W / 2));
+      el.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-c]'); if (!b) return;
+        el.remove(); done(b.dataset.c === 'ok' ? { sx: -x / s, sy: -y / s, sw: W / s } : null);
+      });
+      this._cropEl = el; draw();
+    });
   },
   async checkLive() {
     const s = Store.loadLive();
