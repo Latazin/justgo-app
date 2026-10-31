@@ -600,7 +600,7 @@ const UI = {
   visRow(act) {
     const pub = !act.private;
     return `<section class="vis-card ${pub ? 'pub' : 'priv'}" id="visCard">
-      <div class="vis-top"><div class="vis-ic">${I(pub ? 'globe' : 'lock')}</div><div class="grow"><b>${pub ? 'Treino público' : 'Só você vê este treino'}</b><small>${pub ? 'Aparece no feed, no Descobrir e disputa território' : 'Publique para aparecer no feed e no Descobrir'}</small></div></div>
+      <div class="vis-top"><div class="vis-ic">${I(pub ? 'globe' : 'lock')}</div><div class="grow"><b>${pub ? 'Treino público' : 'Só você vê este treino'}</b><small>${pub ? (Cloud.loggedIn() ? 'Aparece no feed, no Descobrir e disputa território' : 'É publicado quando você entrar na sua conta') : 'Publique para aparecer no feed e no Descobrir'}</small></div></div>
       <div class="seg vis-seg"><button class="${pub ? 'on' : ''}" data-act="visSet" data-v="${act.id}:public">${I('globe')}Público</button><button class="${pub ? '' : 'on'}" data-act="visSet" data-v="${act.id}:private">${I('lock')}Só eu</button></div>
     </section>`;
   },

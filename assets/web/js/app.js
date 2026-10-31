@@ -189,8 +189,8 @@ const App = {
       <label class="field"><span>Nome do treino <em>opcional</em></span><input id="finTitle" maxlength="60" placeholder="${esc(defTitle)}"></label>
       <span class="fin-lbl">Quem pode ver</span>
       <div class="fin-vis">
-        <label><input type="radio" name="finVis" value="public" ${logged ? 'checked' : ''} ${logged ? '' : 'disabled'}><span>${I('globe')}<b>Publicar</b><small>${logged ? 'Aparece no feed e no Descobrir, e disputa território' : 'Entre na sua conta para publicar'}</small></span></label>
-        <label><input type="radio" name="finVis" value="private" ${logged ? '' : 'checked'}><span>${I('lock')}<b>Só eu</b><small>Fica salvo só para você</small></span></label>
+        <label><input type="radio" name="finVis" value="public" checked><span>${I('globe')}<b>Público</b><small>${logged ? 'Aparece no feed e no Descobrir, e disputa território' : 'É publicado quando você entrar na sua conta'}</small></span></label>
+        <label><input type="radio" name="finVis" value="private"><span>${I('lock')}<b>Só eu</b><small>Fica salvo só para você</small></span></label>
       </div>
       <div class="row2"><button class="btn ghost" data-m="no">Voltar ao treino</button><button class="btn primary" data-m="yes">Salvar treino</button></div></div>`);
     if (v !== 'yes' || !this.tracker) return;
@@ -200,7 +200,7 @@ const App = {
     const act = tr.toActivity();
     if (F.finSport && CONFIG.sports[F.finSport]) act.sport = F.finSport;
     if (F.finTitle && F.finTitle.trim()) act.title = F.finTitle.trim().slice(0, 60);
-    act.private = F.finVis !== 'public';
+    act.private = F.finVis === 'private'; // padrão: público
     if (this.coach) act.workout = this.coach.summary();
     if (this.route) act.routeId = this.route.id;
     this.tracker = null; this.coach = null; this.routeLive = null;
@@ -369,9 +369,9 @@ const App = {
     visSet: async (el) => {
       const [id, v] = el.dataset.v.split(':'); const a = App.find(id); if (!a) return;
       const priv = v === 'private'; if (!!a.private === priv) return;
-      if (!priv && !Cloud.loggedIn()) { FX.toast('Entre na sua conta para publicar.'); return App.go('account'); }
       a.private = priv; Store.save();
       const box = $('#visCard'); if (box) box.outerHTML = UI.visRow(a);
+      if (!Cloud.loggedIn()) { FX.toast(priv ? 'Agora só você vê este treino.' : 'Vai ser publicado quando você entrar na sua conta.'); return; }
       try { if (priv) await Cloud.unpublish(a.id); else await Cloud.publish(a); FX.toast(priv ? 'Agora só você vê este treino.' : 'Treino publicado!'); }
       catch (e) { FX.toast('Sem conexão: tente de novo em instantes.'); }
     },
