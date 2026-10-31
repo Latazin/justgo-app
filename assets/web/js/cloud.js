@@ -161,9 +161,11 @@ const Cloud = {
   // treinos feitos antes de entrar na conta (ou que falharam sem internet) vão para o feed
   async backfill() {
     if (!this.loggedIn() || !this.me || this._backfilled) return; this._backfilled = true;
-    const since = Date.now() - 60 * 864e5;
-    const todo = Store.data.activities.filter((a) => !a.pub && !a.private && !a.flagged && a.mode !== 'sim' && a.start >= since).slice(-20);
-    for (const a of todo) { try { await this.publish(a); } catch (e) {} }
+    const D = Store.data, all = !D.pubAllDone; // 1ª vez: publica todo o histórico
+    const since = all ? 0 : Date.now() - 60 * 864e5;
+    const todo = D.activities.filter((a) => !a.pub && !a.private && !a.flagged && a.mode !== 'sim' && a.start >= since);
+    for (const a of all ? todo : todo.slice(-20)) { try { await this.publish(a); } catch (e) {} }
+    if (all && todo.every((a) => a.pub)) { D.pubAllDone = 1; Store.save(); }
   },
   async unpublish(id) { const a = Store.data.activities.find((x) => x.id === id); if (a) delete a.pub; if (this.loggedIn()) await this.sb.from('activities').delete().eq('id', id); },
   async publishAll() {

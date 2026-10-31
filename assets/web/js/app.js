@@ -14,6 +14,8 @@ const App = {
 
   init() {
     Store.load();
+    // 2.8.2: todos os treinos já feitos passam a ser públicos (uma vez)
+    if (!Store.data.pubAll1) { Store.data.activities.forEach((a) => { delete a.private; }); Store.data.pubAll1 = 1; try { Store.save(); } catch (e) {} }
     Shop.apply();
     this.sport = Store.data.profile.sports[0] || 'run';
     this.sim = false;
