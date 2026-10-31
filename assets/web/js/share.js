@@ -9,7 +9,8 @@
    ========================================================= */
 const ShareCard = {
   tpl: 'map', fmt: 'story', _map: {},
-  TPLS: [['map', 'Mapa'], ['neon', 'Neon'], ['clear', 'Adesivo']],
+  TPLS: [['map', 'Mapa'], ['neon', 'Neon'], ['clear', 'Adesivo'], ['avatar', 'Atleta']],
+  tpls() { return this.TPLS.filter(([k]) => k !== 'avatar' || Avatar.on()); },
   size(fmt) { return fmt === 'story' ? [1080, 1920] : [1080, 1350]; },
   F(w, s, fam) { return `${w} ${s}px ${fam || 'Inter'}, -apple-system, Segoe UI, sans-serif`; },
 
@@ -133,6 +134,20 @@ const ShareCard = {
       x.fillStyle = '#fff'; x.font = this.F(800, story ? 64 : 56); x.fillText(this.title(act), 80, ty);
       x.fillStyle = color; x.font = this.F(700, 30); x.fillText(`${(sp.name || '').toUpperCase()}  ·  ${(Store.data.profile.name || '').toUpperCase()}`, 80, ty + 54);
       this.numbers(x, cells, 80, ty + (story ? 150 : 130), W - 160, true, story);
+    } else if (tpl === 'avatar') {
+      const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1F6BFF'); g.addColorStop(0.55, '#3D7FFF'); g.addColorStop(1, '#0B2A6F'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+      x.fillStyle = 'rgba(255,255,255,.07)'; for (let i = -H; i < W; i += 120) { x.beginPath(); x.moveTo(i, H); x.lineTo(i + H * 0.6, 0); x.lineTo(i + H * 0.6 + 50, 0); x.lineTo(i + 50, H); x.fill(); }
+      this.logo(x, 80, 80, 66, true);
+      x.fillStyle = 'rgba(255,255,255,.75)'; x.font = this.F(600, 30); x.textAlign = 'right'; x.fillText(date, W - 80, 124); x.textAlign = 'left';
+      const sgn = Avatar.stage(), av = await Avatar.png(null, { pose: act.sport === 'ride' ? 'ride' : 'run', mood: 'happy', size: story ? 760 : 560 });
+      const ah = story ? 912 : 672, ay = story ? 190 : 150;
+      if (av) x.drawImage(av, (W - av.width) / 2, ay, av.width, ah);
+      const ty = ay + ah + (story ? 70 : 40);
+      const tag = `${sgn.name.toUpperCase()} · PODER ${Avatar.stats().pow}`; x.font = this.F(800, 28); const tw = x.measureText(tag).width;
+      x.fillStyle = 'rgba(255,255,255,.18)'; x.beginPath(); x.roundRect(80, ty - 44, tw + 48, 56, 28); x.fill();
+      x.fillStyle = '#fff'; x.fillText(tag, 104, ty - 6);
+      x.font = this.F(800, story ? 64 : 54); x.fillText(this.title(act), 80, ty + (story ? 78 : 66));
+      this.numbers(x, cells.slice(0, story ? 4 : 3), 80, ty + (story ? 170 : 140), W - 160, true, story);
     } else {
       // adesivo transparente: só trajeto + números com sombra (cole sobre sua foto)
       x.clearRect(0, 0, W, H);
@@ -160,7 +175,7 @@ const ShareCard = {
     const seg = (name, items, cur) => `<div class="seg" data-g="${name}">${items.map(([v, n]) => `<button class="${v === cur ? 'on' : ''}" data-sv="${v}">${n}</button>`).join('')}</div>`;
     el.innerHTML = `<div class="crop-box share-box"><h3>Compartilhar treino</h3>
       <div class="share-prev2 ${this.tpl === 'clear' ? 'checker' : ''}"><div class="sp-load">${I('refresh')}<span>Gerando…</span></div><img alt="Prévia da imagem"></div>
-      <span class="eyebrow">Modelo</span>${seg('tpl', this.TPLS, this.tpl)}
+      <span class="eyebrow">Modelo</span>${seg('tpl', this.tpls(), this.tpl)}
       <span class="eyebrow">Formato</span>${seg('fmt', [['post', 'Post · 4:5'], ['story', 'Story · 9:16']], this.fmt)}
       <p class="muted small sp-hint"></p>
       <div class="row2"><button class="btn ghost" data-c="save">${I('download')} Baixar</button><button class="btn primary" data-c="share">${I('share')} Compartilhar</button></div>
@@ -192,3 +207,5 @@ const ShareCard = {
   },
 };
 try { const s = JSON.parse(localStorage.getItem('jg_share') || 'null'); if (s) { ShareCard.tpl = s[0] || 'map'; ShareCard.fmt = s[1] || 'story'; } } catch (e) {}
+// se escolheu "Atleta" e depois removeu o atleta, volta para o mapa
+ShareCard._open = ShareCard.open; ShareCard.open = function (a) { if (this.tpl === 'avatar' && !Avatar.on()) this.tpl = 'map'; return this._open(a); };

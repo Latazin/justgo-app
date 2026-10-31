@@ -294,6 +294,7 @@ const UI = {
       ${this.loginCard()}
       <div id="hTorch"></div>
       ${this.retroCard()}
+      ${this.avatarHome()}
 
       <section class="card week tap" data-act="go" data-v="stats">
         <div class="week-top">
@@ -417,7 +418,7 @@ const UI = {
     const tr = App.tracker, sp = CONFIG.sports[tr.sport], unit = Fmt.paceUnit(tr.sport);
     this.setSportColor(tr.sport);
     this.render(`<main class="train">
-      <div class="t-top"><span class="t-sport">${I(SPORT_IC[tr.sport])}${sp.name}</span><span id="tGps" class="gps"></span>
+      <div class="t-top"><span class="t-sport">${Avatar.on() ? `<span class="t-av" id="tAv">${Avatar.svg(null, { pose: tr.sport === 'ride' ? 'ride' : 'run', mood: 'happy', w: 34, portrait: false })}</span>` : I(SPORT_IC[tr.sport])}${sp.name}</span><span id="tGps" class="gps"></span>
         <button class="t-icon ${Cloud.liveId ? 'on' : ''}" id="tLive" data-act="live" title="Compartilhar localização">${I('signal')}</button><button class="sos" data-act="sos">SOS</button></div>
       <div id="tState" class="t-state"></div>
       <div id="tPhase" class="t-phase" hidden></div>
@@ -452,6 +453,7 @@ const UI = {
          <div class="cb"><button class="cbtn main" data-act="resume" aria-label="Retomar">${I('play')}</button><small>Retomar</small></div>`;
   },
   updateTraining() {
+    { const av = document.getElementById('tAv'), t0 = App.tracker; if (av && t0) av.classList.toggle('paused', t0.state !== 'running' || !!t0.autoPaused); }
     const tr = App.tracker;
     if (!tr || !$('#tTime')) return;
     const secs = tr.moving / 1000;
@@ -1167,6 +1169,7 @@ const UI = {
         </div>
         ${this.sectionHead('Conta e app')}
         <div class="list">
+          ${row('go', 'atleta', 'user', 'Seu atleta', Avatar.on() ? `${Avatar.stage().name} · poder ${Avatar.stats().pow}` : 'Crie um personagem que evolui com seus treinos (opcional)')}
           ${row('editProfile', '', 'user', 'Editar perfil', 'Nome, foto, cidade, bio e peso')}
           ${row('go', 'settings', 'settings', 'Configurações', 'Tema, unidades, voz, mapa, backup e atualizações')}
           ${row('go', 'account', 'cloud', 'Conta e sincronização', Cloud.loggedIn() ? 'Conectado' : 'Entrar ou criar conta')}

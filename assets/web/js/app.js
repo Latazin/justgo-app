@@ -10,7 +10,7 @@ const App = {
   tracker: null, coach: null, routeLive: null, wl: null,
 
   // tela -> aba da barra inferior que fica acesa
-  parents: { notifs: 'home', pro: 'profile', progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', ract: 'social', torch: 'social', retro: 'home', club: 'social', history: 'home', heatmap: 'home' },
+  parents: { notifs: 'home', pro: 'profile', progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', ract: 'social', torch: 'social', retro: 'home', atleta: 'profile', avatarEdit: 'profile', club: 'social', history: 'home', heatmap: 'home' },
 
   init() {
     Store.load();
@@ -617,6 +617,29 @@ const App = {
       UI.summary(a, null, false);
     },
     photoView: (el) => FX.modal(`<div class="photo-view"><img src="${esc(el.dataset.v)}" alt="Foto"></div><button class="btn ghost" data-m="ok">Fechar</button>`),
+    avCreate: () => { UI._avDraft = null; App.avTab = 'body'; App.tab = 'avatarEdit'; App.nav = 'profile'; UI.avatarEdit(true); },
+    avHide: () => { Store.data.avatarHide = 1; Store.save(); FX.toast('Tudo bem! Você pode criar quando quiser em Perfil → Ajustes.'); App.go('home'); },
+    avTab: (el) => { App.avTab = el.dataset.v; UI.avatarEdit(); },
+    avSet: (el) => { const c = UI._avDraft, k = el.dataset.k, v = el.dataset.v; if (!c) return; c[k] = k === 'skin' || k === 'hairC' ? +v : k === 'beard' ? v === '1' : v; UI.avatarEdit(); },
+    avItem: async (el) => {
+      const c = UI._avDraft, it = Avatar.item(el.dataset.v); if (!c || !it) return;
+      if (!Avatar.has(it.id)) {
+        if (it.cond) return FX.toast(`Item conquistado: ${Avatar.COND[it.cond][0]}.`);
+        if (Store.data.coins < it.price) return FX.toast(`Faltam ${it.price - Store.data.coins} moedas. Moedas vêm de missões e treinos.`);
+        if (!(await FX.confirm(`Comprar ${it.name}?`, `Custa ${it.price} moedas. Você tem ${Store.data.coins}.`, 'Comprar'))) return;
+        Avatar.buy(it.id); c.own = { ...(c.own || {}), [it.id]: Date.now() }; FX.toast('Item comprado!'); FX.vibrate([20, 30, 20]);
+      }
+      c.eq[it.cat] = it.id; UI.avatarEdit();
+    },
+    avSave: () => { const c = UI._avDraft; if (!c) return; const isNew = !Avatar.on(); c.own = { ...((Store.data.avatar || {}).own || {}), ...(c.own || {}) }; Avatar.save(c); UI._avDraft = null; FX.toast(isNew ? 'Seu atleta nasceu! 🎉 Agora ele evolui com seus treinos.' : 'Atleta atualizado!'); App.go(isNew ? 'home' : 'atleta'); },
+    avRemove: async () => { if (!(await FX.confirm('Remover seu atleta?', 'Ele some do app e do seu perfil. Os itens comprados ficam guardados se você criar de novo.', 'Remover', true))) return; Store.data.avatar.on = false; Store.save(); if (Cloud.loggedIn()) Cloud.pushAvatar().catch(() => {}); App.go('profile'); },
+    avPhoto: async () => {
+      const cv = await Avatar.png(null, { portrait: true, size: 320, bg: '#DCE8FF', mood: 'happy' }); if (!cv) return FX.toast('Não deu para gerar a imagem.');
+      const blob = await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.9)); const P = Store.data.profile;
+      P.photo = cv.toDataURL('image/jpeg', 0.8); Store.save();
+      if (Cloud.loggedIn()) { try { P.photo = await Cloud.uploadPhoto(blob); Store.save(); } catch (e) {} }
+      FX.toast('Seu atleta agora é sua foto de perfil!'); App.go('atleta');
+    },
     retroStart: () => Retro.start(),
     retroCancel: () => { Retro.cancelVideo = true; FX.toast('Retrospectiva cancelada. Ela continua disponível.'); },
     retroShare: () => Retro.reshare(),
@@ -643,6 +666,7 @@ const App = {
       try {
         if (!a.pub) await Cloud.publish(a);
         if (t) await Cloud.torchPass(t.id, a.id, f.toFriend); else await Cloud.torchLight(a.id, f.toFriend);
+        Store.data.torchPasses = (Store.data.torchPasses || 0) + 1; Store.save();
         FX.vibrate([30, 40, 30]); FX.toast(`Tocha passada para ${(pm[f.toFriend] && pm[f.toFriend].name || 'seu amigo').split(' ')[0]}! 🔥`);
       } catch (e) {
         const m = String(e && e.message || '');

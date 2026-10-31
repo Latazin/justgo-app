@@ -131,8 +131,21 @@ const Cloud = {
     await this.sb.from('profiles').update({ photo: null }).eq('id', this.user.id);
     if (this.me) this.me.photo = null;
   },
+  // atleta: publica o visual e o poder (colunas separadas: se ainda não existirem, nada quebra)
+  async pushAvatar() {
+    if (!this.loggedIn() || !this.user) return;
+    const on = Avatar.on(), d = Avatar.publicData();
+    const row = on ? { avatar_cfg: { ...d.cfg, st: d.st }, avatar_pow: d.pow, avatar_stage: d.stage } : { avatar_cfg: null, avatar_pow: null, avatar_stage: null };
+    const { error } = await this.sb.from('profiles').update(row).eq('id', this.user.id);
+    if (error) console.warn('atleta', error.message);
+  },
+  async avatarRank(stage) {
+    const { data, error } = await this.sb.from('profiles').select('*').eq('avatar_stage', stage).not('avatar_pow', 'is', null).order('avatar_pow', { ascending: false }).limit(30);
+    if (error) throw error; return data || [];
+  },
   async pushProfile() {
     if (!this.me) return;
+    if (typeof Avatar !== 'undefined' && (Avatar.on() || (Store.data.avatar && Store.data.avatar.on === false))) this.pushAvatar().catch(() => {});
     const D = Store.data, acts = Game.acts().filter((a) => a.mode !== 'sim');
     await this.sb.from('profiles').update({
       level: Game.level(D.xp), xp: D.xp, total_km: Math.round(Game.km(acts) * 10) / 10, medals: Object.keys(D.medals).length,

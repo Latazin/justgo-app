@@ -149,6 +149,7 @@ const Retro = {
     const stops = [o0, o1, ...this.hi.flatMap((o) => [0, 0.33, 0.66, 1].map((t) => this.cam(o, t))), oEnd];
     for (let i = 0; i < stops.length && !this.cancelVideo; i++) { m.jumpTo(stops[i]); await View3D.settle.call(this, 1800); this.ui((i / stops.length) * 0.25, 'Preparando o mapa…'); }
 
+    this.avImg = Avatar.on() ? await Avatar.png(null, { pose: 'cheer', mood: 'cheer', size: 230 }) : null;
     const out = document.createElement('canvas'); out.width = this.W; out.height = this.H;
     const g = out.getContext('2d', { alpha: false });
     try { await Promise.all(['800 64px "Barlow Condensed"', '700 30px Inter', '800 52px Inter', '600 22px Inter'].map((f) => document.fonts.load(f))); } catch (e) {}
@@ -218,6 +219,7 @@ const Retro = {
       g.font = '600 22px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.75)'; g.textAlign = 'right'; g.fillText(`${S.n} treinos · ${S.days} dias ativos`, W - 48, H - 84); g.textAlign = 'left';
     } else {
       const a = Math.min(1, s.u * 2.5); g.globalAlpha = a;
+      if (this.avImg) g.drawImage(this.avImg, W - 48 - 190, H - 520 - 236, 190, 228);
       g.fillStyle = 'rgba(8,12,24,.62)'; this.rr(g, 36, H - 520, W - 72, 450, 32); g.fill();
       const cells = [['KM', Fmt.num(S.km, 1)], ['TREINOS', String(S.n)], ['TEMPO', Fmt.time(S.time)], ['SUBIDA', `${S.elev} m`], ['FAVORITO', (CONFIG.sports[S.fav] || {}).name || '—'], ['MAIOR', S.big ? `${Fmt.km(S.big.distance, 1)} km` : '—']];
       cells.forEach(([l, v], i) => {
