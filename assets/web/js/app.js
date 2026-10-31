@@ -41,6 +41,7 @@ const App = {
     document.addEventListener('change', (e) => this.onChange(e));
     document.addEventListener('submit', (e) => { if (e.target.id === 'authForm') { e.preventDefault(); this.auth(); } });
     document.addEventListener('input', (e) => {
+      if (e.target.id === 'rtProg' && typeof Retro !== 'undefined' && Retro.base) { if (Retro.playing) Retro.pause(); Retro.seek(+e.target.value / 1000); return; }
       if (e.target.id === 'searchQ') { clearTimeout(this._sq); const q = e.target.value.trim(); this._sq = setTimeout(() => UI.searchResults(q).catch(() => {}), 300); }
     });
     document.addEventListener('visibilitychange', () => {
@@ -431,6 +432,7 @@ const App = {
 
   /* ---------- campos de formulário ---------- */
   onChange(e) {
+    if (e.target.id === 'rtProg') { Retro.pause(); Retro.seek(+e.target.value / 1000); return; }
     if (e.target.id === 'actPhotoIn') { const f = e.target.files && e.target.files[0], id = e.target.dataset.id; e.target.value = ''; if (f) this.addActPhoto(id, f); return; }
     if (e.target.id === 'photoIn') { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) this.setPhoto(f); return; }
     const t = e.target, D = Store.data, P = D.profile;
@@ -657,7 +659,11 @@ const App = {
       FX.toast('Seu atleta agora é sua foto de perfil!'); App.go('atleta');
     },
     retroStart: () => Retro.start(),
-    retroCancel: () => { Retro.cancelVideo = true; FX.toast('Retrospectiva cancelada. Ela continua disponível.'); },
+    retroCancel: () => { if (Retro.busy) { Retro.cancelVideo = true; FX.toast('Geração cancelada. A retrospectiva continua disponível.'); } else { Retro.close(); App.go('home'); } },
+    retroClose: () => { if (Retro.busy) return App.actions.retroCancel(); Retro.close(); App.go('home'); },
+    retroPlay: () => (Retro.playing ? Retro.pause() : Retro.play()),
+    retroSpeed: (el) => Retro.setSpeed(+el.dataset.v),
+    retroExport: () => Retro.exportVideo(),
     retroShare: () => Retro.reshare(),
     torchOpen: (el) => { App.tab = 'torch'; App.nav = 'social'; UI.torch(el.dataset.v); },
     torchNew: async () => {

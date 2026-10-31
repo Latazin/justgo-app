@@ -1419,3 +1419,17 @@ button.pf-photo { background: none; padding: 0; }
 .sp-stats b { display: inline-flex; align-items: baseline; gap: 2px; } .sp-stats.c4 b { font-size: 17px; }
 .chp-send, .ave-save { width: auto !important; }
 .rk-v, .pd .num { white-space: nowrap; }
+/* retrospectiva: prévia com velocidade */
+.rt-prev .rt-view { position: absolute; left: 50%; top: 50%; width: min(100vw, calc(100vh * 9 / 16)); height: min(100vh, calc(100vw * 16 / 9)); transform: translate(-50%, -50%); z-index: 2; background: #0b0f1a; }
+.rt-top { position: absolute; z-index: 6; top: calc(env(safe-area-inset-top) + 12px); left: 12px; right: 12px; display: flex; align-items: center; gap: 10px; }
+.rt-title { flex: 1; padding: 8px 14px; border-radius: 16px; background: color-mix(in srgb, var(--surface) 90%, transparent); box-shadow: var(--shadow-md); }
+.rt-title b { display: block; font-size: 15px; } .rt-title small { color: var(--text-3); font-size: 12px; }
+.rt-ctl { position: absolute; z-index: 6; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom) + 14px); max-width: 520px; margin: 0 auto; display: grid; gap: 10px; padding: 12px 14px 14px; border-radius: 22px; background: color-mix(in srgb, var(--surface) 95%, transparent); box-shadow: var(--shadow-lg); }
+.rt-row { display: flex; align-items: center; gap: 12px; }
+.rt-row input[type=range] { width: 100%; accent-color: var(--brand); } .rt-row small { color: var(--text-3); font-size: 12px; }
+.rt-speed { display: flex; align-items: center; gap: 10px; } .rt-speed > span { font-size: 12.5px; font-weight: 700; color: var(--text-3); } .rt-speed .seg { flex: 1; }
+.rt-gen { width: 100%; }
+.rt-prev .v3-rec { z-index: 7; }
+.rt-prev .v3-map { opacity: .001; }
+.rt-prev .rt-view { top: calc(env(safe-area-inset-top) + 74px); transform: translateX(-50%); width: auto; height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 74px - 228px); height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 74px - 228px); aspect-ratio: 9 / 16; border-radius: 18px; box-shadow: 0 20px 50px -20px rgba(0,0,0,.7); }
+.rt-prev { background: radial-gradient(circle at 50% 30%, #1E293B, #0B0F1A 70%); }

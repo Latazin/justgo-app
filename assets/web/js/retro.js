@@ -79,39 +79,127 @@ const Retro = {
 
   /* ---------- gerar ---------- */
   async start() {
-    const d = new Date(), k = this.key(d), st = this.state(d);
+    const d = new Date(), st = this.state(d);
     if (st === 'used') return FX.toast(`Sua retrospectiva de ${this.monthName(d)} já foi gerada. A próxima libera na última semana do mês que vem.`);
     if (st === 'soon') return FX.toast(`A retrospectiva de ${this.monthName(d)} libera no dia ${this.openFrom(d)}.`);
     if (st === 'empty') return FX.toast('Faça pelo menos um treino com GPS neste mês para gerar a retrospectiva.');
-    if (!View3D.supported() || !window.maplibregl) return FX.toast('Seu aparelho não consegue gerar o vídeo em 3D.');
-    if (!View3D.canVideo()) return FX.toast('Seu aparelho não consegue gerar vídeo. Atualize o "Android System WebView" na Play Store.');
-    const list = this.acts(d);
-    const gps = list.map((a) => this.prep(a)).filter(Boolean), nHi = Math.min(6, gps.length);
-    // escolha da velocidade do vídeo (1x = calmo; 2x ≈ ritmo de clipe)
-    const len = (sp) => Math.round(this.T(sp).intro + nHi * (this.T(sp).trans + this.T(sp).fly) + this.T(sp).outro);
-    const sp0 = +(localStorage.getItem('jg_retro_speed') || 1) || 1;
-    const opt = (v, n) => `<button class="rs-opt ${v === sp0 ? 'on' : ''}" data-m="${v}"><b>${n}</b><small>~${len(v)} s de vídeo</small></button>`;
-    const pick = await FX.modal(`<h3>Retrospectiva de ${this.monthName(d)} 🎬</h3><p class="muted">Escolha a velocidade do voo. Você pode gerar <b>uma retrospectiva por mês</b>, então escolha com calma!</p>
-      <div class="rs-grid">${opt(0.5, '0,5x · bem devagar')}${opt(1, '1x · normal')}${opt(1.5, '1,5x · rápida')}${opt(2, '2x · clipe')}</div>
-      <p class="muted small">O Story do Instagram aceita até 60 s por parte. Vídeos maiores levam mais tempo para gerar: deixe o app aberto.</p>
-      <button class="btn ghost" data-m="no">Cancelar</button>`);
-    if (!pick || pick === 'no' || !isFinite(+pick)) return;
-    this.speed = +pick; try { localStorage.setItem('jg_retro_speed', String(this.speed)); } catch (e) {}
+    if (!View3D.supported() || !window.maplibregl) return FX.toast('Seu aparelho não consegue mostrar o 3D.');
+    const list = this.acts(d), gps = list.map((a) => this.prep(a)).filter(Boolean);
     // destaques: até 6 treinos (os maiores), na ordem do mês
-    const hi = [...gps].sort((x, y) => y.total - x.total).slice(0, 6).sort((x, y) => x.a.start - y.a.start);
-    this.items = gps; this.hi = hi; this.S = this.stats(list); this.month = d;
+    this.hi = [...gps].sort((x, y) => y.total - x.total).slice(0, 6).sort((x, y) => x.a.start - y.a.start);
+    this.items = gps; this.S = this.stats(list); this.month = d;
+    this.speed = +(localStorage.getItem('jg_retro_speed') || 1) || 1;
+    this.cancelVideo = false; this.busy = false;
     App.tab = 'retro'; UI.retroScreen();
+    await this.mount(); if (!this.map || App.tab !== 'retro') return;
+    const m = this.map;
+    m.resize(); m.setPixelRatio((this.light ? 480 : 560) / m.getContainer().clientWidth); m.resize();
+    this.base = this.buildShots(1); // linha do tempo em 1x; a velocidade só muda o ritmo de reprodução
+    // pré-carrega o mapa nos pontos-chave
+    const stops = [this.base[0].cam, ...this.hi.flatMap((o) => [0, 0.33, 0.66, 1].map((t) => this.cam(o, t))), this.base[this.base.length - 1].cam];
+    for (let i = 0; i < stops.length && this.map && App.tab === 'retro'; i++) { m.jumpTo(stops[i]); await View3D.settle.call(this, 1800); this.ui((i / stops.length), 'Preparando o mapa…'); }
+    if (!this.map || App.tab !== 'retro') return;
+    this.avImg = Avatar.on() ? await Avatar.png(null, { pose: 'cheer', mood: 'cheer', size: 230 }) : null;
+    try { await Promise.all(['800 64px "Barlow Condensed"', '700 30px Inter', '800 52px Inter', '600 22px Inter'].map((f) => document.fonts.load(f))); } catch (e) {}
+    const el = $('#rtRec'); if (el) el.hidden = true;
+    UI.retroControls();
+    this.pos = 0; this.play();
+  },
+
+  buildLen(sp) { const T = this.T(sp); return T.intro + this.hi.length * (T.trans + T.fly) + T.outro; },
+  // roteiro: abertura → cada destaque (transição + voo) → fechamento com os números
+  buildShots(sp) {
+    const F = this.FPS, TT = this.T(sp), ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+    const mix = (a, b, u) => { let db = b.bearing - a.bearing; while (db > 180) db -= 360; while (db < -180) db += 360; return { center: [a.center[0] + (b.center[0] - a.center[0]) * u, a.center[1] + (b.center[1] - a.center[1]) * u], zoom: a.zoom + (b.zoom - a.zoom) * u, pitch: a.pitch + (b.pitch - a.pitch) * u, bearing: a.bearing + db * u }; };
+    const shots = [], o0 = this.overCam(-20, 35), o1 = this.overCam(-50, 52), nI = Math.round(TT.intro * F);
+    for (let i = 0; i < nI; i++) { const u = i / (nI - 1); shots.push({ cam: mix(o0, o1, ease(u)), k: -1, t: 0, scene: 'intro', u }); }
+    let prev = o1;
+    this.hi.forEach((o, n) => {
+      const c0 = this.cam(o, 0), nT = Math.round(TT.trans * F), nF = Math.round(TT.fly * F);
+      for (let i = 0; i < nT; i++) shots.push({ cam: mix(prev, c0, ease(i / nT)), k: n, t: 0, scene: 'fly' });
+      for (let i = 0; i < nF; i++) { const u = i / (nF - 1), t = 0.1 * (u * u * (3 - 2 * u)) + 0.9 * u; shots.push({ cam: this.cam(o, t), k: n, t, scene: 'fly' }); }
+      prev = this.cam(o, 1);
+    });
+    const oEnd = this.overCam(prev.bearing - 30, 50), nO = Math.round(TT.outro * F);
+    for (let i = 0; i < nO; i++) { const u = i / (nO - 1), c = mix(prev, oEnd, ease(Math.min(1, u * 2.2))); c.bearing += u * 22; shots.push({ cam: c, k: this.hi.length, t: 1, scene: 'outro', u }); }
+    return shots;
+  },
+
+  /* ---------- prévia ao vivo (velocidade muda na hora) ---------- */
+  show(i) {
+    const m = this.map, cv = $('#rtView'); if (!m || !cv || !this.base) return;
+    const s = this.base[Math.max(0, Math.min(this.base.length - 1, i))], g = cv.getContext('2d', { alpha: false });
+    m.jumpTo(s.cam);
+    m.once('render', () => { try { this.compose(g, s); } catch (e) {} });
+    m.triggerRepaint();
+    const bar = $('#rtProg'); if (bar) bar.value = Math.round((i / (this.base.length - 1)) * 1000);
+    const tm = $('#rtTime'); if (tm) tm.textContent = `${Fmt.time(i / this.FPS / this.speed)} / ${Fmt.time(this.base.length / this.FPS / this.speed)}`;
+  },
+  play() {
+    if (!this.base || this.busy) return;
+    if (this.pos >= this.base.length - 1) this.pos = 0;
+    this.playing = true; UI.retroControls();
+    let last = performance.now();
+    const step = (now) => {
+      if (!this.playing || !this.map || App.tab !== 'retro') return;
+      this.pos = Math.min(this.base.length - 1, this.pos + (Math.min(now - last, 80) / 1000) * this.FPS * this.speed); last = now;
+      this.show(Math.floor(this.pos));
+      if (this.pos >= this.base.length - 1) { this.playing = false; UI.retroControls(); return; }
+      this.raf = requestAnimationFrame(step);
+    };
+    this.raf = requestAnimationFrame(step);
+  },
+  pause() { this.playing = false; cancelAnimationFrame(this.raf); UI.retroControls(); },
+  setSpeed(v) { this.speed = v; try { localStorage.setItem('jg_retro_speed', String(v)); } catch (e) {} UI.retroControls(); if (!this.playing) this.show(Math.floor(this.pos || 0)); },
+  seek(f) { this.pos = Math.max(0, Math.min(1, f)) * (this.base.length - 1); this.show(Math.floor(this.pos)); },
+
+  /* ---------- gerar o vídeo (na velocidade escolhida) — conta como o uso do mês ---------- */
+  async exportVideo() {
+    if (!this.map || this.busy) return;
+    if (!View3D.canVideo()) return FX.toast('Seu aparelho não consegue gerar vídeo. Atualize o "Android System WebView" na Play Store.');
+    const shots = this.buildShots(this.speed), len = Math.round(shots.length / this.FPS);
+    const ok = await FX.confirm('Gerar o vídeo? 🎬', `Velocidade <b>${String(this.speed).replace('.', ',')}x</b> · cerca de <b>${len} s</b> de vídeo.<br>Você pode gerar <b>uma retrospectiva por mês</b>, então confira antes na prévia. Deixe o app aberto enquanto gera.`, 'Gerar vídeo');
+    if (!ok || !this.map) return;
+    this.pause(); this.busy = true; this.cancelVideo = false;
+    const k = this.key(this.month), rec = $('#rtRec'); if (rec) rec.hidden = false;
+    UI.retroControls();
     let blob = null;
-    try { blob = await this.render(); } catch (e) { console.warn('retro', e); }
+    try { blob = await this.encode(shots); } catch (e) { console.warn('retro', e); }
+    this.busy = false;
     if (blob) {
       Store.data.retro = Store.data.retro || {}; Store.data.retro[k] = Date.now(); Store.save(); Cloud.queuePush && Cloud.queuePush();
       try { await this.saveBlob(k, blob); } catch (e) {}
       FX.download(`justgo-retrospectiva-${k}.mp4`, blob, 'video/mp4');
       FX.toast('Retrospectiva pronta! 🎉');
-    } else if (!this.cancelVideo) FX.toast('Não deu para gerar a retrospectiva agora. Ela continua disponível.');
-    this.close(); App.go('home');
+      this.close(); App.go('home');
+    } else {
+      if (!this.cancelVideo) FX.toast('Não deu para gerar o vídeo agora. Ele continua disponível.');
+      if (rec) rec.hidden = true; UI.retroControls();
+    }
   },
-  close() { this.cancelVideo = true; if (this.map) { try { this.map.remove(); } catch (e) {} } this.map = null; },
+  async encode(shots) {
+    const m = this.map, F = this.FPS;
+    await View3D.loadMuxer(); const EC = await View3D.encoderConfig.call(this); if (!EC) return null;
+    const out = document.createElement('canvas'); out.width = this.W; out.height = this.H;
+    const g = out.getContext('2d', { alpha: false }), view = $('#rtView'), vg = view && view.getContext('2d', { alpha: false });
+    const target = new Mp4Muxer.ArrayBufferTarget();
+    const mux = new Mp4Muxer.Muxer({ target, video: { codec: EC.mc, width: this.W, height: this.H, frameRate: F }, fastStart: 'in-memory', firstTimestampBehavior: 'offset' });
+    let err = null; const enc = new VideoEncoder({ output: (c, meta) => mux.addVideoChunk(c, meta), error: (e) => (err = e) });
+    enc.configure(EC.cfg);
+    for (let i = 0; i < shots.length && !this.cancelVideo && !err && this.map; i++) {
+      const s = shots[i]; m.jumpTo(s.cam);
+      await View3D.frame.call(this, () => { this.compose(g, s); if (vg && i % 2 === 0) vg.drawImage(out, 0, 0); });
+      const vf = new VideoFrame(out, { timestamp: Math.round((i * 1e6) / F), duration: Math.round(1e6 / F) });
+      enc.encode(vf, { keyFrame: i % (F * 2) === 0 }); vf.close();
+      while (enc.encodeQueueSize > 3) await new Promise((r) => setTimeout(r, 4));
+      if (i % 3 === 0) this.ui(i / shots.length);
+    }
+    if (this.cancelVideo || err || !this.map) { try { enc.close(); } catch (e) {} return null; }
+    await enc.flush(); mux.finalize(); try { enc.close(); } catch (e) {}
+    this.ui(1);
+    return new Blob([target.buffer], { type: 'video/mp4' });
+  },
+  close() { this.cancelVideo = true; this.playing = false; cancelAnimationFrame(this.raf); if (this.map) { try { this.map.remove(); } catch (e) {} } this.map = null; this.base = null; },
 
   mount() {
     return new Promise((ok) => {
@@ -133,54 +221,6 @@ const Retro = {
       });
       setTimeout(ok, 12000);
     });
-  },
-
-  async render() {
-    this.cancelVideo = false;
-    await this.mount(); if (!this.map) return null;
-    const m = this.map;
-    await View3D.loadMuxer(); const EC = await View3D.encoderConfig.call(this); if (!EC) return null;
-    m.resize(); m.setPixelRatio((this.light ? 480 : 560) / m.getContainer().clientWidth); m.resize();
-    const F = this.FPS, ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
-    const mix = (a, b, u) => { let db = b.bearing - a.bearing; while (db > 180) db -= 360; while (db < -180) db += 360; return { center: [a.center[0] + (b.center[0] - a.center[0]) * u, a.center[1] + (b.center[1] - a.center[1]) * u], zoom: a.zoom + (b.zoom - a.zoom) * u, pitch: a.pitch + (b.pitch - a.pitch) * u, bearing: a.bearing + db * u }; };
-    // roteiro (tempos pela velocidade escolhida): abertura → cada destaque (transição + voo) → fechamento com os números
-    const shots = [], o0 = this.overCam(-20, 35), o1 = this.overCam(-50, 52);
-    const TT = this.T(), nI = Math.round(TT.intro * F);
-    for (let i = 0; i < nI; i++) { const u = i / (nI - 1); shots.push({ cam: mix(o0, o1, ease(u)), k: -1, t: 0, scene: 'intro', u }); }
-    let prev = o1;
-    this.hi.forEach((o, n) => {
-      const c0 = this.cam(o, 0), nT = Math.round(TT.trans * F), nF = Math.round(TT.fly * F);
-      for (let i = 0; i < nT; i++) shots.push({ cam: mix(prev, c0, ease(i / nT)), k: n, t: 0, scene: 'fly' });
-      for (let i = 0; i < nF; i++) { const u = i / (nF - 1), t = 0.1 * (u * u * (3 - 2 * u)) + 0.9 * u; shots.push({ cam: this.cam(o, t), k: n, t, scene: 'fly' }); }
-      prev = this.cam(o, 1);
-    });
-    const oEnd = this.overCam(prev.bearing - 30, 50), nO = Math.round(TT.outro * F);
-    for (let i = 0; i < nO; i++) { const u = i / (nO - 1), c = mix(prev, oEnd, ease(Math.min(1, u * 2.2))); c.bearing += u * 22; shots.push({ cam: c, k: this.hi.length, t: 1, scene: 'outro', u }); }
-
-    // pré-carrega o mapa nos pontos-chave
-    const stops = [o0, o1, ...this.hi.flatMap((o) => [0, 0.33, 0.66, 1].map((t) => this.cam(o, t))), oEnd];
-    for (let i = 0; i < stops.length && !this.cancelVideo; i++) { m.jumpTo(stops[i]); await View3D.settle.call(this, 1800); this.ui((i / stops.length) * 0.25, 'Preparando o mapa…'); }
-
-    this.avImg = Avatar.on() ? await Avatar.png(null, { pose: 'cheer', mood: 'cheer', size: 230 }) : null;
-    const out = document.createElement('canvas'); out.width = this.W; out.height = this.H;
-    const g = out.getContext('2d', { alpha: false });
-    try { await Promise.all(['800 64px "Barlow Condensed"', '700 30px Inter', '800 52px Inter', '600 22px Inter'].map((f) => document.fonts.load(f))); } catch (e) {}
-    const target = new Mp4Muxer.ArrayBufferTarget();
-    const mux = new Mp4Muxer.Muxer({ target, video: { codec: EC.mc, width: this.W, height: this.H, frameRate: F }, fastStart: 'in-memory', firstTimestampBehavior: 'offset' });
-    let err = null; const enc = new VideoEncoder({ output: (c, meta) => mux.addVideoChunk(c, meta), error: (e) => (err = e) });
-    enc.configure(EC.cfg);
-    for (let i = 0; i < shots.length && !this.cancelVideo && !err; i++) {
-      const s = shots[i]; m.jumpTo(s.cam);
-      await View3D.frame.call(this, () => this.compose(g, s));
-      const vf = new VideoFrame(out, { timestamp: Math.round((i * 1e6) / F), duration: Math.round(1e6 / F) });
-      enc.encode(vf, { keyFrame: i % (F * 2) === 0 }); vf.close();
-      while (enc.encodeQueueSize > 3) await new Promise((r) => setTimeout(r, 4));
-      if (i % 3 === 0) this.ui(0.25 + 0.75 * (i / shots.length));
-    }
-    if (this.cancelVideo || err) { try { enc.close(); } catch (e) {} return null; }
-    await enc.flush(); mux.finalize(); try { enc.close(); } catch (e) {}
-    this.ui(1);
-    return new Blob([target.buffer], { type: 'video/mp4' });
   },
 
   // um quadro: mapa + linhas já percorridas + textos
@@ -247,7 +287,7 @@ const Retro = {
   ui(f, label) {
     const el = $('#rtRec'); if (!el) return;
     el.querySelector('i').style.width = `${Math.round(f * 100)}%`;
-    el.querySelector('b').textContent = f >= 1 ? 'Retrospectiva pronta!' : `${label || 'Gerando sua retrospectiva…'} ${Math.round(f * 100)}%`;
+    el.querySelector('b').textContent = f >= 1 ? 'Retrospectiva pronta!' : `${label || 'Gerando o vídeo…'} ${Math.round(f * 100)}%`;
   },
 
   // guarda o vídeo do mês no celular para compartilhar de novo

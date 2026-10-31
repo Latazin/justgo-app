@@ -668,9 +668,21 @@ const UI = {
 
   /* ---------- retrospectiva do mês ---------- */
   retroScreen() {
-    this.render(`<main class="v3 rec"><div id="rtMap" class="v3-map"></div>
-      <div id="rtRec" class="v3-rec"><div class="v3-rec-box"><b>Preparando…</b><small>Leva cerca de 1 minuto. Deixe o app aberto.</small><div class="v3-rec-bar"><i></i></div><button class="btn ghost sm" data-act="retroCancel">Cancelar</button></div></div></main>`, false);
+    const mon = Retro.monthName(Retro.month || new Date());
+    this.render(`<main class="v3 rec rt-prev"><div id="rtMap" class="v3-map"></div><canvas id="rtView" class="rt-view" width="${Retro.W}" height="${Retro.H}"></canvas>
+      <div class="rt-top"><button class="round-btn" data-act="retroClose" aria-label="Fechar">${I('x')}</button><div class="rt-title"><b>Retrospectiva de ${mon}</b><small>Prévia: assista e ajuste a velocidade</small></div></div>
+      <div id="rtCtl" class="rt-ctl" hidden></div>
+      <div id="rtRec" class="v3-rec"><div class="v3-rec-box"><b>Preparando o mapa…</b><small>Só um instante.</small><div class="v3-rec-bar"><i></i></div><button class="btn ghost sm" data-act="retroCancel">Cancelar</button></div></div></main>`, false);
     const nv = $('#nav'); if (nv) nv.style.display = 'none';
+  },
+  retroControls() {
+    const el = $('#rtCtl'); if (!el) return;
+    const R = Retro, sp = R.speed || 1;
+    el.hidden = !R.base;
+    el.innerHTML = `<div class="rt-row"><button class="v3-play" data-act="retroPlay" aria-label="${R.playing ? 'Pausar' : 'Reproduzir'}" ${R.busy ? 'disabled' : ''}>${I(R.playing ? 'pause' : 'play')}</button>
+        <div class="grow"><input type="range" id="rtProg" min="0" max="1000" value="${R.base ? Math.round(((R.pos || 0) / (R.base.length - 1)) * 1000) : 0}" ${R.busy ? 'disabled' : ''} aria-label="Posição"><small id="rtTime" class="num"></small></div></div>
+      <div class="rt-speed"><span>Velocidade</span><div class="seg">${[0.5, 1, 1.5, 2].map((v) => `<button class="${v === sp ? 'on' : ''}" data-act="retroSpeed" data-v="${v}" ${R.busy ? 'disabled' : ''}>${String(v).replace('.', ',')}x</button>`).join('')}</div></div>
+      <button class="btn primary rt-gen" data-act="retroExport" ${R.busy ? 'disabled' : ''}>${I('film')} Gerar vídeo em ${String(sp).replace('.', ',')}x · ~${R.base ? Math.round(R.buildLen(sp)) : 0} s</button>`;
   },
   retroCard() {
     if (!Store.data.activities.length) return '';
