@@ -1074,3 +1074,68 @@ section.card.pro-grid > div:nth-last-child(-n+2) { border-bottom: 0; }
 .crop-zoom { display: flex; align-items: center; gap: 10px; width: 100%; color: var(--text-3); }
 .crop-zoom input { flex: 1; accent-color: var(--brand); }
 .crop .row2 { width: 100%; }
+.act-title.tap { cursor: pointer; } .act-title .edit-hint { color: var(--text-3); vertical-align: middle; } .act-title .edit-hint .ic { width: 16px; height: 16px; }
+/* ritmo corrigido */
+.adj-card { padding: 14px 16px; margin-bottom: 14px; background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 9%, var(--surface)), var(--surface)); }
+.adj-top { display: flex; gap: 12px; align-items: flex-start; }
+.adj-top .eyebrow { display: flex; align-items: center; gap: 5px; color: var(--brand); }
+.adj-v { display: flex; align-items: baseline; gap: 4px; margin: 2px 0; } .adj-v b { font-size: 30px; font-weight: 800; letter-spacing: -.03em; color: var(--brand); }
+.adj-real { text-align: right; display: grid; justify-items: end; padding: 4px 0 0 12px; border-left: 1px solid var(--line); }
+.adj-real b { font-size: 20px; font-weight: 750; } .adj-real small { color: var(--text-3); font-size: 11px; }
+.adj-parts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.adj-parts span { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: var(--surface-2); font-size: 12px; font-weight: 600; }
+/* ruas nunca percorridas */
+.exp-panel { position: absolute; z-index: 500; left: 12px; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 18px; background: color-mix(in srgb, var(--surface) 95%, transparent); box-shadow: var(--shadow-md); font-size: 13px; }
+.exp-panel b { font-size: 14px; } .exp-panel small { display: block; color: var(--text-3); }
+.exp-ring { --p: 0; width: 52px; height: 52px; flex: none; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(#1F6BFF calc(var(--p) * 1%), color-mix(in srgb, #F97316 30%, var(--surface-2)) 0); }
+.exp-ring b { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); font-size: 13px; }
+.exp-panel .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 3px 0 6px; } .exp-panel .dot.y { background: #1F6BFF; } .exp-panel .dot.n { background: #F97316; }
+.badge.friend { background: color-mix(in srgb, #12B886 14%, transparent); color: #0E8F6A; display: inline-flex; align-items: center; gap: 4px; }
+.fr-hint { margin: 4px 0 8px; font-size: 13px; color: var(--brand); display: flex; align-items: center; gap: 6px; }
+/* fotos do treino */
+.act-photos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 0 0 14px; }
+.act-photos .ap { position: relative; aspect-ratio: 4 / 3; border-radius: 16px; overflow: hidden; background: var(--surface-2); }
+.act-photos .ap img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+.act-photos .ap-x { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: rgba(8,12,24,.6); color: #fff; }
+.act-photos .add { display: grid; place-items: center; align-content: center; gap: 3px; border: 1.5px dashed var(--line-2, var(--line)); background: var(--surface); color: var(--brand); cursor: pointer; text-align: center; }
+.act-photos .add b { font-size: 13px; } .act-photos .add small { font-size: 11px; color: var(--text-3); }
+.act-photos .add .ic { width: 24px; height: 24px; }
+.post-media { display: flex; gap: 4px; overflow-x: auto; margin: 0 -16px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.post-media::-webkit-scrollbar { display: none; }
+.post-media .pm-item { flex: 0 0 86%; scroll-snap-align: start; height: 190px; overflow: hidden; position: relative; }
+.post-media .pm-item .post-map { margin: 0; height: 100%; }
+.post-media .pm-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-view img { width: 100%; max-height: 70vh; object-fit: contain; border-radius: 14px; display: block; margin-bottom: 10px; }
+/* Tocha */
+.torch-hero { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; margin-bottom: 10px; }
+.torch-hero small { display: block; color: var(--text-2, var(--text-3)); line-height: 1.45; margin-top: 2px; }
+.th-flame { width: 44px; height: 44px; flex: none; border-radius: 14px; display: grid; place-items: center; background: color-mix(in srgb, #F97316 14%, transparent); color: #F97316; }
+.th-flame .ic { width: 24px; height: 24px; }
+.th-flame.on { background: linear-gradient(160deg, #FDBA74, #F97316 55%, #DC2626); color: #fff; box-shadow: 0 6px 16px -6px #F97316; animation: flick 1.6s ease-in-out infinite; }
+@keyframes flick { 0%, 100% { transform: scale(1) rotate(0); } 50% { transform: scale(1.05) rotate(-2deg); } }
+.torch-hold { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; margin-bottom: 12px; text-align: left; border: 1.5px solid color-mix(in srgb, #F97316 45%, transparent); background: color-mix(in srgb, #F97316 6%, var(--surface)); }
+.torch-hold small { display: block; color: var(--text-3); margin-top: 2px; }
+.th-ic { width: 40px; height: 40px; flex: none; border-radius: 12px; display: grid; place-items: center; background: var(--surface-2); color: var(--text-3); }
+.th-ic.on { background: color-mix(in srgb, #F97316 15%, transparent); color: #F97316; }
+.torch-big { text-align: center; padding: 18px 8px 8px; }
+.torch-big .tb-flame { width: 84px; height: 84px; margin: 0 auto 8px; border-radius: 28px; display: grid; place-items: center; background: var(--surface-2); color: var(--text-3); }
+.torch-big.on .tb-flame { background: linear-gradient(160deg, #FDBA74, #F97316 55%, #DC2626); color: #fff; box-shadow: 0 14px 30px -10px #F97316; animation: flick 1.6s ease-in-out infinite; }
+.torch-big .tb-flame .ic { width: 44px; height: 44px; }
+.torch-big h1 { margin: 4px 0; font-size: 40px; letter-spacing: -.03em; } .torch-big p { margin: 0 0 10px; color: var(--text-3); }
+.badge.live { background: color-mix(in srgb, #F97316 15%, transparent); color: #C2410C; display: inline-flex; gap: 4px; align-items: center; }
+.torch-chain { position: relative; padding-left: 4px; }
+.tc-leg { display: flex; gap: 12px; align-items: center; padding: 8px 0; position: relative; }
+.tc-leg:not(:last-child)::after { content: ''; position: absolute; left: 15px; top: 40px; bottom: -8px; width: 2px; background: color-mix(in srgb, #F97316 35%, var(--line)); }
+.tc-dot { width: 32px; height: 32px; flex: none; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, #F97316 14%, var(--surface)); color: #C2410C; font-weight: 800; font-size: 13px; }
+.tc-leg .grow { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; }
+.tc-leg .grow small { grid-column: 2; color: var(--text-3); }
+.tc-leg.now .tc-dot { background: #F97316; color: #fff; } .tc-leg.now .grow { display: block; }
+.torch-chip { color: #C2410C; border-color: color-mix(in srgb, #F97316 40%, var(--line)); }
+/* retrospectiva */
+.retro-card { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; margin-bottom: 12px; border-radius: var(--r-lg); text-align: left; background: var(--surface); border: 1px solid var(--line); }
+.retro-card small { display: block; color: var(--text-3); margin-top: 2px; }
+.retro-card .rc-ic { width: 44px; height: 44px; flex: none; border-radius: 14px; display: grid; place-items: center; background: var(--surface-2); color: var(--text-3); }
+.retro-card.open { background: linear-gradient(135deg, #111827, #1F2A44 55%, #1F6BFF); color: #fff; border: 0; box-shadow: 0 10px 26px -12px #1F6BFF; }
+.retro-card.open small { color: rgba(255,255,255,.8); } .retro-card.open .rc-ic { background: rgba(255,255,255,.14); color: #fff; }
+.retro-card .rc-go { flex: none; padding: 8px 14px; border-radius: 999px; background: #fff; color: #111827; font-weight: 800; font-size: 13px; }
+.retro-card.used .rc-ic { color: #12B886; background: color-mix(in srgb, #12B886 12%, transparent); }

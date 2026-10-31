@@ -10,7 +10,7 @@ const App = {
   tracker: null, coach: null, routeLive: null, wl: null,
 
   // tela -> aba da barra inferior que fica acesa
-  parents: { notifs: 'home', pro: 'profile', progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', ract: 'social', club: 'social', history: 'home', heatmap: 'home' },
+  parents: { notifs: 'home', pro: 'profile', progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', ract: 'social', torch: 'social', retro: 'home', club: 'social', history: 'home', heatmap: 'home' },
 
   init() {
     Store.load();
@@ -244,6 +244,29 @@ const App = {
       }).catch((e) => console.error(e));
     }
   },
+  // foto do treino: reduz para no máx. 1280 px (≈150–250 KB) e envia
+  async addActPhoto(id, file) {
+    const a = this.find(id); if (!a) return;
+    if (!Cloud.loggedIn()) return FX.toast('Entre na sua conta para adicionar fotos aos treinos.');
+    if (UI.photosOf(a).length >= 2) return FX.toast('Máximo de 2 fotos por treino.');
+    let img; try { img = await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch (e) { img = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = URL.createObjectURL(file); }); }
+    if (!img) return FX.toast('Não deu para abrir essa imagem.');
+    const k = Math.min(1, 1280 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, c.width, c.height);
+    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.82));
+    FX.toast('Enviando foto…');
+    try {
+      const r = await Cloud.uploadActPhoto(a.id, blob);
+      a.photos = [...(a.photos || []).filter((p) => p && (p.url || typeof p === 'string')), r].slice(0, 2); Store.save();
+      if (!a.private) Cloud.publish(a).catch(() => {});
+      FX.toast('Foto adicionada!');
+    } catch (e) {
+      console.warn('foto treino', e);
+      FX.toast(/bucket|not found|policy|row-level/i.test(String(e && (e.message || e.error))) ? 'Falta configurar as fotos de treino no Supabase (SQL).' : 'Não deu para enviar a foto agora.');
+    }
+    if (this.tab === 'detail') UI.summary(a, null, false);
+  },
   // recorta a foto em quadrado, reduz para 320 px (≈25 KB) e envia
   async setPhoto(file) {
     if (!/^image\//.test(file.type || 'image/')) return FX.toast('Escolha uma imagem.');
@@ -393,6 +416,7 @@ const App = {
 
   /* ---------- campos de formulário ---------- */
   onChange(e) {
+    if (e.target.id === 'actPhotoIn') { const f = e.target.files && e.target.files[0], id = e.target.dataset.id; e.target.value = ''; if (f) this.addActPhoto(id, f); return; }
     if (e.target.id === 'photoIn') { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) this.setPhoto(f); return; }
     const t = e.target, D = Store.data, P = D.profile;
     if (t.id === 'simChk') { this.sim = t.checked; const s = $('#simMult'); if (s) s.disabled = !t.checked; }
@@ -544,7 +568,7 @@ const App = {
       FX.toast(a.private ? 'Agora só você vê este treino.' : 'Treino publicado!');
       el.innerHTML = `${I(a.private ? 'lock' : 'globe')}${a.private ? 'Privado' : 'Público'}`;
     },
-    mapLayer: (el) => { const L0 = App.mapLayers; L0[el.dataset.v] = !L0[el.dataset.v]; el.classList.toggle('on', L0[el.dataset.v]); UI.mapaDraw(); },
+    mapLayer: (el) => { const L0 = App.mapLayers, k = el.dataset.v; L0[k] = !L0[k]; el.classList.toggle('on', L0[k]); if (k === 'explore') return Explore.show(UI.bigMap, L0[k]); UI.mapaDraw(); },
     mapCenter: () => {
       if (!('geolocation' in navigator)) return;
       FX.toast('Buscando sua posição…');
@@ -578,6 +602,68 @@ const App = {
       const [k, v] = el.dataset.v.split(':'), P = Store.data.profile;
       P[k] = v; if (k === 'theme') { Store.data.equipped.theme = null; Shop.apply(); }
       Store.save(); UI.settings();
+    },
+    adjInfo: () => FX.modal(`<h3>Ritmo corrigido</h3><p class="muted">Mostra quanto o seu treino valeria <b>no plano e num dia fresco</b>, para comparar treinos de forma justa.</p>
+      <div class="list"><div class="row">${UI.iconBox('mountain')}<div class="grow"><b>Relevo</b><small>Cada trecho é ajustado pela inclinação do terreno, pelo esforço real de correr em subida e descida (curva medida em corredores, a mesma ideia do “GAP”). A altitude vem do mapa de relevo, não do GPS.</small></div></div>
+      <div class="row">${UI.iconBox('sun')}<div class="grow"><b>Calor e umidade</b><small>Usa a temperatura e o ponto de orvalho na hora do treino (regra usada por treinadores): quanto mais quente e úmido, mais o corpo desacelera.</small></div></div>
+      <div class="row">${UI.iconBox('bike')}<div class="grow"><b>No pedal</b><small>A velocidade que a sua potência média daria numa reta plana, sem vento.</small></div></div></div>
+      <button class="btn primary" data-m="ok">Entendi</button>`),
+    actPhotoDel: async (el) => {
+      const a = App.find(el.dataset.v); if (!a || !a.photos) return;
+      if (!(await FX.confirm('Remover foto?', 'Ela some do treino e do Social.', 'Remover', true))) return;
+      const [p] = a.photos.splice(+el.dataset.i, 1); a.photosCleared = 1; Store.save();
+      if (p && p.path) Cloud.removeActPhoto(p.path).catch(() => {});
+      if (!a.private) Cloud.publish(a).catch(() => {});
+      UI.summary(a, null, false);
+    },
+    photoView: (el) => FX.modal(`<div class="photo-view"><img src="${esc(el.dataset.v)}" alt="Foto"></div><button class="btn ghost" data-m="ok">Fechar</button>`),
+    retroStart: () => Retro.start(),
+    retroCancel: () => { Retro.cancelVideo = true; FX.toast('Retrospectiva cancelada. Ela continua disponível.'); },
+    retroShare: () => Retro.reshare(),
+    torchOpen: (el) => { App.tab = 'torch'; App.nav = 'social'; UI.torch(el.dataset.v); },
+    torchNew: async () => {
+      const lim = Date.now() - 47 * 3600e3, a = [...Store.data.activities].filter((x) => x.start > lim && !x.flagged && !x.private).sort((x, y) => y.start - x.start)[0];
+      if (!a) return FX.toast('Para acender a Tocha, faça um treino primeiro (vale qualquer esporte).');
+      App.actions.torchAct({ dataset: { v: a.id } });
+    },
+    torchAct: async (el) => {
+      const a = App.find(el.dataset.v); if (!a) return;
+      if (!Cloud.loggedIn()) return FX.toast('Entre na conta para usar a Tocha.');
+      if (a.private) return FX.toast('Treinos privados não valem para a Tocha. Deixe este treino público.');
+      if (a.flagged) return FX.toast('Este treino não conta para a Tocha.');
+      let hold = [], fr = [];
+      try { [hold, fr] = await Promise.all([Cloud.torchHolding(true), Cloud.friends()]); } catch (e) { return FX.toast('Tocha ainda não configurada no servidor (SQL).'); }
+      if (!fr.length) return FX.toast('A Tocha é entre amigos: vocês dois precisam se seguir.');
+      const pm = await Cloud.profilesMap(fr), opts = fr.map((id) => `<option value="${id}">${esc((pm[id] && pm[id].name) || 'Amigo')}</option>`).join('');
+      const t = hold[0], lit = !t && Date.now() - a.start > 48 * 3600e3;
+      if (lit) return FX.toast('Para acender uma Tocha, use um treino das últimas 48 h.');
+      const f = await FX.prompt(t ? 'Passar a Tocha 🔥' : 'Acender uma Tocha 🔥', [['toFriend', 'Para qual amigo?', 'select', opts]], t ? 'Passar a Tocha' : 'Acender e passar',
+        t ? `Você está com a Tocha de ${esc((t.creator && t.creator.name) || 'um amigo')} (${t.legs} pessoas, ${Fmt.num(t.total_m / 1000)} km). Este treino de ${Fmt.km(a.distance)} km entra na corrente.` : `Este treino de ${Fmt.km(a.distance)} km abre a corrente. Seu amigo terá 48 h para treinar e passar adiante.`);
+      if (!f || !f.toFriend) return;
+      try {
+        if (!a.pub) await Cloud.publish(a);
+        if (t) await Cloud.torchPass(t.id, a.id, f.toFriend); else await Cloud.torchLight(a.id, f.toFriend);
+        FX.vibrate([30, 40, 30]); FX.toast(`Tocha passada para ${(pm[f.toFriend] && pm[f.toFriend].name || 'seu amigo').split(' ')[0]}! 🔥`);
+      } catch (e) {
+        const m = String(e && e.message || '');
+        FX.toast(/ja usado/.test(m) ? 'Este treino já foi usado numa Tocha.' : /apagou/.test(m) ? 'O prazo venceu: essa Tocha apagou.' : /treino invalido/.test(m) ? 'Use um treino feito depois de receber a Tocha (e público).' : /amigos/.test(m) ? 'Só dá para passar para amigos (vocês se seguem).' : 'Não deu para passar a Tocha agora.');
+      }
+    },
+    editAct: async (el) => {
+      const a = App.find(el.dataset.v); if (!a) return;
+      const gps = a.points && a.points.length > 1;
+      const opts = Object.entries(CONFIG.sports).filter(([k, v]) => (gps ? v.gps !== false && k !== 'swim' || k === a.sport : true)).map(([k, v]) => `<option value="${k}" ${k === a.sport ? 'selected' : ''}>${v.name}</option>`).join('');
+      const f = await FX.prompt('Editar treino', [
+        ['eaTitle', 'Título', 'text', UI.actTitle(a), 'ex.: Pedal na orla com a galera', 'maxlength="60"'],
+        ['eaSport', 'Esporte', 'select', opts],
+      ], 'Salvar');
+      if (!f) return;
+      const t = (f.eaTitle || '').trim().slice(0, 60);
+      a.title = t || undefined; if (!t) delete a.title;
+      if (f.eaSport && CONFIG.sports[f.eaSport] && f.eaSport !== a.sport) { a.sport = f.eaSport; delete a.zc; }
+      Store.save();
+      if (a.pub && !a.private) Cloud.publish(a).catch(() => {});
+      FX.toast('Treino atualizado'); UI.summary(a, null, false);
     },
     photoRemove: async () => {
       const P = Store.data.profile; delete P.photo; Store.save();
@@ -738,8 +824,8 @@ const App = {
       const v = await UI.commentsSheet(el.dataset.v);
       if (v === 'send' && FX.form.cmText && FX.form.cmText.trim()) { await Cloud.comment(el.dataset.v, FX.form.cmText.trim()); const s = el.querySelector('span'); s.textContent = +s.textContent + 1; App.actions.comments(el); }
     },
-    follow: async (el) => { await Cloud.follow(el.dataset.v); FX.toast('Seguindo!'); App.refreshSocial(el.dataset.v); },
-    unfollow: async (el) => { await Cloud.unfollow(el.dataset.v); App.refreshSocial(el.dataset.v); },
+    follow: async (el) => { await Cloud.follow(el.dataset.v); let fr = false; try { fr = (await Cloud.friendState(el.dataset.v)).friends; } catch (e) {} FX.toast(fr ? 'Vocês agora são amigos! 🤝' : 'Seguindo!'); App.refreshSocial(el.dataset.v); },
+    unfollow: async (el) => { let fr = false; try { fr = (await Cloud.friendState(el.dataset.v)).friends; } catch (e) {} if (fr && !(await FX.confirm('Deixar de seguir?', 'Vocês deixam de ser amigos (desafios e Tocha são só entre amigos).', 'Deixar de seguir', true))) return; await Cloud.unfollow(el.dataset.v); App.refreshSocial(el.dataset.v); },
     raOpen: (el) => {
       if (!Cloud.loggedIn()) return;
       if (App.tab !== 'ract') App.raFrom = { tab: App.tab, uid: UI._uid, club: UI._clubId, y: window.scrollY };
@@ -779,9 +865,10 @@ const App = {
     clubOpen: (el) => { App.tab = 'club'; App.nav = 'social'; App.clubTab = 'rank'; UI._club = null; UI.club(el.dataset.v); },
     chalNew: async (el) => {
       let to = el.dataset.v;
+      if (el.dataset.nf) return FX.toast('Desafios são entre amigos: vocês dois precisam se seguir.');
       if (!to) {
-        const ids = await Cloud.following();
-        if (!ids.length) return FX.toast('Siga alguém primeiro para poder desafiar.');
+        const ids = await Cloud.friends();
+        if (!ids.length) return FX.toast('Você ainda não tem amigos. Amigo é quem vocês dois se seguem.');
         const { data } = await Cloud.sb.from('profiles').select('id,name,username').in('id', ids);
         const f0 = await FX.prompt('Desafiar quem?', [['chTo', 'Amigo', 'select', (data || []).map((p) => `<option value="${p.id}">${esc(p.name)} (@${esc(p.username || '')})</option>`).join('')]], 'Continuar');
         if (!f0) return; to = f0.chTo;

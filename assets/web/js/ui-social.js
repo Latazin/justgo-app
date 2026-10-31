@@ -60,7 +60,7 @@ Object.assign(UI, {
   /* ---------- aba Social ---------- */
   social() {
     const sub = App.sub.social;
-    const tabs = this.tabsBar([['discover', 'Descobrir'], ['feed', 'Seguindo'], ['rank', 'Rankings'], ['clubs', 'Clubes'], ['challenges', 'Desafios']], sub, 'subTab');
+    const tabs = this.tabsBar([['discover', 'Descobrir'], ['feed', 'Seguindo'], ['rank', 'Rankings'], ['torch', 'Tocha'], ['clubs', 'Clubes'], ['challenges', 'Desafios']], sub, 'subTab');
     const searchBtn = Cloud.loggedIn() ? `<button class="icon-btn" data-act="go" data-v="search" title="Buscar atletas">${I('search')}</button>` : '';
     if (!Cloud.loggedIn()) {
       return this.render(`${this.header('Social')}<main class="screen">
@@ -80,6 +80,7 @@ Object.assign(UI, {
     if (sub === 'rank') this.socialRank().then(fill).catch(fail);
     if (sub === 'clubs') this.socialClubs().then(fill).catch(fail);
     if (sub === 'challenges') this.socialChallenges().then(fill).catch(fail);
+    if (sub === 'torch') this.socialTorch().then(fill).catch(fail);
   },
   // um treino com dado estranho não derruba a lista inteira
   safePost(a, opts) { try { return this.remotePost(a, opts); } catch (e) { console.warn('post', a && a.id, e); return ''; } },
@@ -171,11 +172,11 @@ Object.assign(UI, {
     const list = await Cloud.refreshNotifs(true); Cloud.markSeen();
     const fol = new Set(await Cloud.following().catch(() => []));
     const ago = (t) => { if (!t) return ''; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'agora' : m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`; };
-    const txt = (n) => ({ follow: 'começou a seguir você', like: `curtiu ${n.title ? `“${esc(n.title)}”` : 'seu treino'}`, comment: `comentou: “${esc((n.text || '').slice(0, 80))}”`, chal: 'desafiou você', chalOn: 'desafio aceito: valendo!', chalOk: 'aceitou seu desafio', zone: `roubou sua área de ${Zones.areaTxt(n.area || 0)}` })[n.k];
-    const act = (n) => n.k === 'follow' ? `data-act="userOpen" data-v="${n.u.id}"` : n.k === 'like' || n.k === 'comment' ? `data-act="comments" data-v="${n.act}"` : n.k === 'zone' ? 'data-act="go" data-v="mapa"' : n.k === 'chal' ? 'data-act="sub" data-v="social:challenges"' : `data-act="chalOpen" data-v="${n.id}"`;
-    const ic = { follow: 'userPlus', like: 'heart', comment: 'message', chal: 'swords', chalOn: 'swords', chalOk: 'swords', zone: 'flag' };
+    const txt = (n) => ({ torch: 'passou a Tocha para você! 🔥 Você tem 48 h para treinar e passar adiante', follow: fol.has(n.u.id) ? 'seguiu você · agora vocês são amigos' : 'começou a seguir você', like: `curtiu ${n.title ? `“${esc(n.title)}”` : 'seu treino'}`, comment: `comentou: “${esc((n.text || '').slice(0, 80))}”`, chal: 'desafiou você', chalOn: 'desafio aceito: valendo!', chalOk: 'aceitou seu desafio', zone: `roubou sua área de ${Zones.areaTxt(n.area || 0)}` })[n.k];
+    const act = (n) => n.k === 'torch' ? `data-act="torchOpen" data-v="${n.id}"` : n.k === 'follow' ? `data-act="userOpen" data-v="${n.u.id}"` : n.k === 'like' || n.k === 'comment' ? `data-act="comments" data-v="${n.act}"` : n.k === 'zone' ? 'data-act="go" data-v="mapa"' : n.k === 'chal' ? 'data-act="sub" data-v="social:challenges"' : `data-act="chalOpen" data-v="${n.id}"`;
+    const ic = { torch: 'flame', follow: 'userPlus', like: 'heart', comment: 'message', chal: 'swords', chalOn: 'swords', chalOk: 'swords', zone: 'flag' };
     const el = $('#nBody'); if (!el) return;
-    el.outerHTML = list.length ? `<div class="list notif-list">${list.map((n) => `<div class="row tap notif ${n.t > seen ? 'new' : ''}" ${act(n)}><div class="n-av">${this.avatarOf(n.u.name, n.u.frame, n.u.avatar, 'sm', n.u.photo)}<i class="n-ic n-${n.k}">${I(ic[n.k], 'xs')}</i></div><div class="grow"><p><b>${esc(n.u.name || 'Atleta')}</b> ${txt(n)}</p><small>${ago(n.t)}</small></div>${n.k === 'follow' && !fol.has(n.u.id) ? `<button class="chip-btn sm primary-chip" data-act="followHere" data-v="${n.u.id}">Seguir de volta</button>` : ''}</div>`).join('')}</div>`
+    el.outerHTML = list.length ? `<div class="list notif-list">${list.map((n) => `<div class="row tap notif ${n.t > seen ? 'new' : ''}" ${act(n)}><div class="n-av">${this.avatarOf(n.u.name, n.u.frame, n.u.avatar, 'sm', n.u.photo)}<i class="n-ic n-${n.k}">${I(ic[n.k], 'xs')}</i></div><div class="grow"><p><b>${esc(n.u.name || 'Atleta')}</b> ${txt(n)}</p><small>${ago(n.t)}</small></div>${n.k === 'follow' && fol.has(n.u.id) ? `<span class="badge friend">${I('users', 'xs')} Amigos</span>` : ''}${n.k === 'follow' && !fol.has(n.u.id) ? `<button class="chip-btn sm primary-chip" data-act="followHere" data-v="${n.u.id}">Seguir de volta</button>` : ''}</div>`).join('')}</div>`
       : `<div class="empty">${I('bell')}<h3>Nenhuma notificação</h3><p>Quando alguém seguir você, curtir ou comentar seus treinos, aparece aqui.</p></div>`;
   },
   bellBadge() {
@@ -186,15 +187,40 @@ Object.assign(UI, {
   /* ---------- seguidores / seguindo ---------- */
   async followList(which, uid) {
     const id = uid || Cloud.user.id;
-    this.render(`${this.back(uid && uid !== Cloud.user.id ? 'social' : 'profile', which === 'followers' ? 'Seguidores' : 'Seguindo')}<main class="screen"><div id="flBody" class="loading">Carregando…</div></main>`);
+    this.render(`${this.back(uid && uid !== Cloud.user.id ? 'social' : 'profile', which === 'followers' ? 'Seguidores' : which === 'friends' ? 'Amigos' : 'Seguindo')}<main class="screen"><div id="flBody" class="loading">Carregando…</div></main>`);
     try {
-      const [rows, fol] = await Promise.all([Cloud.followList(id, which), Cloud.following()]);
+      const [rows, fol, fw] = await Promise.all([Cloud.followList(id, which), Cloud.following(), Cloud.followers()]);
       const el = $('#flBody'); if (!el) return;
-      el.outerHTML = rows.length ? `<div class="list">${rows.map((r) => `<div class="row"><span class="tap" data-act="userOpen" data-v="${r.id}">${this.avatarOf(r.name, r.frame, r.avatar, 'sm', r.photo)}</span><div class="grow tap" data-act="userOpen" data-v="${r.id}"><b>${esc(r.name)}</b><small>${r.username ? '@' + esc(r.username) : ''}${r.city ? ' · ' + esc(r.city) : ''}</small></div>${r.id === Cloud.user.id ? '' : fol.includes(r.id) ? '<span class="badge">Seguindo</span>' : `<button class="chip-btn sm primary-chip" data-act="followHere" data-v="${r.id}">Seguir</button>`}</div>`).join('')}</div>`
-        : `<div class="empty">${I('users')}<h3>${which === 'followers' ? 'Ainda sem seguidores' : 'Você ainda não segue ninguém'}</h3><p>${which === 'followers' ? 'Publique seus treinos para mais gente encontrar você.' : 'Veja o Descobrir no Social para encontrar atletas.'}</p></div>`;
+      el.outerHTML = rows.length ? `<div class="list">${rows.map((r) => `<div class="row"><span class="tap" data-act="userOpen" data-v="${r.id}">${this.avatarOf(r.name, r.frame, r.avatar, 'sm', r.photo)}</span><div class="grow tap" data-act="userOpen" data-v="${r.id}"><b>${esc(r.name)}</b><small>${r.username ? '@' + esc(r.username) : ''}${r.city ? ' · ' + esc(r.city) : ''}</small></div>${r.id === Cloud.user.id ? '' : fol.includes(r.id) && fw.includes(r.id) ? `<span class="badge friend">${I('users', 'xs')} Amigos</span>` : fol.includes(r.id) ? '<span class="badge">Seguindo</span>' : `<button class="chip-btn sm primary-chip" data-act="followHere" data-v="${r.id}">${fw.includes(r.id) ? 'Seguir de volta' : 'Seguir'}</button>`}</div>`).join('')}</div>`
+        : `<div class="empty">${I('users')}<h3>${which === 'followers' ? 'Ainda sem seguidores' : which === 'friends' ? 'Ainda sem amigos' : 'Você ainda não segue ninguém'}</h3>${which === 'friends' ? '<p>Amigo é quem vocês dois se seguem. Siga de volta quem segue você!</p>' : ''}<p>${which === 'followers' ? 'Publique seus treinos para mais gente encontrar você.' : 'Veja o Descobrir no Social para encontrar atletas.'}</p></div>`;
     } catch (e) { const el = $('#flBody'); if (el) el.textContent = 'Não foi possível carregar.'; }
   },
 
+  hoursLeft(d) { const h = (Date.parse(d) - Date.now()) / 3600e3; return h <= 0 ? 'prazo vencido' : h < 1 ? `${Math.max(1, Math.round(h * 60))} min` : `${Math.floor(h)} h`; },
+  torchLit(t) { return t.deadline && Date.parse(t.deadline) > Date.now(); },
+  async socialTorch() {
+    let list = [];
+    try { list = await Cloud.torchList(); } catch (e) { if (/torch|relation|does not exist/i.test(String(e && e.message))) return `<div class="notice warn">${I('alert')}<div><b>Tocha ainda não configurada</b><small>Rode o SQL da Tocha no Supabase para liberar.</small></div></div>`; throw e; }
+    const me = Cloud.user.id, hold = list.filter((t) => t.holder === me && this.torchLit(t));
+    const intro = `<section class="card torch-hero"><div class="th-flame">${I('flame')}</div><div class="grow"><b>Tocha JustGo</b><small>Treine, acenda a Tocha e passe para um amigo. Ele tem <b>48 h</b> para treinar e passar adiante. Quanto mais longe ela for, mais km a corrente soma. Se alguém deixar o prazo vencer, ela apaga.</small></div></section>`;
+    const holdHtml = hold.map((t) => `<button class="card torch-hold tap" data-act="torchOpen" data-v="${t.id}"><div class="th-flame on">${I('flame')}</div><div class="grow"><b>A Tocha está com você! 🔥</b><small>Faltam <b>${this.hoursLeft(t.deadline)}</b>. Treine e passe para um amigo pela tela do treino.</small></div>${I('chevronRight', 'chev')}</button>`).join('');
+    const row = (t) => { const lit = this.torchLit(t); return `<button class="row tap" data-act="torchOpen" data-v="${t.id}"><div class="th-ic ${lit ? 'on' : ''}">${I('flame')}</div><div class="grow"><b>Tocha de ${esc((t.creator && t.creator.name) || 'Atleta')}</b><small>${t.legs} ${t.legs === 1 ? 'pessoa' : 'pessoas'} · ${Fmt.num(t.total_m / 1000)} km · ${lit ? `com ${t.holder === me ? 'você' : esc((t.holderP && t.holderP.name || '').split(' ')[0] || 'um amigo')} · ${this.hoursLeft(t.deadline)}` : 'apagou'}</small></div>${I('chevronRight', 'chev')}</button>`; };
+    return `${holdHtml}${intro}<button class="btn primary" data-act="torchNew">${I('flame')}Acender uma Tocha</button>
+      ${list.length ? `${this.sectionHead('Suas Tochas')}<div class="list">${list.map(row).join('')}</div>` : `<div class="empty compact">${I('flame')}<p>Você ainda não participou de nenhuma Tocha.</p></div>`}`;
+  },
+  async torch(id) {
+    this.render(`${this.back('social', 'Tocha')}<main class="screen"><div id="tBody" class="loading">Carregando…</div></main>`);
+    let d = null; try { d = await Cloud.torchDetail(id); } catch (e) {}
+    const el = $('#tBody'); if (!el) return;
+    if (!d) { el.outerHTML = '<p class="muted">Tocha não encontrada.</p>'; return; }
+    const { t, legs } = d, lit = this.torchLit(t), me = Cloud.user.id;
+    el.outerHTML = `<section class="torch-big ${lit ? 'on' : ''}"><div class="tb-flame">${I('flame')}</div><h1 class="num">${Fmt.num(t.total_m / 1000)} km</h1><p>${t.legs} ${t.legs === 1 ? 'pessoa' : 'pessoas'} na corrente · começou com ${esc((t.creator && t.creator.name) || 'Atleta')}</p>
+        <span class="badge ${lit ? 'live' : ''}">${lit ? `${I('flame', 'xs')} Acesa · com ${t.holder === me ? 'você' : esc(t.holderP ? t.holderP.name : 'um amigo')} · faltam ${this.hoursLeft(t.deadline)}` : 'Apagou'}</span></section>
+      ${t.holder === me && lit ? `<div class="notice">${I('flame')}<div><b>É a sua vez!</b><small>Faça um treino (qualquer esporte) e, na tela do treino, toque em "Tocha" para passar a um amigo.</small></div></div>` : ''}
+      ${this.sectionHead('A corrente')}
+      <div class="torch-chain">${legs.map((l, i) => `<div class="tc-leg"><div class="tc-dot">${i + 1}</div><div class="grow">${this.avatarOf(l.p && l.p.name, l.p && l.p.frame, l.p && l.p.avatar, 'xs', l.p && l.p.photo)}<b data-act="userOpen" data-v="${l.user_id}">${esc((l.p && l.p.name) || 'Atleta')}</b><small>${I(SPORT_IC[l.sport] || 'run', 'xs')} ${Fmt.km(l.distance)} km · ${new Date(l.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</small></div></div>`).join('')}
+        ${lit ? `<div class="tc-leg now"><div class="tc-dot">${I('flame', 'xs')}</div><div class="grow"><b>${t.holder === me ? 'Você' : esc(t.holderP ? t.holderP.name : 'Um amigo')}</b><small>está com a Tocha agora</small></div></div>` : ''}</div>`;
+  },
   async socialChallenges() {
     const list = await Cloud.challenges(), me = Cloud.user.id;
     const row = (c) => {
@@ -232,13 +258,13 @@ Object.assign(UI, {
     this._uid = id;
     this.render(`${this.back('social', 'Perfil')}<main class="screen"><div id="userBody" class="loading">Carregando…</div></main>`);
     try {
-      const [d, fol] = await Promise.all([Cloud.profileOf(id), Cloud.following()]);
-      const p = d.p, f = fol.includes(id), self = id === Cloud.user.id;
+      const [d, fs] = await Promise.all([Cloud.profileOf(id), Cloud.friendState(id)]);
+      const p = d.p, f = fs.iFollow, self = id === Cloud.user.id;
       const L0 = CONFIG.leagues.find((x) => x.id === p.league) || CONFIG.leagues[0];
       $('#userBody').outerHTML = `<section class="prof">${this.avatarOf(p.name, p.frame, p.avatar, 'lg', p.photo)}<h1>${esc(p.name)}</h1><small>@${esc(p.username || '')}${p.city ? ' · ' + esc(p.city) : ''} · nível ${p.level}</small>
         <span class="league-pill" style="--lc:${L0.color}">${I('crown', 'xs')} Liga ${L0.name}</span>
         <div class="prof-stats"><div><b class="num">${Fmt.num(p.total_km, 0)}</b><small>Km totais</small></div><div><b class="num">${p.medals}</b><small>Medalhas</small></div><div><b class="num">${d.followers}</b><small>Seguidores</small></div><div><b class="num">${p.xp}</b><small>XP</small></div></div></section>
-        ${self ? '' : `<div class="row2"><button class="btn ${f ? 'ghost' : 'primary'}" data-act="${f ? 'unfollow' : 'follow'}" data-v="${id}">${f ? 'Seguindo' : 'Seguir'}</button><button class="btn ghost" data-act="chalNew" data-v="${id}">${I('swords')}Desafiar</button></div>`}
+        ${self ? '' : `${fs.followsMe && !fs.friends ? `<p class="fr-hint">${I('userPlus', 'xs')} ${esc((p.name || '').split(' ')[0])} segue você. Siga de volta para virarem amigos!</p>` : ''}<div class="row2"><button class="btn ${f ? 'ghost' : 'primary'}" data-act="${f ? 'unfollow' : 'follow'}" data-v="${id}">${fs.friends ? `${I('users')} Amigos` : f ? 'Seguindo' : fs.followsMe ? 'Seguir de volta' : 'Seguir'}</button><button class="btn ghost" data-act="chalNew" data-v="${id}" ${fs.friends ? '' : 'data-nf="1"'}>${I('swords')}Desafiar</button></div>`}
         ${this.sectionHead('Atividades recentes')}${d.acts.length ? d.acts.map((a) => this.safePost(a, { noFoot: true })).join('') : '<p class="muted">Nenhuma atividade pública.</p>'}`;
     } catch (e) { $('#userBody').textContent = 'Perfil não encontrado.'; }
   },
@@ -263,6 +289,8 @@ Object.assign(UI, {
         ${self || fol === null || fol ? '' : `<button class="chip-btn sm" data-act="raFollow" data-v="${a.user_id}">${I('plus')}Seguir</button>`}</div>
       <h1 class="act-title">${esc(this.actTitle(a))}</h1>
       <div class="big-stats"><div><span class="eyebrow">Distância</span><b class="num">${Fmt.km(a.distance)}</b><small>km</small></div><div><span class="eyebrow">${Fmt.paceLabel(a.sport, true)}</span><b class="num">${Fmt.pace(a.sport, avg)}</b><small>${Fmt.paceUnit(a.sport)}</small></div><div><span class="eyebrow">Tempo</span><b class="num">${Fmt.time(a.duration)}</b></div></div>
+      ${a.stats && a.stats.adj ? this.adjCard(a.stats.adj, a.sport) : ''}
+      ${this.photosOf(a).length ? `<section class="act-photos ro">${this.photosOf(a).map((u) => `<div class="ap"><img src="${esc(u)}" loading="lazy" alt="Foto do treino" data-act="photoView" data-v="${esc(u)}"></div>`).join('')}</section>` : ''}
       ${hasMap ? `<div class="s-map-wrap"><div id="raMap" class="s-map"></div><button class="map3d-btn" data-act="view3d" data-v="${a.id}">${I('box3d')}Ver em 3D</button></div>` : a.stats && a.stats.pool ? `<div class="pool-art">${I('swim')}<b class="num">${Fmt.km(a.distance)} km</b><small>Natação na piscina</small></div>` : ''}
       <div class="ra-react"><button class="react ${a.liked ? 'on' : ''}" data-act="like" data-v="${a.id}" data-on="${a.liked ? 1 : 0}">${I('heart')}<span class="num">${a.likes || 0}</span></button>
         <button class="react" data-act="raFocus">${I('message')}<span class="num" id="raCmN">${a.comments || 0}</span></button>${self ? '' : `<button class="react" data-act="userOpen" data-v="${a.user_id}">${I('user')}Ver perfil</button>`}</div>

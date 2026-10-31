@@ -97,6 +97,7 @@ const Pro = {
     const mov = blocks.filter((b) => b.v > (Fmt.isSpeed(sp) ? 1 : 0.4));
     const foot = !!CONFIG.sports[sp].foot;
     const movT = mov.reduce((x, b) => x + b.dt, 0) || act.duration;
+    R._blocks = mov; R._bike = this.bikeOf(act); R._W = W;
     R.moving = Math.round(movT);
 
     // energia por bloco

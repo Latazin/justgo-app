@@ -118,6 +118,14 @@ const Cloud = {
     if (this.me) this.me.photo = url;
     return url;
   },
+  // fotos do treino (bucket público "treinos", pasta de cada pessoa)
+  async uploadActPhoto(actId, blob) {
+    const path = `${this.user.id}/${actId}-${Date.now().toString(36)}.jpg`;
+    const up = await this.sb.storage.from('treinos').upload(path, blob, { contentType: 'image/jpeg', cacheControl: '604800' });
+    if (up.error) throw up.error;
+    return { url: this.sb.storage.from('treinos').getPublicUrl(path).data.publicUrl, path };
+  },
+  async removeActPhoto(path) { if (path) await this.sb.storage.from('treinos').remove([path]); },
   async removePhoto() {
     try { await this.sb.storage.from('avatars').remove([`${this.user.id}/avatar.jpg`]); } catch (e) {}
     await this.sb.from('profiles').update({ photo: null }).eq('id', this.user.id);
@@ -148,7 +156,7 @@ const Cloud = {
       const C = data.data, L = Store.data;
       const ids = new Set(L.activities.map((a) => a.id));
       (C.activities || []).forEach((a) => { if (!ids.has(a.id)) L.activities.push(a); });
-      ['unlocked', 'medals', 'missionsDone', 'owned', 'seasons', 'territory'].forEach((k) => { L[k] = { ...(C[k] || {}), ...(L[k] || {}) }; });
+      ['unlocked', 'medals', 'missionsDone', 'owned', 'seasons', 'territory', 'retro'].forEach((k) => { L[k] = { ...(C[k] || {}), ...(L[k] || {}) }; });
       const gids = new Set(L.gear.map((g) => g.id)); (C.gear || []).forEach((g) => { if (!gids.has(g.id)) L.gear.push(g); });
       const zids = new Set((L.zones || (L.zones = [])).map((z) => z.id)); (C.zones || []).forEach((z) => { if (!zids.has(z.id)) L.zones.push(z); });
       const rids = new Set(L.routes.map((g) => g.id)); (C.routes || []).forEach((g) => { if (!rids.has(g.id)) L.routes.push(g); });
@@ -166,11 +174,14 @@ const Cloud = {
     const pts = Privacy.trim(act.points || []), step = Math.max(1, Math.floor(pts.length / 300));
     // mantém as quebras de trecho (pausas) marcadas com 1 na 5ª posição
     const route = pts.filter((p, i) => i % step === 0 || i === pts.length - 1 || p[4] || (pts[i + 1] && pts[i + 1][4])).map((p) => (p[4] ? [p[0], p[1], null, null, 1] : [p[0], p[1]]));
-    const { error } = await this.sb.from('activities').upsert({
+    const row = {
       id: act.id, user_id: this.user.id, sport: act.sport, start: new Date(act.start).toISOString(), distance: act.distance, duration: act.duration,
       elapsed: act.elapsed, title: UI.actTitle(act), route, xp: act.xp || 0, flagged: !!act.flagged,
-      stats: { elev: Geo.elevationGain(act.points), alt: act.altSrc || 'gps', kcal: Game.calories(act), pool: act.pool || null, weather: act.weather || null },
-    });
+      stats: { elev: Geo.elevationGain(act.points), alt: act.altSrc || 'gps', kcal: Game.calories(act), adj: (() => { try { const A = Adjust.compute(act); return A ? { kind: A.kind, real: A.real, gap: A.gap, adj: A.adj, T: A.T, RH: A.RH } : null; } catch (e) { return null; } })(), pool: act.pool || null, weather: act.weather || null },
+    };
+    const ph = UI.photosOf(act); if (ph.length || act.photosCleared) row.photos = ph;
+    let { error } = await this.sb.from('activities').upsert(row);
+    if (error && row.photos && /photos/i.test(error.message || '')) { delete row.photos; ({ error } = await this.sb.from('activities').upsert(row)); } // coluna ainda não criada
     if (!error && !act.pub) { act.pub = 1; Store.save(); }
     this.pushProfile();
   },
@@ -329,9 +340,56 @@ const Cloud = {
       this.sb.from('follows').select('*', { count: 'exact', head: true }).eq('following', id),
       this.sb.from('follows').select('*', { count: 'exact', head: true }).eq('follower', id),
     ]);
-    return { followers: a.count || 0, following: b.count || 0 };
+    let friends = 0;
+    try { const [x, y] = await Promise.all([this.sb.from('follows').select('following').eq('follower', id), this.sb.from('follows').select('follower').eq('following', id)]); const Y = new Set((y.data || []).map((r) => r.follower)); friends = (x.data || []).filter((r) => Y.has(r.following)).length; } catch (e) {}
+    return { followers: a.count || 0, following: b.count || 0, friends };
+  },
+  async profilesMap(ids) {
+    ids = [...new Set(ids.filter(Boolean))]; if (!ids.length) return {};
+    const { data } = await this.sb.from('profiles').select('*').in('id', ids); const M = {}; (data || []).forEach((p) => (M[p.id] = p)); return M;
+  },
+  /* ---------- TOCHA: corrente de km entre amigos ---------- */
+  async torchHolding(force) {
+    if (!force && this._th && Date.now() - this._th.t < 60000) return this._th.list;
+    const { data } = await this.sb.from('torches').select('*').eq('holder', this.user.id).gt('deadline', new Date().toISOString()).order('deadline');
+    const list = data || []; const pm = await this.profilesMap(list.map((t) => t.created_by)); list.forEach((t) => (t.creator = pm[t.created_by]));
+    this._th = { t: Date.now(), list }; return list;
+  },
+  async torchList() {
+    const me = this.user.id;
+    const [{ data: legs }, { data: hold }] = await Promise.all([this.sb.from('torch_legs').select('torch_id').eq('user_id', me).limit(300), this.sb.from('torches').select('id').eq('holder', me).limit(50)]);
+    const ids = [...new Set([...(legs || []).map((x) => x.torch_id), ...(hold || []).map((x) => x.id)])];
+    if (!ids.length) return [];
+    const { data } = await this.sb.from('torches').select('*').in('id', ids).order('passed_at', { ascending: false });
+    const list = data || [], pm = await this.profilesMap(list.flatMap((t) => [t.holder, t.created_by]));
+    list.forEach((t) => { t.holderP = pm[t.holder]; t.creator = pm[t.created_by]; });
+    return list;
+  },
+  async torchDetail(id) {
+    const [{ data: t }, { data: legs }] = await Promise.all([this.sb.from('torches').select('*').eq('id', id).maybeSingle(), this.sb.from('torch_legs').select('*').eq('torch_id', id).order('created_at')]);
+    if (!t) return null;
+    const pm = await this.profilesMap([t.holder, t.created_by, ...(legs || []).map((l) => l.user_id)]);
+    t.holderP = pm[t.holder]; t.creator = pm[t.created_by]; (legs || []).forEach((l) => (l.p = pm[l.user_id]));
+    return { t, legs: legs || [] };
+  },
+  async torchLight(aid, to) { const { data, error } = await this.sb.rpc('torch_light', { aid, to_user: to }); if (error) throw error; this._th = null; return data; },
+  async torchPass(tid, aid, to) { const { error } = await this.sb.rpc('torch_pass', { tid, aid, to_user: to }); if (error) throw error; this._th = null; },
+  async followers() { const { data } = await this.sb.from('follows').select('follower').eq('following', this.user.id); return (data || []).map((x) => x.follower); },
+  // amigos = vocês se seguem (os dois lados)
+  async friends() { const [a, b] = await Promise.all([this.following(), this.followers()]); const B = new Set(b); this._friends = new Set(a.filter((x) => B.has(x))); return [...this._friends]; },
+  async friendState(id) {
+    const [a, b] = await Promise.all([
+      this.sb.from('follows').select('follower', { count: 'exact', head: true }).eq('follower', this.user.id).eq('following', id),
+      this.sb.from('follows').select('follower', { count: 'exact', head: true }).eq('follower', id).eq('following', this.user.id),
+    ]);
+    const iF = (a.count || 0) > 0, they = (b.count || 0) > 0;
+    return { iFollow: iF, followsMe: they, friends: iF && they };
   },
   async followList(id, which) {
+    if (which === 'friends') {
+      const [x, y] = await Promise.all([this.followList(id, 'following'), this.followList(id, 'followers')]);
+      const Y = new Set(y.map((p) => p.id)); return x.filter((p) => Y.has(p.id));
+    }
     const col = which === 'followers' ? 'follower' : 'following', by = which === 'followers' ? 'following' : 'follower';
     const { data, error } = await this.sb.from('follows').select(`${col}, created_at, p:profiles!follows_${col}_fkey(*)`).eq(by, id).order('created_at', { ascending: false }).limit(200);
     if (error) throw error;
@@ -359,6 +417,7 @@ const Cloud = {
       else if (x.from_user === me && x.b && x.status === 'active') out.push({ k: 'chalOk', t: Date.parse(x.starts_at || x.created_at), u: x.b, id: x.id });
     });
     (zon.data || []).forEach((x) => out.push({ k: 'zone', t: Date.parse(x.captured_at), u: { id: x.owner, name: x.owner_name || 'Alguém' }, area: x.area }));
+    try { const { data: tl } = await this.sb.from('torch_legs').select('torch_id, created_at, user_id').eq('passed_to', me).order('created_at', { ascending: false }).limit(20); const pm = await this.profilesMap((tl || []).map((x) => x.user_id)); (tl || []).forEach((x) => out.push({ k: 'torch', t: Date.parse(x.created_at), u: pm[x.user_id] || { id: x.user_id, name: 'Um amigo' }, id: x.torch_id })); } catch (e) {}
     out.sort((a, b) => b.t - a.t);
     return out.slice(0, 60);
   },
