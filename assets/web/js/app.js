@@ -974,3 +974,6 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
+
+// o app Android (Flutter) conversa com estes objetos por window.X
+window.App = App; window.FX = FX; window.UI = UI; window.Store = Store; window.View3D = View3D;

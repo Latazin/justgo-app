@@ -25,7 +25,10 @@ const Native = {
   _geoError(code, msg) { Object.values(this.errs).forEach((f) => { try { f && f({ code, message: msg }); } catch (e) {} }); },
 
   // botão "voltar" do Android: 'handled' | 'training' | 'exit'
+  // Fecha primeiro o que está por cima (janela, ajuste de foto, compartilhar), depois volta
+  // de tela em tela até o Início. No Início, pede um segundo toque para sair do app.
   back() {
+    const prev = this._backAt || 0; this._backAt = 0;
     try {
       const m = document.getElementById('modal');
       if (m && m.classList.contains('show')) {
@@ -33,16 +36,29 @@ const Native = {
         if (b) b.click(); else { m.classList.remove('show'); m.innerHTML = ''; }
         return 'handled';
       }
-      if (window.App && App.tracker) return 'training';
-      if (window.App && App.tab === 'view3d') { App.actions.v3Close(); return 'handled'; }
-      if (window.App && App.tab === 'retro') { App.actions.retroClose(); return 'handled'; }
-      if (window.SwimSet && SwimSet.s) return 'training';
-      if (window.App && App.tab && App.tab !== 'home') {
-        const back = document.querySelector('.top .back');
-        if (back) back.click(); else App.go('home');
+      const ov = [...document.querySelectorAll('body > .crop')].pop();
+      if (ov) { const b = ov.querySelector('[data-c=no]'); if (b) b.click(); else ov.remove(); return 'handled'; }
+      const cd = document.querySelector('body > .countdown'); if (cd) return 'handled';
+      if (typeof App === 'undefined') return 'exit';
+      if (App.tracker) return 'training';
+      if (typeof SwimSet !== 'undefined' && SwimSet.s) return 'training';
+      if (App.tab === 'view3d') { App.actions.v3Close(); return 'handled'; }
+      if (App.tab === 'retro') { App.actions.retroClose(); return 'handled'; }
+      if (App.tab && App.tab !== 'home') {
+        const back = document.querySelector('.top .back, .top [data-act=back], header .back, [data-act=back]');
+        const t0 = App.tab;
+        if (back) back.click();
+        if (!back || App.tab === t0) App.go('home');
         return 'handled';
       }
-    } catch (e) {}
+      // no Início: rolou para baixo? volta ao topo primeiro
+      const sc = document.scrollingElement || document.documentElement;
+      if (sc && sc.scrollTop > 200) { window.scrollTo({ top: 0, behavior: 'smooth' }); return 'handled'; }
+      const now = Date.now();
+      if (now - prev < 2200) return 'exit';
+      this._backAt = now; typeof FX !== 'undefined' && FX.toast('Toque em voltar de novo para sair');
+      return 'handled';
+    } catch (e) { try { if (typeof App !== 'undefined' && App.tab !== 'home') { App.go('home'); return 'handled'; } } catch (e2) {} }
     return 'exit';
   },
 
