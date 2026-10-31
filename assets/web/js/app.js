@@ -366,6 +366,8 @@ const App = {
     view3d: (el) => { const a = App.find(el.dataset.v); if (!a) return; App.v3From = App.tab; App.v3Act = a.id; App.tab = 'view3d'; UI.view3d(a); },
     v3Close: () => { View3D.close(); App.tab = 'detail'; const a = App.find(App.v3Act); if (a) UI.summary(a, null, false); else App.go('home'); },
     v3Play: () => (View3D.playing ? View3D.pause() : View3D.play()),
+    v3Video: () => View3D.video(),
+    v3Cancel: () => { View3D.cancelVideo = true; },
     v3Light: () => { View3D.light = !View3D.light; const a = App.find(App.v3Act); View3D.close(); if (a) UI.view3d(a); FX.toast(View3D.light ? 'Modo leve ligado' : 'Qualidade máxima'); },
     chalOpen: (el) => { App.tab = 'challenge'; App.nav = 'social'; UI.challenge(el.dataset.v); },
     followList: (el) => { App.tab = 'followList'; App.nav = 'profile'; UI.followList(el.dataset.v); },
@@ -378,7 +380,7 @@ const App = {
     },
     clubEdit: async () => {
       const c = UI._club && UI._club.c; if (!c) return;
-      const f = await FX.prompt('Editar clube', [['ceName', 'Nome', 'text', c.name], ['ceGoal', 'Meta do mês (km, somando todos)', 'number', c.goal_km], ['ceDesc', 'Descrição', 'text', c.description || '', 'ex.: Corredores da Cibien', 'maxlength="120"']], 'Salvar');
+      const f = await FX.prompt('Editar clube', [['ceName', 'Nome', 'text', c.name], ['ceGoal', 'Meta do mês (km, somando todos)', 'number', c.goal_km], ['ceDesc', 'Descrição', 'text', c.description || '', 'ex.: Treinos toda terça às 19h no parque', 'maxlength="120"']], 'Salvar');
       if (!f) return;
       try { await Cloud.clubUpdate(c.id, { name: (f.ceName || c.name).trim().slice(0, 60), goal_km: Math.max(1, +f.ceGoal || c.goal_km), description: (f.ceDesc || '').trim().slice(0, 120) || null }); UI._club = null; FX.toast('Clube atualizado'); UI.club(c.id); } catch (e) { FX.toast('Não foi possível salvar.'); }
     },
@@ -614,7 +616,7 @@ const App = {
     unfollow: async (el) => { await Cloud.unfollow(el.dataset.v); App.refreshSocial(el.dataset.v); },
     userOpen: (el) => { if (!Cloud.loggedIn()) return; App.tab = 'user'; App.nav = 'social'; UI.user(el.dataset.v); },
     clubCreate: async () => {
-      const f = await FX.prompt('Criar clube', [['cName', 'Nome do clube', 'text', '', 'ex.: Corredores da Cibien'], ['cGoal', 'Meta coletiva do mês (km)', 'number', '500']], 'Criar');
+      const f = await FX.prompt('Criar clube', [['cName', 'Nome do clube', 'text', '', 'ex.: Corredores do Parque'], ['cGoal', 'Meta coletiva do mês (km)', 'number', '500']], 'Criar');
       if (!f || !f.cName) return;
       try { const c = await Cloud.createClub(f.cName, f.cGoal); FX.toast(`Clube criado! Código: ${c.invite_code}`); App.tab = 'club'; UI.club(c.id); } catch (e) { FX.toast('Erro ao criar o clube.'); }
     },

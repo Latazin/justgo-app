@@ -988,3 +988,14 @@ section.card.pro-grid > div:nth-last-child(-n+2) { border-bottom: 0; }
 .pf-stats > button:active { background: var(--surface-2); }
 .v3 .maplibregl-ctrl-bottom-right, .v3 .maplibregl-ctrl-bottom-left { bottom: calc(env(safe-area-inset-bottom) + 112px); }
 .v3-meta .num { white-space: nowrap; }
+/* 3D · vídeo */
+.v3-vid { flex: none; display: grid; justify-items: center; gap: 2px; padding: 6px 8px; border-radius: 14px; color: var(--brand); font-size: 11px; font-weight: 700; }
+.v3-vid .ic { width: 24px; height: 24px; }
+.v3.rec { background: #0b0f1a; }
+.v3.rec .v3-map { inset: auto; left: 50%; top: 50%; width: min(100vw, calc(100vh * 9 / 16)); height: min(100vh, calc(100vw * 16 / 9)); transform: translate(-50%, -50%); }
+.v3.rec .v3-top, .v3.rec .v3-bottom, .v3.rec .maplibregl-ctrl { display: none !important; }
+.v3-rec { position: absolute; inset: auto 0 0 0; z-index: 10; padding: 16px 16px calc(env(safe-area-inset-bottom) + 20px); }
+.v3-rec-box { max-width: 420px; margin: 0 auto; display: grid; gap: 8px; padding: 16px 18px; border-radius: 20px; background: color-mix(in srgb, var(--surface) 96%, transparent); box-shadow: var(--shadow-lg); }
+.v3-rec-box small { color: var(--text-3); }
+.v3-rec-bar { height: 8px; border-radius: 8px; background: var(--surface-2); overflow: hidden; }
+.v3-rec-bar i { display: block; height: 100%; width: 0; background: var(--brand); border-radius: 8px; transition: width .2s; }

@@ -21,6 +21,7 @@ flutter:
   assets:
     - assets/web/
     - assets/web/js/
+    - assets/web/js/vendor/
     - assets/web/css/
     - assets/web/icons/
     - assets/web/img/
