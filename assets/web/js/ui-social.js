@@ -81,22 +81,24 @@ Object.assign(UI, {
     if (sub === 'clubs') this.socialClubs().then(fill).catch(fail);
     if (sub === 'challenges') this.socialChallenges().then(fill).catch(fail);
   },
+  // um treino com dado estranho não derruba a lista inteira
+  safePost(a, opts) { try { return this.remotePost(a, opts); } catch (e) { console.warn('post', a && a.id, e); return ''; } },
   remotePost(a, opts = {}) {
     const p = a.profiles || {}, name = esc(p.name || 'Atleta');
     const fol = opts.follow ? `<button class="react follow-btn" data-act="followHere" data-v="${a.user_id}">${I('plus')}Seguir</button>` : '';
     const footer = `<div class="post-foot"><button class="react ${a.liked ? 'on' : ''}" data-act="like" data-v="${a.id}" data-on="${a.liked ? 1 : 0}">${I('heart')}<span class="num">${a.likes || 0}</span></button><button class="react" data-act="comments" data-v="${a.id}">${I('message')}<span class="num">${a.comments || 0}</span></button>${fol}</div>`;
-    return this.postCard({ ...a, mode: null }, `<span data-act="userOpen" data-v="${a.user_id}">${name}</span>`, { route: a.route, avatar: this.avatarOf(p.name, p.frame, p.avatar), noTap: true, footer: opts.noFoot ? '' : footer, color: CONFIG.sports[a.sport].color });
+    return this.postCard({ ...a, mode: null }, `<span data-act="userOpen" data-v="${a.user_id}">${name}</span>`, { route: a.route, avatar: this.avatarOf(p.name, p.frame, p.avatar), noTap: true, footer: opts.noFoot ? '' : footer, color: (CONFIG.sports[a.sport] || CONFIG.sports.run).color });
   },
   async socialFeed() {
     const list = await Cloud.feed();
-    if (!list.length) return `<div class="empty">${I('users')}<h3>Seu feed está vazio</h3><p>Siga amigos para ver os treinos deles aqui. Seus próprios treinos também aparecem.</p><button class="btn primary" data-act="go" data-v="search">Buscar atletas</button></div>`;
-    return list.map((a) => this.remotePost(a)).join('');
+    if (!list.length) return `<div class="empty">${I('users')}<h3>Seu feed está vazio</h3><p>Siga amigos para ver os treinos deles aqui. Seus próprios treinos também aparecem.</p>${Cloud.lastErr ? `<p class="muted small">Erro do servidor: ${esc(Cloud.lastErr)}</p>` : ''}<button class="btn primary" data-act="go" data-v="search">Buscar atletas</button></div>`;
+    return list.map((a) => this.safePost(a)).join('');
   },
   async socialDiscover() {
     const list = await Cloud.discover();
-    if (!list.length) return `<div class="empty">${I('compass')}<h3>Nada por aqui ainda</h3><p>Quando outros atletas publicarem treinos, eles aparecem aqui para você descobrir e seguir.</p></div>`;
+    if (!list.length) return `<div class="empty">${I('compass')}<h3>Nada por aqui ainda</h3><p>Quando outros atletas publicarem treinos, eles aparecem aqui para você descobrir e seguir.</p>${Cloud.lastErr ? `<p class="muted small">Erro do servidor: ${esc(Cloud.lastErr)}</p>` : ''}</div>`;
     const city = Cloud.me && Cloud.me.city;
-    return `<p class="muted small disc-note">${I('compass', 'xs')} Treinos públicos de todos os atletas${city ? ` · primeiro de ${esc(city)}` : ''}</p>${list.map((a) => this.remotePost(a, { follow: !(Cloud._fol && Cloud._fol.has(a.user_id)) })).join('')}`;
+    return `<p class="muted small disc-note">${I('compass', 'xs')} Treinos públicos de todos os atletas${city ? ` · primeiro de ${esc(city)}` : ''}</p>${list.map((a) => this.safePost(a, { follow: !(Cloud._fol && Cloud._fol.has(a.user_id)) })).join('')}`;
   },
   async socialRank() {
     const R = App.rank || (App.rank = { period: 'week', scope: 'all', sport: null });
@@ -127,7 +129,7 @@ Object.assign(UI, {
       const tabs = this.tabsBar([['rank', 'Ranking'], ['members', `Membros · ${d.members.length}`], ['feed', 'Atividades']], tab, 'clubTab');
       let body = '';
       if (tab === 'members') body = `<div class="list">${d.members.map((m) => { const p = m.profiles || {}; return `<div class="row tap" data-act="userOpen" data-v="${m.user_id}">${this.avatarOf(p.name, p.frame, p.avatar)}<div class="grow"><b>${esc(p.name || 'Atleta')}${m.user_id === me ? ' (você)' : ''}</b><small>${p.username ? '@' + esc(p.username) : ''}${p.city ? ' · ' + esc(p.city) : ''}</small></div>${m.role === 'admin' ? '<span class="badge">Admin</span>' : ''}<b class="num">${Fmt.num(m.km)} km</b></div>`; }).join('')}</div>`;
-      else if (tab === 'feed') body = d.acts.length ? d.acts.map((a) => this.remotePost(a)).join('') : `<div class="empty compact">${I('activity')}<p>Os treinos dos membros aparecem aqui.</p></div>`;
+      else if (tab === 'feed') body = d.acts.length ? d.acts.map((a) => this.safePost(a)).join('') : `<div class="empty compact">${I('activity')}<p>Os treinos dos membros aparecem aqui.</p></div>`;
       else body = `${this.board(d.board, (v) => Fmt.num(v) + ' km')}`;
       $('#clubBody').outerHTML = `<section class="club-hero"><span class="eyebrow">${d.members.length} membro${d.members.length > 1 ? 's' : ''} · código ${esc(d.c.invite_code)}</span><h2>${esc(d.c.name)}</h2>${d.c.description ? `<p class="muted">${esc(d.c.description)}</p>` : ''}
           <div class="club-goal"><div class="row-t"><b class="num">${Fmt.num(d.total)} <small>de ${d.c.goal_km} km no mês</small></b><small class="num">${Math.min(100, Math.round(pct))}%</small></div>${this.bar(pct, 'brand')}<small>${pct >= 100 ? 'Meta do mês batida! 🎉'.replace(' 🎉', '') : `Faltam ${Fmt.num(Math.max(0, d.c.goal_km - d.total))} km · ${days} dia${days > 1 ? 's' : ''} para acabar o mês`}</small></div>
@@ -235,7 +237,7 @@ Object.assign(UI, {
         <span class="league-pill" style="--lc:${L0.color}">${I('crown', 'xs')} Liga ${L0.name}</span>
         <div class="prof-stats"><div><b class="num">${Fmt.num(p.total_km, 0)}</b><small>Km totais</small></div><div><b class="num">${p.medals}</b><small>Medalhas</small></div><div><b class="num">${d.followers}</b><small>Seguidores</small></div><div><b class="num">${p.xp}</b><small>XP</small></div></div></section>
         ${self ? '' : `<div class="row2"><button class="btn ${f ? 'ghost' : 'primary'}" data-act="${f ? 'unfollow' : 'follow'}" data-v="${id}">${f ? 'Seguindo' : 'Seguir'}</button><button class="btn ghost" data-act="chalNew" data-v="${id}">${I('swords')}Desafiar</button></div>`}
-        ${this.sectionHead('Atividades recentes')}${d.acts.length ? d.acts.map((a) => this.remotePost(a, { noFoot: true })).join('') : '<p class="muted">Nenhuma atividade pública.</p>'}`;
+        ${this.sectionHead('Atividades recentes')}${d.acts.length ? d.acts.map((a) => this.safePost(a, { noFoot: true })).join('') : '<p class="muted">Nenhuma atividade pública.</p>'}`;
     } catch (e) { $('#userBody').textContent = 'Perfil não encontrado.'; }
   },
   async commentsSheet(id) {

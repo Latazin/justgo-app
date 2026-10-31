@@ -182,24 +182,39 @@ const Cloud = {
   },
   async profileOf(id) {
     const { data: p } = await this.sb.from('profiles').select('*').eq('id', id).single();
-    const { data: a } = await this.sb.from('activities').select('*, profiles(name,username,frame,avatar)').eq('user_id', id).order('start', { ascending: false }).limit(10);
+    const a = await this.acts(this.sb.from('activities').select('*').eq('user_id', id).order('start', { ascending: false }).limit(10));
     const { count: followers } = await this.sb.from('follows').select('*', { count: 'exact', head: true }).eq('following', id);
     return { p, acts: a || [], followers: followers || 0 };
   },
   async feed() {
     const ids = [...(await this.following()), this.user.id];
-    const { data } = await this.sb.from('activities').select('*, profiles(name,username,frame,avatar)').in('user_id', ids).order('start', { ascending: false }).limit(30);
-    return this.withReactions(data || []);
+    const data = await this.acts(this.sb.from('activities').select('*').in('user_id', ids).order('start', { ascending: false }).limit(30));
+    return this.withReactions(data);
   },
   // Descobrir: treinos públicos de quem você ainda não segue
   async discover() {
     const fol = await this.following(), skip = new Set([this.user.id]); this._fol = new Set(fol);
-    const { data } = await this.sb.from('activities').select('*, profiles(name,username,frame,avatar,city)').eq('flagged', false).order('start', { ascending: false }).limit(80);
+    const data = await this.acts(this.sb.from('activities').select('*').or('flagged.is.null,flagged.eq.false').order('start', { ascending: false }).limit(80));
     const mine = (this.me && this.me.city || '').toLowerCase();
     const list = (data || []).filter((a) => !skip.has(a.user_id));
     // primeiro quem é da sua cidade
     if (mine) list.sort((a, b) => ((b.profiles && (b.profiles.city || '').toLowerCase() === mine) - (a.profiles && (a.profiles.city || '').toLowerCase() === mine)) || (Date.parse(b.start) - Date.parse(a.start)));
     return this.withReactions(list.slice(0, 30));
+  },
+  // busca treinos e depois os perfis (sem "join": não quebra se faltar coluna ou houver relação ambígua)
+  async acts(q) {
+    const { data, error } = await q;
+    if (error) { console.warn('JustGo atividades:', error.message); this.lastErr = error.message; } else this.lastErr = '';
+    return this.attachProfiles(data || []);
+  },
+  async attachProfiles(list) {
+    const ids = [...new Set(list.map((a) => a.user_id).filter(Boolean))];
+    if (!ids.length) return list;
+    const { data, error } = await this.sb.from('profiles').select('*').in('id', ids);
+    if (error) console.warn('JustGo perfis:', error.message);
+    const M = new Map((data || []).map((p) => [p.id, p]));
+    list.forEach((a) => { a.profiles = M.get(a.user_id) || { name: 'Atleta' }; });
+    return list;
   },
   async withReactions(list) {
     if (!list.length) return [];
@@ -257,14 +272,14 @@ const Cloud = {
   async clubFull(id) {
     const { data: c, error } = await this.sb.from('clubs').select('*').eq('id', id).single();
     if (error) throw error;
-    const { data: m } = await this.sb.from('club_members').select('user_id, role, profiles(name, username, city, frame, avatar)').eq('club_id', id);
+    const { data: m } = await this.sb.from('club_members').select('user_id, role, profiles(*)').eq('club_id', id);
     const mem = m || [], ids = mem.map((x) => x.user_id);
     const month = new Date(); month.setDate(1); month.setHours(0, 0, 0, 0);
     const week = new Date(Game.weekStart(Date.now()));
     const [board, wboard, acts] = ids.length ? await Promise.all([
       this.leaderboard({ since: month, ids }),
       this.leaderboard({ since: week, ids }),
-      this.sb.from('activities').select('*, profiles(name,username,frame,avatar)').in('user_id', ids).eq('flagged', false).order('start', { ascending: false }).limit(20).then((r) => r.data || []),
+      this.acts(this.sb.from('activities').select('*').in('user_id', ids).or('flagged.is.null,flagged.eq.false').order('start', { ascending: false }).limit(20)),
     ]) : [[], [], []];
     const km = {}; board.forEach((x) => (km[x.user_id] = Number(x.value)));
     return { c, members: mem.map((x) => ({ ...x, km: km[x.user_id] || 0 })).sort((a, b) => b.km - a.km), board, wboard, acts, total: board.reduce((s, x) => s + Number(x.value), 0), admin: c.created_by === this.user.id };
@@ -295,8 +310,8 @@ const Cloud = {
     const ids = (mine || []).map((a) => a.id), title = {}; (mine || []).forEach((a) => (title[a.id] = a.title));
     const [fol, likes, cms, chal, zon] = await Promise.all([
       safe(this.sb.from('follows').select('follower, created_at, p:profiles!follows_follower_fkey(id,name,frame,avatar)').eq('following', me).order('created_at', { ascending: false }).limit(30)),
-      ids.length ? this.sb.from('likes').select('activity_id, user_id, created_at, profiles(id,name,frame,avatar)').in('activity_id', ids).neq('user_id', me).limit(60).then((r) => (r.error ? this.sb.from('likes').select('activity_id, user_id, profiles(id,name,frame,avatar)').in('activity_id', ids).neq('user_id', me).limit(60) : r)).catch(() => ({ data: [] })) : { data: [] },
-      ids.length ? safe(this.sb.from('comments').select('activity_id, user_id, text, created_at, profiles(id,name,frame,avatar)').in('activity_id', ids).neq('user_id', me).order('created_at', { ascending: false }).limit(40)) : { data: [] },
+      ids.length ? this.sb.from('likes').select('activity_id, user_id, created_at, profiles(*)').in('activity_id', ids).neq('user_id', me).limit(60).then((r) => (r.error ? this.sb.from('likes').select('activity_id, user_id, profiles(*)').in('activity_id', ids).neq('user_id', me).limit(60) : r)).catch(() => ({ data: [] })) : { data: [] },
+      ids.length ? safe(this.sb.from('comments').select('activity_id, user_id, text, created_at, profiles(*)').in('activity_id', ids).neq('user_id', me).order('created_at', { ascending: false }).limit(40)) : { data: [] },
       safe(this.sb.from('challenges').select('id, status, sport, days, created_at, starts_at, from_user, to_user, a:profiles!challenges_from_user_fkey(id,name,frame,avatar), b:profiles!challenges_to_user_fkey(id,name,frame,avatar)').or(`to_user.eq.${me},and(from_user.eq.${me},status.eq.active)`).order('created_at', { ascending: false }).limit(20)),
       safe(this.sb.from('zones').select('id, area, owner, owner_name, captured_at').eq('prev_owner', me).neq('owner', me).order('captured_at', { ascending: false }).limit(20)),
     ]);
