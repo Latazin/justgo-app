@@ -205,7 +205,21 @@ const Cloud = {
   async acts(q) {
     const { data, error } = await q;
     if (error) { console.warn('JustGo atividades:', error.message); this.lastErr = error.message; } else this.lastErr = '';
-    return this.attachProfiles(data || []);
+    const list = await this.attachProfiles(data || []);
+    this._cache = this._cache || {}; list.forEach((a) => (this._cache[a.id] = a));
+    return list;
+  },
+  // um treino de outra pessoa (tela do treino)
+  async activityOne(id) {
+    const [a] = await this.acts(this.sb.from('activities').select('*').eq('id', id).limit(1));
+    if (!a) return null;
+    await this.withReactions([a]);
+    return a;
+  },
+  // treino da nuvem no formato do app (para o 3D)
+  toLocal(a) {
+    return { id: a.id, sport: a.sport, start: typeof a.start === 'string' ? Date.parse(a.start) : a.start, duration: a.duration, elapsed: a.elapsed, distance: a.distance, title: a.title,
+      points: (a.route || []).map((p) => (p[4] ? [p[0], p[1], 0, null, 1] : [p[0], p[1], 0])), splits: [], mode: 'gps', remote: 1 };
   },
   async attachProfiles(list) {
     const ids = [...new Set(list.map((a) => a.user_id).filter(Boolean))];
@@ -231,7 +245,7 @@ const Cloud = {
     return list;
   },
   async like(id, on) { if (on) await this.sb.from('likes').insert({ activity_id: id, user_id: this.user.id }); else await this.sb.from('likes').delete().eq('activity_id', id).eq('user_id', this.user.id); },
-  async comments(id) { const { data } = await this.sb.from('comments').select('*, profiles(name)').eq('activity_id', id).order('created_at'); return data || []; },
+  async comments(id) { const { data } = await this.sb.from('comments').select('*').eq('activity_id', id).order('created_at'); return this.attachProfiles(data || []); },
   async comment(id, text) { await this.sb.from('comments').insert({ activity_id: id, user_id: this.user.id, text: text.slice(0, 500) }); },
 
   /* ---------- rankings ---------- */

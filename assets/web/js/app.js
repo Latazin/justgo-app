@@ -10,7 +10,7 @@ const App = {
   tracker: null, coach: null, routeLive: null, wl: null,
 
   // tela -> aba da barra inferior que fica acesa
-  parents: { notifs: 'home', pro: 'profile', progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', club: 'social', history: 'home', heatmap: 'home' },
+  parents: { notifs: 'home', pro: 'profile', progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', ract: 'social', club: 'social', history: 'home', heatmap: 'home' },
 
   init() {
     Store.load();
@@ -363,8 +363,8 @@ const App = {
     go: (el) => App.go(el.dataset.v),
     sub: (el) => { const [t, s] = el.dataset.v.split(':'); App.sub[t] = s; App.go(t); },
     subTab: (el) => { App.sub[App.tab] = el.dataset.v; App.go(App.tab); },
-    view3d: (el) => { const a = App.find(el.dataset.v); if (!a) return; App.v3From = App.tab; App.v3Act = a.id; App.tab = 'view3d'; UI.view3d(a); },
-    v3Close: () => { View3D.close(); App.tab = 'detail'; const a = App.find(App.v3Act); if (a) UI.summary(a, null, false); else App.go('home'); },
+    view3d: (el) => { let a = App.find(el.dataset.v), remote = false; if (!a && Cloud._cache && Cloud._cache[el.dataset.v]) { a = Cloud.toLocal(Cloud._cache[el.dataset.v]); remote = true; } if (!a) return; App.v3Remote = remote ? a : null; App.v3From = App.tab; App.v3Act = a.id; App.tab = 'view3d'; UI.view3d(a); },
+    v3Close: () => { View3D.close(); if (App.v3Remote) { App.v3Remote = null; App.tab = 'ract'; App.nav = 'social'; UI.remote(App.v3Act); return; } App.tab = 'detail'; const a = App.find(App.v3Act); if (a) UI.summary(a, null, false); else App.go('home'); },
     v3Play: () => (View3D.playing ? View3D.pause() : View3D.play()),
     v3Video: () => View3D.video(),
     v3Cancel: () => { View3D.cancelVideo = true; },
@@ -614,6 +614,31 @@ const App = {
     },
     follow: async (el) => { await Cloud.follow(el.dataset.v); FX.toast('Seguindo!'); App.refreshSocial(el.dataset.v); },
     unfollow: async (el) => { await Cloud.unfollow(el.dataset.v); App.refreshSocial(el.dataset.v); },
+    raOpen: (el) => {
+      if (!Cloud.loggedIn()) return;
+      if (App.tab !== 'ract') App.raFrom = { tab: App.tab, uid: UI._uid, club: UI._clubId, y: window.scrollY };
+      App.tab = 'ract'; App.nav = 'social'; UI.remote(el.dataset.v, el.dataset.cm === '1');
+    },
+    raBack: () => {
+      const f = App.raFrom || { tab: 'social' }; App.raFrom = null;
+      if (f.tab === 'user' && f.uid) { App.tab = 'user'; App.nav = 'social'; UI.user(f.uid); }
+      else if (f.tab === 'club' && f.club) { App.tab = 'club'; App.nav = 'social'; UI.club(f.club); }
+      else if (f.tab === 'notifs') App.go('notifs');
+      else { App.go('social'); if (f.y) setTimeout(() => window.scrollTo(0, f.y), 900); }
+    },
+    raFocus: () => { const t = $('#raText'); if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => t.focus(), 350); } },
+    raFollow: async (el) => { try { await Cloud.follow(el.dataset.v); if (Cloud._fol) Cloud._fol.add(el.dataset.v); el.outerHTML = `<span class="badge">${I('check', 'xs')} Seguindo</span>`; FX.toast('Seguindo!'); } catch (e) { FX.toast('Não deu para seguir agora.'); } },
+    raComment: async (el) => {
+      const t = $('#raText'), v = t && t.value.trim(); if (!v) return t && t.focus();
+      el.disabled = true;
+      try { await Cloud.comment(el.dataset.v, v); t.value = ''; await UI.raComments(el.dataset.v); FX.vibrate([15]); } catch (e) { FX.toast('Não deu para comentar agora.'); }
+      el.disabled = false;
+    },
+    raDelCm: async (el) => {
+      if (await FX.modal('<h3>Apagar comentário?</h3><div class="row2"><button class="btn ghost" data-m="no">Cancelar</button><button class="btn primary" data-m="ok">Apagar</button></div>') !== 'ok') return;
+      try { await Cloud.sb.from('comments').delete().eq('id', el.dataset.v); } catch (e) {}
+      UI.raComments(el.dataset.a);
+    },
     userOpen: (el) => { if (!Cloud.loggedIn()) return; App.tab = 'user'; App.nav = 'social'; UI.user(el.dataset.v); },
     clubCreate: async () => {
       const f = await FX.prompt('Criar clube', [['cName', 'Nome do clube', 'text', '', 'ex.: Corredores do Parque'], ['cGoal', 'Meta coletiva do mês (km)', 'number', '500']], 'Criar');

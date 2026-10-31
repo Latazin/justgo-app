@@ -86,8 +86,8 @@ Object.assign(UI, {
   remotePost(a, opts = {}) {
     const p = a.profiles || {}, name = esc(p.name || 'Atleta');
     const fol = opts.follow ? `<button class="react follow-btn" data-act="followHere" data-v="${a.user_id}">${I('plus')}Seguir</button>` : '';
-    const footer = `<div class="post-foot"><button class="react ${a.liked ? 'on' : ''}" data-act="like" data-v="${a.id}" data-on="${a.liked ? 1 : 0}">${I('heart')}<span class="num">${a.likes || 0}</span></button><button class="react" data-act="comments" data-v="${a.id}">${I('message')}<span class="num">${a.comments || 0}</span></button>${fol}</div>`;
-    return this.postCard({ ...a, mode: null }, `<span data-act="userOpen" data-v="${a.user_id}">${name}</span>`, { route: a.route, avatar: this.avatarOf(p.name, p.frame, p.avatar), noTap: true, footer: opts.noFoot ? '' : footer, color: (CONFIG.sports[a.sport] || CONFIG.sports.run).color });
+    const footer = `<div class="post-foot"><button class="react ${a.liked ? 'on' : ''}" data-act="like" data-v="${a.id}" data-on="${a.liked ? 1 : 0}">${I('heart')}<span class="num">${a.likes || 0}</span></button><button class="react" data-act="raOpen" data-cm="1" data-v="${a.id}">${I('message')}<span class="num">${a.comments || 0}</span></button>${fol}</div>`;
+    return this.postCard({ ...a, mode: null }, `<span data-act="userOpen" data-v="${a.user_id}">${name}</span>`, { route: a.route, avatar: this.avatarOf(p.name, p.frame, p.avatar), tap: 'raOpen', footer: opts.noFoot ? '' : footer, color: (CONFIG.sports[a.sport] || CONFIG.sports.run).color });
   },
   async socialFeed() {
     const list = await Cloud.feed();
@@ -119,6 +119,7 @@ Object.assign(UI, {
   },
   /* ---------- clube ---------- */
   async club(id) {
+    this._clubId = id;
     const tab = App.clubTab || 'rank';
     this.render(`${this.back('social', 'Clube')}<main class="screen"><div id="clubBody" class="loading">Carregando…</div></main>`);
     try {
@@ -228,6 +229,7 @@ Object.assign(UI, {
     el.innerHTML = rows.length ? `<div class="list">${rows.filter((r) => r.id !== Cloud.user.id).map((r) => { const f = fol.includes(r.id); return `<div class="row"><span data-act="userOpen" data-v="${r.id}" class="tap">${this.avatarOf(r.name, r.frame, r.avatar)}</span><div class="grow tap" data-act="userOpen" data-v="${r.id}"><b>${esc(r.name)}</b><small>@${esc(r.username || '')}${r.city ? ' · ' + esc(r.city) : ''} · nível ${r.level}</small></div><button class="chip-btn sm ${f ? '' : 'primary-chip'}" data-act="${f ? 'unfollow' : 'follow'}" data-v="${r.id}">${f ? 'Seguindo' : 'Seguir'}</button></div>`; }).join('')}</div>` : '<p class="muted">Ninguém encontrado.</p>';
   },
   async user(id) {
+    this._uid = id;
     this.render(`${this.back('social', 'Perfil')}<main class="screen"><div id="userBody" class="loading">Carregando…</div></main>`);
     try {
       const [d, fol] = await Promise.all([Cloud.profileOf(id), Cloud.following()]);
@@ -239,6 +241,62 @@ Object.assign(UI, {
         ${self ? '' : `<div class="row2"><button class="btn ${f ? 'ghost' : 'primary'}" data-act="${f ? 'unfollow' : 'follow'}" data-v="${id}">${f ? 'Seguindo' : 'Seguir'}</button><button class="btn ghost" data-act="chalNew" data-v="${id}">${I('swords')}Desafiar</button></div>`}
         ${this.sectionHead('Atividades recentes')}${d.acts.length ? d.acts.map((a) => this.safePost(a, { noFoot: true })).join('') : '<p class="muted">Nenhuma atividade pública.</p>'}`;
     } catch (e) { $('#userBody').textContent = 'Perfil não encontrado.'; }
+  },
+  /* ---------- treino de outra pessoa: mapa, números, curtidas e comentários ---------- */
+  async remote(id, toComments) {
+    this.render(`<header class="top sub"><div class="top-l"><button class="back" data-act="raBack" aria-label="Voltar">${I('chevronLeft')}</button><b class="ttl">Treino</b></div><div class="top-r"></div></header>
+      <main class="screen summary" id="raBody"><div class="loading">Carregando…</div></main>`);
+    let a = null; try { a = await Cloud.activityOne(id); } catch (e) { console.warn(e); }
+    const body = $('#raBody'); if (!body || App.tab !== 'ract') return;
+    if (!a) { body.innerHTML = `<div class="empty">${I('lock')}<h3>Treino indisponível</h3><p>Ele pode ter sido apagado ou deixado privado.</p></div>`; return; }
+    const p = a.profiles || {}, me = Cloud.user && Cloud.user.id, self = a.user_id === me, fol = Cloud._fol ? Cloud._fol.has(a.user_id) : null;
+    const start = typeof a.start === 'string' ? Date.parse(a.start) : a.start, sp = CONFIG.sports[a.sport] || CONFIG.sports.run;
+    const avg = a.duration ? a.distance / a.duration : 0, speed = Fmt.isSpeed(a.sport);
+    const route = (a.route || []).filter((q) => q && q[0] != null), hasMap = route.length > 1;
+    const more = [['Tempo total', Fmt.time(a.elapsed || a.duration)]];
+    if (a.stats && a.stats.elev != null) more.push(['Ganho de elevação', `${a.stats.elev} m`]);
+    if (a.duration && a.distance && !speed && a.sport !== 'swim') more.push(['Velocidade média', `${Fmt.num(avg * 3.6)} km/h`]);
+    if (a.stats && a.stats.weather && a.stats.weather.temp != null) more.push(['Clima', `${Math.round(a.stats.weather.temp)}°C`]);
+    if (a.xp) more.push(['XP ganho', `+${a.xp}`]);
+    body.innerHTML = `
+      <div class="post-h">${this.avatarOf(p.name, p.frame, p.avatar)}<div class="grow"><b data-act="userOpen" data-v="${a.user_id}">${esc(p.name || 'Atleta')}</b><small>${I(SPORT_IC[a.sport], 'xs')} ${sp.name} · ${Fmt.date(start)}</small></div>
+        ${self || fol === null || fol ? '' : `<button class="chip-btn sm" data-act="raFollow" data-v="${a.user_id}">${I('plus')}Seguir</button>`}</div>
+      <h1 class="act-title">${esc(this.actTitle(a))}</h1>
+      <div class="big-stats"><div><span class="eyebrow">Distância</span><b class="num">${Fmt.km(a.distance)}</b><small>km</small></div><div><span class="eyebrow">${Fmt.paceLabel(a.sport, true)}</span><b class="num">${Fmt.pace(a.sport, avg)}</b><small>${Fmt.paceUnit(a.sport)}</small></div><div><span class="eyebrow">Tempo</span><b class="num">${Fmt.time(a.duration)}</b></div></div>
+      ${hasMap ? `<div class="s-map-wrap"><div id="raMap" class="s-map"></div><button class="map3d-btn" data-act="view3d" data-v="${a.id}">${I('box3d')}Ver em 3D</button></div>` : a.stats && a.stats.pool ? `<div class="pool-art">${I('swim')}<b class="num">${Fmt.km(a.distance)} km</b><small>Natação na piscina</small></div>` : ''}
+      <div class="ra-react"><button class="react ${a.liked ? 'on' : ''}" data-act="like" data-v="${a.id}" data-on="${a.liked ? 1 : 0}">${I('heart')}<span class="num">${a.likes || 0}</span></button>
+        <button class="react" data-act="raFocus">${I('message')}<span class="num" id="raCmN">${a.comments || 0}</span></button>${self ? '' : `<button class="react" data-act="userOpen" data-v="${a.user_id}">${I('user')}Ver perfil</button>`}</div>
+      <section class="card kvl">${more.map(([l, v]) => `<div><span>${l}</span><b class="num">${v}</b></div>`).join('')}</section>
+      ${this.sectionHead('Comentários')}
+      <div id="raCm" class="ra-cm"><div class="loading">Carregando…</div></div>
+      <div class="ra-new"><textarea id="raText" maxlength="500" placeholder="Escreva um comentário… (dê os parabéns!)"></textarea><button class="btn primary" data-act="raComment" data-v="${a.id}">${I('send')}Enviar</button></div>`;
+    if (hasMap) {
+      const m = this.map('raMap');
+      if (m) {
+        const pts = route.map((q) => (q[4] ? [q[0], q[1], 0, null, 1] : [q[0], q[1], 0]));
+        const line = this.routeLine(m, Geo.segments(pts), Shop.lineColor(a.sport), 5);
+        this.endpoints(m, pts[0], pts[pts.length - 1]);
+        const fit = () => { try { m.invalidateSize(); m.fitBounds(line.getBounds(), { padding: [28, 28] }); } catch (e) {} };
+        fit(); setTimeout(fit, 300);
+      }
+    }
+    await this.raComments(a.id);
+    if (toComments) { const t = $('#raText'); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  },
+  async raComments(id) {
+    const el = $('#raCm'); if (!el) return;
+    let list = []; try { list = await Cloud.comments(id); } catch (e) {}
+    const me = Cloud.user && Cloud.user.id;
+    el.innerHTML = list.length ? list.map((c) => { const p = c.profiles || {}; return `<div class="ra-c">${this.avatarOf(p.name, p.frame, p.avatar, 'sm')}<div class="grow"><div class="ra-c-h"><b data-act="userOpen" data-v="${c.user_id}">${esc(p.name || 'Atleta')}</b><small>${this.ago(Date.parse(c.created_at))}</small></div><p>${esc(c.text)}</p></div>${c.user_id === me ? `<button class="icon-btn sm" data-act="raDelCm" data-v="${c.id}" data-a="${id}" aria-label="Apagar">${I('trash')}</button>` : ''}</div>`; }).join('')
+      : `<p class="muted small">Ninguém comentou ainda. Seja o primeiro!</p>`;
+    const n = $('#raCmN'); if (n) n.textContent = list.length;
+  },
+  ago(t) {
+    const s = (Date.now() - t) / 1000;
+    if (!isFinite(s)) return '';
+    if (s < 60) return 'agora'; if (s < 3600) return `${Math.floor(s / 60)} min`; if (s < 86400) return `${Math.floor(s / 3600)} h`;
+    if (s < 7 * 86400) return `${Math.floor(s / 86400)} d`;
+    return new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
   },
   async commentsSheet(id) {
     const list = await Cloud.comments(id);

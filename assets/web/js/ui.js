@@ -747,7 +747,7 @@ const UI = {
   postCard(a, name, opts = {}) {
     const color = opts.color || Shop.lineColor(a.sport);
     const pts = opts.route || a.points;
-    return `<article class="post" ${opts.noTap ? '' : `data-act="detail" data-v="${a.id}"`}>
+    return `<article class="post" ${opts.noTap ? '' : `data-act="${opts.tap || 'detail'}" data-v="${a.id}"`}>
       <div class="post-h">${opts.avatar || this.avatar('sm')}<div class="grow"><b>${name}</b><small>${I(SPORT_IC[a.sport], 'xs')} ${Fmt.date(typeof a.start === 'string' ? Date.parse(a.start) : a.start)}</small></div>${a.flagged ? '<span class="badge bad">Não conta</span>' : a.private ? `<span class="badge">${I('lock', 'xs')} Privado</span>` : a.xp ? `<span class="badge">+${a.xp} XP</span>` : ''}</div>
       <h3>${esc(this.actTitle(a))}</h3>
       <div class="post-stats"><div><span>Distância</span><b class="num">${Fmt.km(a.distance)} km</b></div><div><span>${Fmt.isSpeed(a.sport) ? 'Vel. média' : 'Ritmo'}</span><b class="num">${Fmt.pace(a.sport, a.duration ? a.distance / a.duration : 0)}${Fmt.isSpeed(a.sport) ? ' km/h' : a.sport === 'swim' ? ' /100m' : ' /km'}</b></div><div><span>Tempo</span><b class="num">${Fmt.time(a.duration)}</b></div></div>
