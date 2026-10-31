@@ -98,7 +98,7 @@ const Cloud = {
     const { data } = await this.sb.from('profiles').select('*').eq('id', this.user.id).maybeSingle();
     this.me = data;
     await this.pull();
-    if (this.me) this.pushProfile();
+    if (this.me) { if (this.me.photo && !Store.data.profile.photo) { Store.data.profile.photo = this.me.photo; Store.save(); } this.pushProfile(); }
     if (['social', 'profile', 'account', 'home'].includes(App.tab)) App.go(App.tab);
   },
   async saveProfile(username, name, city) {
@@ -106,6 +106,22 @@ const Cloud = {
     const { data, error } = await this.sb.from('profiles').upsert(row).select().single();
     if (error) throw error;
     this.me = data; Store.data.profile.name = name; Store.save(); this.pushProfile();
+  },
+  // foto de perfil: Supabase Storage (bucket público "avatars"), uma por pessoa
+  async uploadPhoto(blob) {
+    const path = `${this.user.id}/avatar.jpg`;
+    const up = await this.sb.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg', cacheControl: '86400' });
+    if (up.error) throw up.error;
+    const url = this.sb.storage.from('avatars').getPublicUrl(path).data.publicUrl + '?v=' + Date.now();
+    const { error } = await this.sb.from('profiles').update({ photo: url }).eq('id', this.user.id);
+    if (error) throw error;
+    if (this.me) this.me.photo = url;
+    return url;
+  },
+  async removePhoto() {
+    try { await this.sb.storage.from('avatars').remove([`${this.user.id}/avatar.jpg`]); } catch (e) {}
+    await this.sb.from('profiles').update({ photo: null }).eq('id', this.user.id);
+    if (this.me) this.me.photo = null;
   },
   async pushProfile() {
     if (!this.me) return;
@@ -177,7 +193,7 @@ const Cloud = {
   async follow(id) { await this.sb.from('follows').insert({ follower: this.user.id, following: id }); },
   async unfollow(id) { await this.sb.from('follows').delete().eq('follower', this.user.id).eq('following', id); },
   async search(q) {
-    const { data } = await this.sb.from('profiles').select('id,username,name,city,level,total_km,frame,avatar').or(`username.ilike.%${q}%,name.ilike.%${q}%`).limit(20);
+    const { data } = await this.sb.from('profiles').select('*').or(`username.ilike.%${q}%,name.ilike.%${q}%`).limit(20);
     return data || [];
   },
   async profileOf(id) {
@@ -208,6 +224,12 @@ const Cloud = {
     const list = await this.attachProfiles(data || []);
     this._cache = this._cache || {}; list.forEach((a) => (this._cache[a.id] = a));
     return list;
+  },
+  // carrossel "Da comunidade" da tela inicial (leve: sem curtidas/comentários)
+  async homeFeed() {
+    if (this._hf && Date.now() - this._hf.t < 120000) return this._hf.list;
+    const list = await this.acts(this.sb.from('activities').select('id,user_id,sport,start,distance,duration,title,route').neq('user_id', this.user.id).or('flagged.is.null,flagged.eq.false').order('start', { ascending: false }).limit(10));
+    this._hf = { t: Date.now(), list }; return list;
   },
   // um treino de outra pessoa (tela do treino)
   async activityOne(id) {
@@ -311,7 +333,7 @@ const Cloud = {
   },
   async followList(id, which) {
     const col = which === 'followers' ? 'follower' : 'following', by = which === 'followers' ? 'following' : 'follower';
-    const { data, error } = await this.sb.from('follows').select(`${col}, created_at, p:profiles!follows_${col}_fkey(id,name,username,city,frame,avatar)`).eq(by, id).order('created_at', { ascending: false }).limit(200);
+    const { data, error } = await this.sb.from('follows').select(`${col}, created_at, p:profiles!follows_${col}_fkey(*)`).eq(by, id).order('created_at', { ascending: false }).limit(200);
     if (error) throw error;
     return (data || []).map((x) => x.p).filter(Boolean);
   },
@@ -323,10 +345,10 @@ const Cloud = {
     const { data: mine } = await this.sb.from('activities').select('id,title,sport').eq('user_id', me).order('start', { ascending: false }).limit(60);
     const ids = (mine || []).map((a) => a.id), title = {}; (mine || []).forEach((a) => (title[a.id] = a.title));
     const [fol, likes, cms, chal, zon] = await Promise.all([
-      safe(this.sb.from('follows').select('follower, created_at, p:profiles!follows_follower_fkey(id,name,frame,avatar)').eq('following', me).order('created_at', { ascending: false }).limit(30)),
+      safe(this.sb.from('follows').select('follower, created_at, p:profiles!follows_follower_fkey(*)').eq('following', me).order('created_at', { ascending: false }).limit(30)),
       ids.length ? this.sb.from('likes').select('activity_id, user_id, created_at, profiles(*)').in('activity_id', ids).neq('user_id', me).limit(60).then((r) => (r.error ? this.sb.from('likes').select('activity_id, user_id, profiles(*)').in('activity_id', ids).neq('user_id', me).limit(60) : r)).catch(() => ({ data: [] })) : { data: [] },
       ids.length ? safe(this.sb.from('comments').select('activity_id, user_id, text, created_at, profiles(*)').in('activity_id', ids).neq('user_id', me).order('created_at', { ascending: false }).limit(40)) : { data: [] },
-      safe(this.sb.from('challenges').select('id, status, sport, days, created_at, starts_at, from_user, to_user, a:profiles!challenges_from_user_fkey(id,name,frame,avatar), b:profiles!challenges_to_user_fkey(id,name,frame,avatar)').or(`to_user.eq.${me},and(from_user.eq.${me},status.eq.active)`).order('created_at', { ascending: false }).limit(20)),
+      safe(this.sb.from('challenges').select('id, status, sport, days, created_at, starts_at, from_user, to_user, a:profiles!challenges_from_user_fkey(*), b:profiles!challenges_to_user_fkey(*)').or(`to_user.eq.${me},and(from_user.eq.${me},status.eq.active)`).order('created_at', { ascending: false }).limit(20)),
       safe(this.sb.from('zones').select('id, area, owner, owner_name, captured_at').eq('prev_owner', me).neq('owner', me).order('captured_at', { ascending: false }).limit(20)),
     ]);
     (fol.data || []).forEach((x) => x.p && out.push({ k: 'follow', t: Date.parse(x.created_at), u: x.p }));
@@ -352,7 +374,7 @@ const Cloud = {
 
   /* ---------- desafio em detalhe ---------- */
   async challengeDetail(id) {
-    const { data: c, error } = await this.sb.from('challenges').select('*, a:profiles!challenges_from_user_fkey(id,name,username,frame,avatar), b:profiles!challenges_to_user_fkey(id,name,username,frame,avatar)').eq('id', id).single();
+    const { data: c, error } = await this.sb.from('challenges').select('*, a:profiles!challenges_from_user_fkey(*), b:profiles!challenges_to_user_fkey(*)').eq('id', id).single();
     if (error) throw error;
     let acts = [];
     if (c.status === 'active' && c.starts_at) {

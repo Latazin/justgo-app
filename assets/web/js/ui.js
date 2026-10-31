@@ -152,10 +152,11 @@ const UI = {
   },
   back(to, title, right = '') { return `<header class="top sub"><div class="top-l"><button class="back" data-act="go" data-v="${to}" aria-label="Voltar">${I('chevronLeft')}</button><b class="ttl">${title}</b></div><div class="top-r">${right}</div></header>`; },
   brand() { return `<span class="brand">${MARK('sm')}<span>Just<b>Go</b></span></span>`; },
-  avatar(size = '') { const n = Store.data.profile.name || 'A'; return `<div class="avatar ${size}"><span>${esc(n[0].toUpperCase())}</span></div>`; },
+  avatar(size = '') { const P = Store.data.profile, n = P.name || 'A'; return `<div class="avatar ${size}">${this.avaIn(n, P.photo)}</div>`; },
+  avaIn(name, photo) { return photo && /^(https:|data:image)/.test(photo) ? `<span class="ph" style="background-image:url('${String(photo).replace(/'/g, '%27')}')"></span>` : `<span>${esc((name || 'A')[0].toUpperCase())}</span>`; },
   greeting() { const h = new Date().getHours(); return h < 5 ? 'Boa madrugada' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'; },
   today() { return new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }); },
-  avatarOf(name, frame, bg, size = 'sm') { return `<div class="avatar ${size}" style="${frame ? `--frame:${frame};` : '--frame:var(--line-2);'}${bg ? `--avatar-bg:${bg}` : ''}"><span>${esc((name || 'A')[0].toUpperCase())}</span></div>`; },
+  avatarOf(name, frame, bg, size = 'sm', photo) { return `<div class="avatar ${size}" style="${frame ? `--frame:${frame};` : '--frame:var(--line-2);'}${bg ? `--avatar-bg:${bg}` : ''}">${this.avaIn(name, photo)}</div>`; },
   iconBox(name, color) { return `<div class="ibox" ${color ? `style="--c:${color}"` : ''}>${I(name)}</div>`; },
   tabsBar(items, active, act) { return `<div class="subtabs">${items.map(([v, n]) => `<button class="${v === active ? 'on' : ''}" data-act="${act}" data-v="${v}">${n}</button>`).join('')}</div>`; },
   actTitle(a) {
@@ -282,10 +283,14 @@ const UI = {
     const next = Game.nextUnlocks(1)[0], plan = Plans.today();
     const recent = [...D.activities].sort((a, b) => b.start - a.start).slice(0, 2);
     const daily = Game.dailyMissions(now), dDone = daily.filter((m) => D.missionsDone[Game.mKey('d', m, now)]).length;
+    const lastAct = recent[0], zones = Zones.mine();
+    // esportes rápidos: os do perfil, depois os mais usados, completando com corrida/pedal/caminhada
+    const used = {}; D.activities.forEach((x) => (used[x.sport] = (used[x.sport] || 0) + 1));
+    const quick = [...new Set([...(D.profile.sports || []), ...Object.keys(used).sort((x, y) => used[y] - used[x]), 'run', 'ride', 'walk', 'skate', 'swim', 'hike'])].filter((k) => CONFIG.sports[k]).slice(0, 5);
 
     this.render(`${this.header('', '', { brand: true })}
     <main class="screen home">
-      <section class="hello"><span class="eyebrow">${this.today()}</span><h1>${this.greeting()}, ${esc(D.profile.name.split(' ')[0])}</h1></section>
+      <section class="hello"><div class="grow"><span class="eyebrow">${this.today()}</span><h1>${this.greeting()}, ${esc(D.profile.name.split(' ')[0])}</h1></div><div id="hWx" class="wx-chip" hidden></div></section>
       ${this.loginCard()}
 
       <section class="card week tap" data-act="go" data-v="stats">
@@ -296,16 +301,16 @@ const UI = {
         <div class="week-bars">${days.map((v, i) => `<div class="wb ${i === todayI ? 'today' : ''}"><i style="height:${Math.max(v ? 10 : 4, (v / maxD) * 100)}%" class="${v ? 'has' : ''}"></i><small>${WEEKDAYS[i]}</small></div>`).join('')}</div>
       </section>
 
-      <button class="start-cta" data-act="go" data-v="record"><div class="cta-ic">${I('play')}</div><div class="grow"><b>Iniciar treino</b><small>${plan && plan.session ? `Hoje: ${esc(plan.session.type)} · ${Fmt.num(plan.session.km)} km` : 'Corrida, pedal ou natação com GPS'}</small></div>${I('chevronRight', 'chev')}</button>
+      <section class="card start-card">
+        <div class="sc-top"><div class="grow"><b>Bora treinar?</b><small>${plan && plan.session ? `Hoje no plano: ${esc(plan.session.type)} · ${Fmt.num(plan.session.km)} km` : lastAct ? `Último: ${esc(CONFIG.sports[lastAct.sport] ? CONFIG.sports[lastAct.sport].name : '')} · ${Fmt.km(lastAct.distance)} km · ${this.agoDay(lastAct.start)}` : 'Escolha o esporte e comece com um toque'}</small></div>
+          <button class="sc-go" data-act="go" data-v="record" aria-label="Iniciar treino">${I('play')}</button></div>
+        <div class="sc-sports">${quick.map((k) => { const v = CONFIG.sports[k]; return `<button style="--c:${v.color}" data-act="quickStart" data-v="${k}"><span>${I(v.icon)}</span><small>${v.name}</small></button>`; }).join('')}</div>
+      </section>
 
-      <section class="card level-card tap" data-act="sub" data-v="progress:tree">
-        <div class="lv-top"><div class="lv-num"><span class="eyebrow">Nível</span><b class="num">${lv.l}</b></div>
-          <div class="grow"><div class="row-t"><b>${Game.title(lv.l)}</b><span class="xp num">${lv.txt}</span></div>${this.bar(lv.pct, 'brand')}<small>Faltam ${Math.max(0, Game.xpFor(lv.l + 1) - D.xp)} XP para o nível ${lv.l + 1}</small></div></div>
-        <div class="lv-stats">
-          <div>${I('flame')}<b class="num">${streak}</b><small>dias seguidos</small></div>
-          <div style="--lc:${L0.color}">${I('crown')}<b>${L0.name}</b><small>liga do mês</small></div>
-          <div>${I('coin')}<b class="num">${D.coins}</b><small>moedas</small></div>
-        </div>
+      <section class="tiles3">
+        <button class="tile tap" data-act="sub" data-v="progress:tree"><span class="t-ic lv"><b class="num">${lv.l}</b></span><b>Nível ${lv.l}</b><small>${Game.title(lv.l)}</small><i class="t-bar"><i style="width:${lv.pct}%"></i></i></button>
+        <button class="tile tap" data-act="go" data-v="stats"><span class="t-ic" style="--c:#F97316">${I('flame')}</span><b class="num">${streak} ${streak === 1 ? 'dia' : 'dias'}</b><small>seguidos</small><small class="t-sub" style="--lc:${L0.color}">${I('crown', 'xs')} Liga ${L0.name}</small></button>
+        <button class="tile tap" data-act="go" data-v="mapa"><span class="t-ic" style="--c:#8B5CF6">${I('flag')}</span><b class="num">${zones.length} ${zones.length === 1 ? 'área' : 'áreas'}</b><small>${zones.length ? Zones.areaTxt(Zones.totalArea(zones)) : 'conquiste a 1ª'}</small><small class="t-sub">Ver mapa ${I('chevronRight', 'xs')}</small></button>
       </section>
 
       ${plan ? `${this.sectionHead('Plano de treino', ['Ver plano', 'plans'])}<div class="list"><div class="row tap" data-act="go" data-v="plans">${this.iconBox('clipboard', CONFIG.sports[plan.def.sport].color)}<div class="grow"><b>${plan.session ? `${esc(plan.session.type)} · ${Fmt.num(plan.session.km)} km` : plan.P.finished ? 'Plano concluído!' : 'Semana completa'}</b><small>${esc(plan.def.name)} · semana ${Math.min(plan.w + 1, plan.weeks.length)} de ${plan.weeks.length}</small></div>${I('chevronRight', 'chev')}</div></div>` : ''}
@@ -313,11 +318,43 @@ const UI = {
       ${this.sectionHead(`Missões de hoje <em>${dDone}/${daily.length}</em>`, ['Ver todas', 'progress:missions', 'sub'])}
       <div class="list">${daily.map((m) => this.missionRow(m, 'd', 'day')).join('')}</div>
 
+      ${Cloud.loggedIn() ? `${this.sectionHead('Da comunidade', ['Ver mais', 'social'])}<div class="comm-strip" id="hComm"><div class="comm-card sk"></div><div class="comm-card sk"></div></div>` : ''}
+
       ${next ? `${this.sectionHead('Próximo desbloqueio', ['Ver árvore', 'progress:tree', 'sub'])}<div class="list">${this.unlockRow(next)}</div>` : ''}
 
       ${this.sectionHead('Atividades recentes', recent.length ? ['Ver todas', 'history'] : null)}
       ${recent.length ? recent.map((a) => this.postCard(a, esc(D.profile.name))).join('') : `<div class="empty compact">${I('activity')}<p>Seus treinos aparecem aqui.</p></div>`}
     </main>`);
+    this.homeWx(); this.homeComm();
+  },
+  agoDay(t) { const d = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(t).setHours(0, 0, 0, 0)) / 864e5); return d <= 0 ? 'hoje' : d === 1 ? 'ontem' : `há ${d} dias`; },
+  // clima agora (Open-Meteo: grátis, sem chave). Guarda por 30 min.
+  async homeWx() {
+    if (!Geo.hasHome || !Geo.hasHome()) return;
+    const c = Geo.home(); let w = this._wx;
+    try {
+      if (!w || Date.now() - w.t > 30 * 60e3) {
+        const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${c[0].toFixed(2)}&longitude=${c[1].toFixed(2)}&current=temperature_2m,precipitation,weather_code,wind_speed_10m&timezone=auto`);
+        const j = await r.json(); if (!j.current) return;
+        w = this._wx = { t: Date.now(), temp: j.current.temperature_2m, rain: j.current.precipitation, code: j.current.weather_code, wind: j.current.wind_speed_10m };
+      }
+    } catch (e) { return; }
+    const el = $('#hWx'); if (!el || App.tab !== 'home') return;
+    const rain = w.rain >= 0.2 || (w.code >= 51 && w.code <= 82), clear = w.code <= 1;
+    const tip = rain ? 'Chovendo agora' : w.temp >= 31 ? 'Calor: hidrate-se' : w.temp <= 14 ? 'Friozinho: aqueça bem' : w.wind >= 30 ? 'Vento forte hoje' : 'Bom pra treinar';
+    el.innerHTML = `${I(rain ? 'cloudRain' : clear ? 'sun' : 'cloud')}<div><b class="num">${Math.round(w.temp)}°</b><small>${tip}</small></div>`; el.hidden = false;
+  },
+  // treinos recentes de outras pessoas (carrossel)
+  async homeComm() {
+    const el = $('#hComm'); if (!el) return;
+    let list = []; try { list = await Cloud.homeFeed(); } catch (e) {}
+    if (!$('#hComm') || App.tab !== 'home') return;
+    if (!list.length) { el.outerHTML = `<div class="empty compact">${I('users')}<p>Quando a galera publicar treinos, eles aparecem aqui.</p></div>`; return; }
+    el.innerHTML = list.map((a) => { const p = a.profiles || {}, sp = CONFIG.sports[a.sport] || CONFIG.sports.run, r = (a.route || []).filter((q) => q && q[0] != null);
+      return `<button class="comm-card" data-act="raOpen" data-v="${a.id}">
+        <div class="cc-h">${this.avatarOf(p.name, p.frame, p.avatar, 'xs', p.photo)}<b>${esc((p.name || 'Atleta').split(' ')[0])}</b><small>${this.ago(Date.parse(a.start))}</small></div>
+        <div class="cc-map">${r.length > 1 ? this.routeSVG(r.map((q) => [q[0], q[1], 0]), sp.color) : I(sp.icon)}</div>
+        <div class="cc-f"><span style="--c:${sp.color}">${I(sp.icon, 'xs')}</span><b class="num">${Fmt.km(a.distance, 1)} km</b><small>${Fmt.time(a.duration)}</small></div></button>`; }).join('');
   },
 
   /* =========================================================
@@ -917,7 +954,7 @@ const UI = {
   board(rows, fmt) {
     if (!rows.length) return '<p class="muted small">Ninguém pontuou ainda neste período. Seja o primeiro!</p>';
     const me = Cloud.user && Cloud.user.id;
-    return `<div class="list">${rows.map((r, i) => `<div class="row board ${r.user_id === me ? 'is-me' : ''}" data-act="userOpen" data-v="${r.user_id}"><span class="pos num ${i < 3 ? 'top' + (i + 1) : ''}">${i + 1}</span>${this.avatarOf(r.name, r.frame, r.avatar)}<div class="grow"><b>${esc(r.name)}</b><small>${r.username ? '@' + esc(r.username) : ''}${r.city ? ' · ' + esc(r.city) : ''}</small></div><b class="num">${fmt(Number(r.value))}</b></div>`).join('')}</div>`;
+    return `<div class="list">${rows.map((r, i) => `<div class="row board ${r.user_id === me ? 'is-me' : ''}" data-act="userOpen" data-v="${r.user_id}"><span class="pos num ${i < 3 ? 'top' + (i + 1) : ''}">${i + 1}</span>${this.avatarOf(r.name, r.frame, r.avatar, 'sm', r.photo)}<div class="grow"><b>${esc(r.name)}</b><small>${r.username ? '@' + esc(r.username) : ''}${r.city ? ' · ' + esc(r.city) : ''}</small></div><b class="num">${fmt(Number(r.value))}</b></div>`).join('')}</div>`;
   },
   shopView() {
     const D = Store.data, cats = [['line', 'Cor do traçado'], ['frame', 'Moldura do perfil'], ['avatar', 'Avatar'], ['theme', 'Tema do app'], ['finish', 'Efeito de chegada']];
@@ -1065,7 +1102,7 @@ const UI = {
     this.render(`${this.header('Perfil', `<button class="icon-btn" data-act="go" data-v="settings" aria-label="Configurações">${I('settings')}</button>`)}<main class="screen profile">
       <section class="pf-head">
         <div class="pf-cover"><button class="cover-edit" data-act="editProfile">${I('settings', 'xs')} Editar perfil</button></div>
-        <div class="pf-id">${this.avatar('lg')}<div class="grow"><h2>${esc(P.name)}</h2><small class="prof-meta">${[handle, city ? `${I('mapPin', 'xs')} ${esc(city)}` : ''].filter(Boolean).join(' · ') || '<span class="link-like" data-act="editProfile">Adicionar cidade e bio</span>'}</small></div></div>
+        <div class="pf-id"><label class="pf-photo" aria-label="Trocar foto de perfil">${this.avatar('lg')}<span class="pf-cam">${I('camera')}</span><input type="file" id="photoIn" accept="image/*" hidden></label><div class="grow"><h2>${esc(P.name)}</h2><small class="prof-meta">${[handle, city ? `${I('mapPin', 'xs')} ${esc(city)}` : ''].filter(Boolean).join(' · ') || '<span class="link-like" data-act="editProfile">Adicionar cidade e bio</span>'}</small></div></div>
         ${Pref('bio') ? `<p class="pf-bio">${esc(Pref('bio'))}</p>` : ''}
         <div class="prof-tags"><span class="league-pill" style="--lc:${L0.color}">${I('crown', 'xs')} Liga ${L0.name}</span><span class="lvl-pill">${I('zap', 'xs')} Nível ${lv.l} · ${Game.title(lv.l)}</span>${Pro.on() ? '<span class="pro-badge">PRO</span>' : ''}</div>
         ${Cloud.loggedIn() ? `<div class="pf-stats"><div><b class="num">${acts.length}</b><small>Atividades</small></div><div><b class="num">${Fmt.num(Game.km(acts), 0)}</b><small>Km</small></div><button data-act="followList" data-v="followers"><b class="num" id="pfFollowers">–</b><small>Seguidores</small></button><button data-act="followList" data-v="following"><b class="num" id="pfFollowing">–</b><small>Seguindo</small></button></div>`
@@ -1095,6 +1132,7 @@ const UI = {
       <h3 class="group">Conta</h3>
       <div class="list cfg-list">
         <button class="cfg-row tap" data-act="editProfile">${this.avatar('sm')}<div class="grow"><b>${esc(P.name)}</b><small>Nome, cidade, bio, peso e esportes</small></div>${I('chevronRight', 'chev')}</button>
+        <div class="cfg-row">${this.iconBox('camera')}<div class="grow"><b>Foto de perfil</b><small>${P.photo ? 'Aparece no Social, nos clubes e nos comentários' : 'Coloque uma foto para seus amigos te reconhecerem'}</small></div><button class="chip-btn sm" data-act="photoPick">${P.photo ? 'Trocar' : 'Escolher'}</button>${P.photo ? `<button class="chip-btn sm ghost-btn" data-act="photoRemove">Remover</button>` : ''}<input type="file" id="photoIn" accept="image/*" hidden></div>
         ${link('account', 'cloud', 'Conta e sincronização', acc)}
       </div>
 

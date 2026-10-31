@@ -240,6 +240,28 @@ const App = {
       }).catch((e) => console.error(e));
     }
   },
+  // recorta a foto em quadrado, reduz para 320 px (≈25 KB) e envia
+  async setPhoto(file) {
+    if (!/^image\//.test(file.type || 'image/')) return FX.toast('Escolha uma imagem.');
+    FX.toast('Preparando a foto…');
+    let img;
+    try { img = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+    catch (e) { img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = URL.createObjectURL(file); }).catch(() => null); }
+    if (!img) return FX.toast('Não deu para abrir essa imagem.');
+    const S = 320, c = document.createElement('canvas'); c.width = c.height = S;
+    const w = img.width, h = img.height, m = Math.min(w, h), g = c.getContext('2d');
+    g.imageSmoothingQuality = 'high'; g.drawImage(img, (w - m) / 2, (h - m) / 2, m, m, 0, 0, S, S);
+    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.86));
+    const P = Store.data.profile;
+    P.photo = c.toDataURL('image/jpeg', 0.7); Store.save(); // aparece na hora, mesmo sem internet
+    if (!this.tracker) this.go(this.tab);
+    if (!Cloud.loggedIn()) return FX.toast('Foto salva neste aparelho. Entre na conta para os outros verem.');
+    try { P.photo = await Cloud.uploadPhoto(blob); Store.save(); FX.toast('Foto de perfil atualizada!'); }
+    catch (e) {
+      console.warn('foto', e);
+      FX.toast(/bucket|not found|column|photo/i.test(String(e && (e.message || e.error))) ? 'Falta configurar as fotos no Supabase (SQL do avatars).' : 'Não deu para enviar a foto agora. Ela ficou salva neste aparelho.');
+    }
+  },
   async checkLive() {
     const s = Store.loadLive();
     if (!s || !s.points) return;
@@ -276,6 +298,7 @@ const App = {
 
   /* ---------- campos de formulário ---------- */
   onChange(e) {
+    if (e.target.id === 'photoIn') { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) this.setPhoto(f); return; }
     const t = e.target, D = Store.data, P = D.profile;
     if (t.id === 'simChk') { this.sim = t.checked; const s = $('#simMult'); if (s) s.disabled = !t.checked; }
     else if (t.id === 'simMult') this.simMult = +t.value;
@@ -460,6 +483,13 @@ const App = {
       P[k] = v; if (k === 'theme') { Store.data.equipped.theme = null; Shop.apply(); }
       Store.save(); UI.settings();
     },
+    photoRemove: async () => {
+      const P = Store.data.profile; delete P.photo; Store.save();
+      if (Cloud.loggedIn()) Cloud.removePhoto().catch(() => {});
+      FX.toast('Foto removida'); App.go(App.tab);
+    },
+    photoPick: () => { const i = $('#photoIn'); if (i) i.click(); },
+    quickStart: (el) => { const v = el.dataset.v; if (!CONFIG.sports[v]) return; App.go('record'); App.actions.sport({ dataset: { v } }); },
     editProfile: async () => {
       const P = Store.data.profile;
       const f = await FX.prompt('Editar perfil', [
