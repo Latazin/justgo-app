@@ -50,7 +50,7 @@ const View3D = {
     B = B.map((_, k) => { let s = 0, n = 0; for (let j = Math.max(0, k - wb); j <= Math.min(N - 1, k + wb); j++) { s += B[j]; n++; } return s / n; });
     this.T = { N, C, B };
   },
-  zoom() { return this.light ? 15 : 15.5; },
+  zoom() { return this.light ? 14.4 : 14.8; }, // câmera mais alta: mostra mais do bairro em volta
   cam(t) {
     const { N, C, B } = this.T, f = Math.max(0, Math.min(1, t)) * (N - 1), i = Math.min(N - 2, Math.floor(f)), u = f - i;
     return { center: [C[i][1] + (C[i + 1][1] - C[i][1]) * u, C[i][0] + (C[i + 1][0] - C[i][0]) * u], bearing: B[i] + (B[i + 1] - B[i]) * u, pitch: 60, zoom: this.zoom() };

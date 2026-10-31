@@ -766,7 +766,7 @@ const UI = {
       <div class="rr-act"><button class="chip-btn sm" data-act="routeStart" data-v="${r.id}">${I('play')}Treinar</button>${r.efforts.length > 1 ? `<button class="chip-btn sm" data-act="routeBoard" data-v="${r.id}">${I('list')}Tempos</button>` : ''}<button class="chip-btn sm ghost-btn" data-act="routeDel" data-v="${r.id}">${I('trash')}</button></div></div></div>`; }).join('')}</div>`;
   },
   /* =========================================================
-     MAPA: território da região (raio de 5 km), treinos e rotas
+     MAPA: território da região (raio de 15 km), treinos e rotas
      ========================================================= */
   ZCOL: ['#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#EF4444', '#06B6D4', '#84CC16', '#F97316'],
   zoneColor(owner) { let h = 0; String(owner).split('').forEach((c) => (h = (h * 31 + c.charCodeAt(0)) >>> 0)); return this.ZCOL[h % this.ZCOL.length]; },
@@ -780,10 +780,10 @@ const UI = {
       <section class="map-sheet" id="mapSheet"><div class="loading">Carregando a região…</div></section>
     </main>`);
     const c = Geo.home(), R = Zones.RADIUS_KM * 1000;
-    const map = this.map('bigMap', { attr: true, minZoom: 12, maxZoom: 18, maxBoundsViscosity: 0.9 });
+    const map = this.map('bigMap', { attr: true, minZoom: 10, maxZoom: 18, maxBoundsViscosity: 0.9 });
     if (!map) return;
     this.bigMap = map; this.mapCenter = c;
-    map.setView(c, 14);
+    map.setView(c, 13);
     const ring = L.circle(c, { radius: R, color: '#1F6BFF', weight: 1.5, opacity: 0.6, dashArray: '6 8', fill: false, interactive: false }).addTo(map);
     map.setMaxBounds(ring.getBounds().pad(0.15));
     this.mapGroups = { zones: L.featureGroup().addTo(map), acts: L.featureGroup().addTo(map), routes: L.featureGroup().addTo(map) };

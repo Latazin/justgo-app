@@ -11,7 +11,7 @@ const Zones = {
   MIN_LOOP_M: 300,   // circuito mínimo
   MIN_AREA: 2000,    // m² (≈ meio quarteirão)
   STEAL: 0.5,        // fração da área do outro que precisa ser coberta
-  RADIUS_KM: 5,      // raio do mapa ao redor da pessoa
+  RADIUS_KM: 15,     // raio do mapa ao redor da pessoa (cidade inteira)
 
   /* ---------- geometria (coordenadas [lat, lng]) ---------- */
   xy(p, o) { const k = Math.cos((o[0] * Math.PI) / 180); return [(p[1] - o[1]) * 111320 * k, (p[0] - o[0]) * 110574]; },
