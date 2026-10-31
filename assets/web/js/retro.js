@@ -74,6 +74,9 @@ const Retro = {
     return { center: ctr, zoom: Math.min(15.5, (c.zoom || 12) - 0.1), bearing, pitch };
   },
 
+  // tempos de cada parte do vídeo (segundos) para a velocidade escolhida
+  T(sp = this.speed || 1) { return { intro: 4 / sp, trans: 1 / sp, fly: 4.4 / sp, outro: Math.max(4, 7 / sp) }; },
+
   /* ---------- gerar ---------- */
   async start() {
     const d = new Date(), k = this.key(d), st = this.state(d);
@@ -82,10 +85,18 @@ const Retro = {
     if (st === 'empty') return FX.toast('Faça pelo menos um treino com GPS neste mês para gerar a retrospectiva.');
     if (!View3D.supported() || !window.maplibregl) return FX.toast('Seu aparelho não consegue gerar o vídeo em 3D.');
     if (!View3D.canVideo()) return FX.toast('Seu aparelho não consegue gerar vídeo. Atualize o "Android System WebView" na Play Store.');
-    const ok = await FX.confirm(`Retrospectiva de ${this.monthName(d)} 🎬`, 'Você pode gerar <b>uma retrospectiva por mês</b>. O vídeo fica salvo no seu celular para compartilhar quando quiser. Leva cerca de 1 minuto: deixe o app aberto.', 'Gerar agora');
-    if (!ok) return;
     const list = this.acts(d);
-    const gps = list.map((a) => this.prep(a)).filter(Boolean);
+    const gps = list.map((a) => this.prep(a)).filter(Boolean), nHi = Math.min(6, gps.length);
+    // escolha da velocidade do vídeo (1x = calmo; 2x ≈ ritmo de clipe)
+    const len = (sp) => Math.round(this.T(sp).intro + nHi * (this.T(sp).trans + this.T(sp).fly) + this.T(sp).outro);
+    const sp0 = +(localStorage.getItem('jg_retro_speed') || 1) || 1;
+    const opt = (v, n) => `<button class="rs-opt ${v === sp0 ? 'on' : ''}" data-m="${v}"><b>${n}</b><small>~${len(v)} s de vídeo</small></button>`;
+    const pick = await FX.modal(`<h3>Retrospectiva de ${this.monthName(d)} 🎬</h3><p class="muted">Escolha a velocidade do voo. Você pode gerar <b>uma retrospectiva por mês</b>, então escolha com calma!</p>
+      <div class="rs-grid">${opt(0.5, '0,5x · bem devagar')}${opt(1, '1x · normal')}${opt(1.5, '1,5x · rápida')}${opt(2, '2x · clipe')}</div>
+      <p class="muted small">O Story do Instagram aceita até 60 s por parte. Vídeos maiores levam mais tempo para gerar: deixe o app aberto.</p>
+      <button class="btn ghost" data-m="no">Cancelar</button>`);
+    if (!pick || pick === 'no' || !isFinite(+pick)) return;
+    this.speed = +pick; try { localStorage.setItem('jg_retro_speed', String(this.speed)); } catch (e) {}
     // destaques: até 6 treinos (os maiores), na ordem do mês
     const hi = [...gps].sort((x, y) => y.total - x.total).slice(0, 6).sort((x, y) => x.a.start - y.a.start);
     this.items = gps; this.hi = hi; this.S = this.stats(list); this.month = d;
@@ -132,17 +143,18 @@ const Retro = {
     m.resize(); m.setPixelRatio((this.light ? 480 : 560) / m.getContainer().clientWidth); m.resize();
     const F = this.FPS, ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
     const mix = (a, b, u) => { let db = b.bearing - a.bearing; while (db > 180) db -= 360; while (db < -180) db += 360; return { center: [a.center[0] + (b.center[0] - a.center[0]) * u, a.center[1] + (b.center[1] - a.center[1]) * u], zoom: a.zoom + (b.zoom - a.zoom) * u, pitch: a.pitch + (b.pitch - a.pitch) * u, bearing: a.bearing + db * u }; };
-    // roteiro: abertura (2,6 s) → cada destaque (0,6 s de transição + 2,2 s de voo) → fechamento com os números (4,8 s)
+    // roteiro (tempos pela velocidade escolhida): abertura → cada destaque (transição + voo) → fechamento com os números
     const shots = [], o0 = this.overCam(-20, 35), o1 = this.overCam(-50, 52);
-    for (let i = 0; i < 2.6 * F; i++) { const u = i / (2.6 * F - 1); shots.push({ cam: mix(o0, o1, ease(u)), k: -1, t: 0, scene: 'intro', u }); }
+    const TT = this.T(), nI = Math.round(TT.intro * F);
+    for (let i = 0; i < nI; i++) { const u = i / (nI - 1); shots.push({ cam: mix(o0, o1, ease(u)), k: -1, t: 0, scene: 'intro', u }); }
     let prev = o1;
     this.hi.forEach((o, n) => {
-      const c0 = this.cam(o, 0), nT = Math.round(0.6 * F), nF = Math.round(2.2 * F);
+      const c0 = this.cam(o, 0), nT = Math.round(TT.trans * F), nF = Math.round(TT.fly * F);
       for (let i = 0; i < nT; i++) shots.push({ cam: mix(prev, c0, ease(i / nT)), k: n, t: 0, scene: 'fly' });
       for (let i = 0; i < nF; i++) { const u = i / (nF - 1), t = 0.1 * (u * u * (3 - 2 * u)) + 0.9 * u; shots.push({ cam: this.cam(o, t), k: n, t, scene: 'fly' }); }
       prev = this.cam(o, 1);
     });
-    const oEnd = this.overCam(prev.bearing - 30, 50), nO = Math.round(4.8 * F);
+    const oEnd = this.overCam(prev.bearing - 30, 50), nO = Math.round(TT.outro * F);
     for (let i = 0; i < nO; i++) { const u = i / (nO - 1), c = mix(prev, oEnd, ease(Math.min(1, u * 2.2))); c.bearing += u * 22; shots.push({ cam: c, k: this.hi.length, t: 1, scene: 'outro', u }); }
 
     // pré-carrega o mapa nos pontos-chave

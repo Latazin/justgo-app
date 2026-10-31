@@ -1219,3 +1219,6 @@ section.card.pro-grid > div:nth-last-child(-n+2) { border-bottom: 0; }
 .t-av.paused .av-f1 { display: none; } .t-av.paused .av-f0 { animation: none; }
 .av-other { display: flex; gap: 12px; align-items: center; padding: 10px 14px; margin: 10px 0; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line); text-align: left; }
 .avo-art { flex: none; width: 86px; } .av-other .eyebrow { display: block; } .av-other b { display: block; margin-bottom: 6px; }
+.rs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+.rs-opt { display: grid; gap: 2px; padding: 12px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface); text-align: left; }
+.rs-opt small { color: var(--text-3); font-size: 12px; } .rs-opt.on { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 8%, var(--surface)); }
