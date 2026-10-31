@@ -7,7 +7,7 @@
    ========================================================= */
 const Zones = {
   SPORTS: ['run', 'ride', 'walk', 'hike', 'skate', 'board'],
-  CLOSE_M: 40,       // distância para considerar que voltou ao ponto
+  CLOSE_M: 70,       // distância para considerar que voltou ao trajeto (GPS de celular erra 20–50 m)
   MIN_LOOP_M: 300,   // circuito mínimo
   MIN_AREA: 2000,    // m² (≈ meio quarteirão)
   STEAL: 0.5,        // fração da área do outro que precisa ser coberta
@@ -49,6 +49,11 @@ const Zones = {
     const list = Array.isArray(B[0][0]) ? B : [B], S = this.samples(A);
     return S.filter((p) => list.some((poly) => this.inside(p, poly))).length / S.length;
   },
+  segDist(p, a, b) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy;
+    const u = L ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)) : 0;
+    return Math.hypot(p[0] - (a[0] + u * dx), p[1] - (a[1] + u * dy));
+  },
   simplify(poly, max = 90) { const step = Math.max(1, Math.ceil(poly.length / max)); return poly.filter((_, i) => i % step === 0).map((p) => [+p[0].toFixed(6), +p[1].toFixed(6)]); },
 
   /* ---------- encontra os circuitos fechados de um treino ---------- */
@@ -66,7 +71,8 @@ const Zones = {
       for (let j = i - 1; j >= cut; j--) {
         const per = D[i] - D[j];
         if (per < this.MIN_LOOP_M) continue;
-        if (Math.hypot(X[i][0] - X[j][0], X[i][1] - X[j][1]) > this.CLOSE_M) continue;
+        // voltou perto de um ponto OU de um trecho já feito (inclui as retas de quando o GPS falhou)
+        if (Math.hypot(X[i][0] - X[j][0], X[i][1] - X[j][1]) > this.CLOSE_M && (j + 1 >= i || this.segDist(X[i], X[j], X[j + 1]) > this.CLOSE_M * 0.7)) continue;
         const poly = P.slice(j, i + 1).map((p) => [p[0], p[1]]), a = this.area(poly);
         // descarta ida e volta pela mesma rua (área quase zero) e formas finas demais
         if (a >= this.MIN_AREA && a / (per * per) > 0.012) { found.push({ poly: this.simplify(poly), area: Math.round(a) }); cut = i; break; }
@@ -87,6 +93,7 @@ const Zones = {
 
   // chamado ao salvar cada treino
   hook(act, r) {
+    act.zc = 2;
     if (!this.SPORTS.includes(act.sport) || act.flagged || !act.points || act.points.length < 8) return;
     const L = this.loops(act.points); if (!L.length) return;
     const Z = this.mine(); let nNew = 0, aNew = 0;
@@ -124,3 +131,20 @@ const Zones = {
   },
 };
 Game.hooks.push((act, r) => Zones.hook(act, r));
+
+// treinos dos últimos 14 dias feitos em versões antigas (ou com a regra antiga, mais rígida)
+// são verificados de novo: se fecharam área, a área é conquistada agora
+Zones.recheck = async function () {
+  const D = Store.data, since = Date.now() - 14 * 864e5;
+  const todo = D.activities.filter((a) => a.start >= since && a.zc !== 2 && this.SPORTS.includes(a.sport) && !a.flagged && a.points && a.points.length >= 8);
+  if (!todo.length) return;
+  let got = 0, area = 0;
+  for (const act of todo.sort((x, y) => x.start - y.start)) {
+    const r = {}; this.hook(act, r);
+    if (r.zones && r.zones.loops.length && !act.private) {
+      try { const c = await this.claim(act, r.zones.loops); if (c) { got += c.created.length + c.stolen.length; area += c.created.reduce((x, z) => x + (z.area || 0), 0); } } catch (e) { console.warn(e); }
+    }
+  }
+  Store.save();
+  if (got) FX.toast(`Território: ${got} área${got > 1 ? 's' : ''} conquistada${got > 1 ? 's' : ''} em treinos recentes${area ? ` (${this.areaTxt(area)})` : ''}`);
+};
