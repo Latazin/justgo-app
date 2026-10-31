@@ -733,7 +733,8 @@ const UI = {
       <div class="v3-top"><button class="round-btn" data-act="v3Close" aria-label="Fechar">${I('x')}</button><div class="v3-title"><b>${esc(this.actTitle(act))}</b><small>${Fmt.km(act.distance)} km · ${Fmt.time(act.duration)}</small></div>
         <button class="round-btn ${View3D.light ? 'on' : ''}" id="v3Light" data-act="v3Light" aria-label="Modo leve" title="Modo leve">${I('zap')}</button></div>
       <div class="v3-bottom"><button class="v3-play" id="v3Play" data-act="v3Play" aria-label="Reproduzir">${I('play')}</button>
-        <div class="grow"><input type="range" id="v3Prog" min="0" max="1000" value="0" aria-label="Posição no percurso"><div class="v3-meta"><span id="v3Km" class="num">0,00 km</span><span>Dois dedos: inclinar e girar</span></div></div>
+        <div class="grow"><input type="range" id="v3Prog" min="0" max="1000" value="0" aria-label="Posição no percurso"><div class="v3-meta"><span id="v3Km" class="num">0,00 km</span><span id="v3Len">Dois dedos: inclinar e girar</span></div></div>
+        <button class="v3-spd num" id="v3Spd" data-act="v3Speed" aria-label="Velocidade">${String(View3D.speed).replace('.', ',')}x</button>
         <button class="v3-vid" data-act="v3Video" aria-label="Baixar vídeo">${I('download')}<span>Vídeo</span></button></div>
     </main>`, false);
     const nv = $('#nav'); if (nv) nv.style.display = 'none';

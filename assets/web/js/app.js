@@ -526,6 +526,7 @@ const App = {
     v3Close: () => { View3D.close(); if (App.v3Remote) { App.v3Remote = null; App.tab = 'ract'; App.nav = 'social'; UI.remote(App.v3Act); return; } App.tab = 'detail'; const a = App.find(App.v3Act); if (a) UI.summary(a, null, false); else App.go('home'); },
     v3Play: () => (View3D.playing ? View3D.pause() : View3D.play()),
     v3Video: () => View3D.video(),
+    v3Speed: () => View3D.setSpeed(),
     v3Cancel: () => { View3D.cancelVideo = true; },
     v3Light: () => { View3D.light = !View3D.light; const a = App.find(App.v3Act); View3D.close(); if (a) UI.view3d(a); FX.toast(View3D.light ? 'Modo leve ligado' : 'Qualidade máxima'); },
     chalOpen: (el) => { App.tab = 'challenge'; App.nav = 'social'; UI.challenge(el.dataset.v); },

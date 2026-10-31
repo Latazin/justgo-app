@@ -23,6 +23,7 @@ const View3D = {
     const pts = (act.points || []).filter((p) => p && p[0] != null);
     if (pts.length < 2) { FX.toast('Este treino não tem percurso para ver em 3D.'); return false; }
     if (this.light == null) this.light = this.weak();
+    try { this.speed = +localStorage.getItem('jg_v3_speed') || 1; } catch (e) { this.speed = 1; }
     // trajeto leve (um ponto a cada ~8 m) com distância acumulada
     const P = [pts[0]]; for (let i = 1; i < pts.length; i++) if (pts[i][4] || Geo.dist(P[P.length - 1], pts[i]) >= 8) P.push(pts[i]);
     const D = [0]; for (let i = 1; i < P.length; i++) D.push(D[i - 1] + (P[i][4] ? 0 : Geo.dist(P[i - 1], P[i])));
@@ -41,19 +42,37 @@ const View3D = {
       let a = 0, b = 0, n = 0; for (let j = Math.max(0, k - w); j <= Math.min(N - 1, k + w); j++) { a += raw[j][0]; b += raw[j][1]; n++; }
       return [a / n, b / n];
     });
+    const B0 = C.map((p, k) => (k ? this.bearing(C[k - 1], p) : 0)); for (let k = 1; k < N; k++) if (!isFinite(B0[k]) || Geo.dist(C[k - 1], C[k]) < 0.5) B0[k] = B0[k - 1];
     // direção: olha ~180 m à frente e suaviza bastante (curvas largas, sem chicote)
     const ah = Math.max(1, Math.round(180 / step));
     let B = C.map((c, k) => { const j = Math.min(N - 1, k + ah), i0 = j === k ? Math.max(0, k - ah) : k; return this.bearing(C[i0], C[j === k ? k : j]); });
     for (let k = 1; k < N; k++) { if (!isFinite(B[k])) B[k] = B[k - 1]; while (B[k] - B[k - 1] > 180) B[k] -= 360; while (B[k] - B[k - 1] < -180) B[k] += 360; }
     if (!isFinite(B[0])) B[0] = 0;
     const wb = Math.max(3, Math.round(260 / step));
-    B = B.map((_, k) => { let s = 0, n = 0; for (let j = Math.max(0, k - wb); j <= Math.min(N - 1, k + wb); j++) { s += B[j]; n++; } return s / n; });
-    this.T = { N, C, B };
+    const sm = (A, w) => A.map((_, k) => { let s = 0, n = 0; for (let j = Math.max(0, k - w); j <= Math.min(N - 1, k + w); j++) { s += A[j]; n++; } return s / n; });
+    B = sm(B, wb);
+    // trechos "enrolados" (trilha, zigue-zague, voltas no mesmo lugar): mede quanto o trajeto
+    // anda de verdade em ~±220 m. Quanto mais curva junta, mais a câmera sobe, abre o ângulo
+    // e para de girar atrás de cada curva — mostra o trecho inteiro de cima.
+    const tw = Math.max(2, Math.round(220 / step));
+    let K = raw.map((_, k) => {
+      const a = Math.max(0, k - tw), b = Math.min(N - 1, k + tw), path = (b - a) * step; if (path < 120) return 0;
+      const ratio = Geo.dist(raw[a], raw[b]) / path;
+      let turn = 0; for (let j = Math.max(1, a); j < b; j++) { let d = B0[j] - B0[j - 1]; while (d > 180) d -= 360; while (d < -180) d += 360; turn += Math.abs(d); }
+      return Math.max(0, Math.min(1, Math.max((0.72 - ratio) / 0.42, (turn / (path / 100) - 25) / 45)));
+    });
+    K = sm(sm(K, Math.max(2, Math.round(200 / step))), Math.max(2, Math.round(150 / step)));
+    // direção e centro "calmos" (janela bem maior) para misturar nos trechos enrolados
+    const Bc = sm(B, Math.max(4, Math.round(700 / step)));
+    const wc = Math.max(3, Math.round(260 / step)), Cc = C.map((_, k) => { let a = 0, b = 0, n = 0; for (let j = Math.max(0, k - wc); j <= Math.min(N - 1, k + wc); j++) { a += C[j][0]; b += C[j][1]; n++; } return [a / n, b / n]; });
+    const C2 = C.map((c, k) => [c[0] + (Cc[k][0] - c[0]) * K[k], c[1] + (Cc[k][1] - c[1]) * K[k]]);
+    const B2 = B.map((b, k) => b + (Bc[k] - b) * K[k]);
+    this.T = { N, C: C2, B: B2, K };
   },
   zoom() { return this.light ? 14.4 : 14.8; }, // câmera mais alta: mostra mais do bairro em volta
   cam(t) {
-    const { N, C, B } = this.T, f = Math.max(0, Math.min(1, t)) * (N - 1), i = Math.min(N - 2, Math.floor(f)), u = f - i;
-    return { center: [C[i][1] + (C[i + 1][1] - C[i][1]) * u, C[i][0] + (C[i + 1][0] - C[i][0]) * u], bearing: B[i] + (B[i + 1] - B[i]) * u, pitch: 60, zoom: this.zoom() };
+    const { N, C, B, K } = this.T, f = Math.max(0, Math.min(1, t)) * (N - 1), i = Math.min(N - 2, Math.floor(f)), u = f - i, k = K[i] + (K[i + 1] - K[i]) * u;
+    return { center: [C[i][1] + (C[i + 1][1] - C[i][1]) * u, C[i][0] + (C[i + 1][0] - C[i][0]) * u], bearing: B[i] + (B[i + 1] - B[i]) * u, pitch: 60 - 18 * k, zoom: this.zoom() - 1.15 * k };
   },
   bounds() { const P = this.P, lngs = P.map((p) => p[1]), lats = P.map((p) => p[0]); return [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]]; },
   overCam(bearing) {
@@ -123,7 +142,11 @@ const View3D = {
     return { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: segs.filter((s) => s.length > 1) } };
   },
   bearing(a, b) { const y = Math.sin(((b[1] - a[1]) * Math.PI) / 180) * Math.cos((b[0] * Math.PI) / 180), x = Math.cos((a[0] * Math.PI) / 180) * Math.sin((b[0] * Math.PI) / 180) - Math.sin((a[0] * Math.PI) / 180) * Math.cos((b[0] * Math.PI) / 180) * Math.cos(((b[1] - a[1]) * Math.PI) / 180); return (Math.atan2(y, x) * 180) / Math.PI; },
+  speed: 1,
   flyMs() { return Math.max(12000, Math.min(45000, (this.total / 1000) * 4500)); },
+  setSpeed() { const L = [0.5, 1, 1.5, 2]; this.speed = L[(L.indexOf(this.speed) + 1) % L.length]; try { localStorage.setItem('jg_v3_speed', String(this.speed)); } catch (e) {} this.ui(); },
+  // duração do voo = a mesma da prévia, na velocidade escolhida
+  flySec() { return this.flyMs() / 1000 / this.speed; },
   setDone(d) { const s = this.map && this.map.getSource('jg-done'); if (s) s.setData(this.doneGeo(d)); },
 
   // voo: duração proporcional à distância (12 s a 45 s)
@@ -131,13 +154,13 @@ const View3D = {
     if (!this.ready || this.busy) return;
     if (this.t >= 1) { this.t = 0; this.setDone(0); }
     this.playing = true; this.ui();
-    const dur = this.flyMs(), m = this.map;
+    const m = this.map;
     const run = () => {
       let last = performance.now(), lastData = 0;
       const step = (now) => {
         if (!this.playing || !this.map) return;
         // se um quadro demorar (tile chegando), o voo desacelera em vez de dar um salto
-        this.t = Math.min(1, this.t + Math.min(now - last, 50) / dur); last = now;
+        this.t = Math.min(1, this.t + Math.min(now - last, 50) / (this.flyMs() / this.speed)); last = now;
         const d = this.t * this.total, here = this.at(d).pos;
         m.jumpTo(this.cam(this.t));
         this.dot.setLngLat([here[1], here[0]]);
@@ -160,6 +183,8 @@ const View3D = {
     if (onlyProgress) return;
     const b = $('#v3Play'); if (b) b.innerHTML = this.playing ? I('pause') : I('play');
     const l = $('#v3Light'); if (l) l.classList.toggle('on', !!this.light);
+    const v = $('#v3Spd'); if (v) v.textContent = `${String(this.speed).replace('.', ',')}x`;
+    const e = $('#v3Len'); if (e) e.textContent = `vídeo de ~${Math.round(this.flySec() + 3.6)} s`;
   },
   close() { this.cancelVideo = true; this.pause(); if (this.map) { try { this.map.remove(); } catch (e) {} } this.map = null; this.ready = false; this.busy = false; },
 
@@ -224,7 +249,7 @@ const View3D = {
     enc.configure(EC.cfg);
 
     // roteiro: aproxima (1,3 s) → voo (até 16 s) → abre para a visão geral girando (3,2 s)
-    const F = this.FPS, nIn = Math.round(1 * F), nFly = Math.round(Math.max(7, Math.min(12, this.flyMs() / 3500)) * F), nOut = Math.round(2.6 * F), total = nIn + nFly + nOut;
+    const F = this.FPS, nIn = Math.round(1 * F), nFly = Math.round(this.flySec() * F), nOut = Math.round(2.6 * F), total = nIn + nFly + nOut;
     const c0 = this.cam(0), c1 = this.cam(1), endB = c1.bearing - 35, over = this.overCam(endB);
     const intro = { ...this.overCam(c0.bearing - 50), pitch: 45 };
     const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
@@ -235,14 +260,14 @@ const View3D = {
     // pré-carrega o mapa ao longo do trajeto (bem mais rápido que esperar quadro a quadro)
     const stops = [intro, c0]; const gap = Math.max(350, this.total / 28); for (let d = gap; d < this.total; d += gap) stops.push(this.cam(d / this.total)); stops.push(c1, over);
     for (let k = 0; k < stops.length && !this.cancelVideo; k++) { m.jumpTo(stops[k]); await this.settle(this.light ? 1500 : 2200); this.recUI((k / stops.length) * 0.25, 'Preparando o mapa…'); }
-    this.linePts();
+    this.linePts(); this.profile();
     for (let i = 0; i < total && !this.cancelVideo && !encErr; i++) {
       let t, cam;
       if (i < nIn) { t = 0; cam = mix(intro, c0, ease(i / nIn)); }
       else if (i < nIn + nFly) { const u = (i - nIn) / (nFly - 1); t = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; t = 0.15 * t + 0.85 * u; cam = this.cam(t); } // começa e termina macio
       else { const u = (i - nIn - nFly) / (nOut - 1); t = 1; cam = mix(c1, over, ease(Math.min(1, u * 1.6))); cam.bearing += u * 18; }
       m.jumpTo(cam);
-      await this.frame(() => this.compose(g, t, i >= nIn + nFly ? (i - nIn - nFly) / (nOut - 1) : 0));
+      await this.frame(() => this.compose(g, t, i >= nIn + nFly ? (i - nIn - nFly) / (nOut - 1) : 0, i < nIn ? i / nIn : 1));
       const vf = new VideoFrame(out, { timestamp: Math.round((i * 1e6) / F), duration: Math.round(1e6 / F) });
       enc.encode(vf, { keyFrame: i % (F * 2) === 0 }); vf.close();
       while (enc.encodeQueueSize > 3) await new Promise((r) => setTimeout(r, 4));
@@ -267,7 +292,7 @@ const View3D = {
   },
 
   // desenha um quadro do vídeo: mapa + bolinha + textos
-  compose(g, t, outro) {
+  compose(g, t, outro, intro) {
     const W = this.W, H = this.H, m = this.map, cv = m.getCanvas(), pr = m.getPixelRatio(), a = this.act, sp = CONFIG.sports[a.sport] || {};
     const s = Math.max(W / cv.width, H / cv.height), dw = cv.width * s, dh = cv.height * s, ox = (W - dw) / 2, oy = (H - dh) / 2;
     g.drawImage(cv, ox, oy, dw, dh);
@@ -288,33 +313,72 @@ const View3D = {
     g.beginPath(); g.arc(hx, hy, 17, 0, 7); g.fillStyle = '#fff'; g.fill();
     g.beginPath(); g.arc(hx, hy, 12, 0, 7); g.fillStyle = this.color; g.fill();
 
-    // faixas escuras para o texto ler bem sobre qualquer mapa
-    let gr = g.createLinearGradient(0, 0, 0, 300); gr.addColorStop(0, 'rgba(8,12,24,.62)'); gr.addColorStop(1, 'rgba(8,12,24,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, 300);
-    gr = g.createLinearGradient(0, H - 380, 0, H); gr.addColorStop(0, 'rgba(8,12,24,0)'); gr.addColorStop(1, 'rgba(8,12,24,.78)'); g.fillStyle = gr; g.fillRect(0, H - 380, W, 380);
+    this.hud(g, t, outro, intro);
+  },
 
-    g.textBaseline = 'alphabetic'; g.fillStyle = '#fff';
-    g.font = 'italic 800 64px "Barlow Condensed", Inter, sans-serif'; g.fillText('JustGo', 48, 104);
-    const jw = g.measureText('JustGo').width; g.fillStyle = '#1F6BFF'; g.beginPath(); g.arc(48 + jw + 14, 92, 9, 0, 7); g.fill();
-    g.fillStyle = '#fff'; g.font = '700 32px Inter, sans-serif';
-    let title = UI.actTitle(a); while (g.measureText(title).width > W - 96 && title.length > 4) title = title.slice(0, -2); if (title !== UI.actTitle(a)) title += '…';
-    g.fillText(title, 48, 160);
-    g.font = '500 24px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.78)'; g.fillText(`${sp.name || ''} · ${Fmt.date(a.start)}`, 48, 198);
+  // informações do vídeo: dois cartões de vidro compactos (topo e rodapé), o meio fica livre para a rota
+  hud(g, t, outro, intro) {
+    const W = this.W, H = this.H, a = this.act, sp = CONFIG.sports[a.sport] || {}, col = this.color;
+    const ap = intro == null ? 1 : Math.min(1, intro * 1.4), slide = (1 - ap) * 40;
+    const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+    const glass = (x, y, w, h, r) => { g.save(); g.shadowColor = 'rgba(0,0,0,.28)'; g.shadowBlur = 24; g.shadowOffsetY = 6; rr(x, y, w, h, r); g.fillStyle = 'rgba(12,17,32,.66)'; g.fill(); g.restore(); rr(x + 0.5, y + 0.5, w - 1, h - 1, r); g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 1.5; g.stroke(); };
+    const fit = (txt, max) => { let t2 = txt; while (g.measureText(t2).width > max && t2.length > 4) t2 = t2.slice(0, -2); return t2 === txt ? txt : t2 + '…'; };
+    g.globalAlpha = ap; g.textBaseline = 'alphabetic'; g.textAlign = 'left';
 
-    // números: crescem junto com o voo
+    // ---- topo: marca + título (cartão do tamanho do texto)
+    g.font = '700 27px Inter, sans-serif'; const title = fit(UI.actTitle(a), W - 210);
+    const sub = `${sp.name || ''} · ${Fmt.date(a.start)}`;
+    const tw1 = g.measureText(title).width; g.font = '500 20px Inter, sans-serif'; const tw2 = g.measureText(sub).width;
+    const cx = 32, cy = 40 - slide, cw = Math.max(tw1, tw2) + 116, ch = 96;
+    glass(cx, cy, cw, ch, 26);
+    g.beginPath(); g.arc(cx + 50, cy + 48, 28, 0, 7); g.fillStyle = col; g.fill();
+    g.font = 'italic 800 30px "Barlow Condensed", Inter, sans-serif'; g.fillStyle = '#fff'; g.textAlign = 'center'; g.fillText('JG', cx + 49, cy + 58); g.textAlign = 'left';
+    g.font = '700 27px Inter, sans-serif'; g.fillStyle = '#fff'; g.fillText(title, cx + 92, cy + 44);
+    g.font = '500 20px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.7)'; g.fillText(sub, cx + 92, cy + 74);
+
+    // ---- rodapé: números + perfil de altimetria que vai enchendo
     const dist = t * this.total, secs = (a.duration || 0) * (dist / (a.distance || this.total || 1));
     const avg = a.duration ? (a.distance || this.total) / a.duration : 0;
-    const cols = [['DISTÂNCIA', `${Fmt.km(dist)}`, 'km'], ['TEMPO', Fmt.time(secs), ''], [Fmt.paceLabel(a.sport, true).toUpperCase(), Fmt.pace(a.sport, avg), Fmt.paceUnit(a.sport)]];
-    const cw = (W - 96) / 3;
+    const bx = 32, bw = W - 64, bh = 196, by = H - bh - 36 + slide;
+    glass(bx, by, bw, bh, 30);
+    const cols = [['Distância', Fmt.km(dist), 'km'], ['Tempo', Fmt.time(secs), ''], [Fmt.paceLabel(a.sport, true), Fmt.pace(a.sport, avg), Fmt.paceUnit(a.sport)]];
+    const cw3 = (bw - 40) / 3;
     cols.forEach(([lab, val, unit], k) => {
-      const x = 48 + k * cw;
-      g.font = '600 20px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.72)'; g.fillText(lab, x, H - 168);
-      g.font = '800 52px Inter, sans-serif'; g.fillStyle = '#fff'; g.fillText(val, x, H - 110);
-      if (unit) { g.font = '600 22px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.72)'; g.fillText(unit, x, H - 76); }
+      const x = bx + 26 + k * cw3;
+      if (k) { g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(x - 14, by + 28, 1.5, 76); }
+      g.font = '600 18px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.62)'; g.fillText(String(lab).toUpperCase(), x, by + 46);
+      g.font = '800 44px Inter, sans-serif'; g.fillStyle = '#fff'; g.fillText(val, x, by + 96);
+      if (unit) { const vw = g.measureText(val).width; g.font = '600 19px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.62)'; if (x + vw + 8 + g.measureText(unit).width < x + cw3 - 10) g.fillText(unit, x + vw + 7, by + 96); }
     });
-    // barra de progresso do percurso
-    g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(48, H - 50, W - 96, 6);
-    g.fillStyle = this.color; g.fillRect(48, H - 50, (W - 96) * t, 6);
-    if (outro > 0.35) { g.globalAlpha = Math.min(1, (outro - 0.35) * 3); g.font = '600 22px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.9)'; g.textAlign = 'right'; g.fillText('Grave o seu no app JustGo', W - 48, H - 20); g.textAlign = 'left'; g.globalAlpha = 1; }
+    // perfil (ou barra simples sem altitude)
+    const px0 = bx + 26, pw = bw - 52, py0 = by + 128, ph = 46, E = this.prof;
+    if (E) {
+      const path = () => { g.beginPath(); g.moveTo(px0, py0 + ph); E.forEach((e, k) => g.lineTo(px0 + (pw * k) / (E.length - 1), py0 + ph - e * ph)); g.lineTo(px0 + pw, py0 + ph); g.closePath(); };
+      path(); g.fillStyle = 'rgba(255,255,255,.14)'; g.fill();
+      g.save(); g.beginPath(); g.rect(px0, py0 - 4, pw * t, ph + 8); g.clip(); path(); g.fillStyle = col; g.fill(); g.restore();
+      const ke = Math.min(E.length - 1, Math.round(t * (E.length - 1))), hx = px0 + pw * t, hy = py0 + ph - E[ke] * ph;
+      g.beginPath(); g.arc(hx, hy, 8, 0, 7); g.fillStyle = '#fff'; g.fill();
+    } else {
+      rr(px0, py0 + ph - 10, pw, 10, 5); g.fillStyle = 'rgba(255,255,255,.18)'; g.fill();
+      if (t > 0) { rr(px0, py0 + ph - 10, Math.max(10, pw * t), 10, 5); g.fillStyle = col; g.fill(); }
+    }
+    g.globalAlpha = 1;
+    if (outro > 0.35) {
+      g.globalAlpha = Math.min(1, (outro - 0.35) * 3); g.font = '600 20px Inter, sans-serif'; g.textAlign = 'center';
+      const msg = 'Grave o seu no app JustGo', mw = g.measureText(msg).width + 40; rr((W - mw) / 2, by - 58, mw, 40, 20); g.fillStyle = 'rgba(12,17,32,.66)'; g.fill();
+      g.fillStyle = '#fff'; g.fillText(msg, W / 2, by - 31); g.textAlign = 'left'; g.globalAlpha = 1;
+    }
+  },
+
+  // perfil de altimetria normalizado (0–1) em 90 colunas; nulo se o treino não tem altitude
+  profile() {
+    const P = this.P, D = this.D, n = 90, E = []; let ok = 0;
+    for (let k = 0; k < n; k++) { const d = (k / (n - 1)) * this.total; let i = this.at(d).i; const v = P[i] && P[i][3]; E.push(v == null ? null : v); if (v != null) ok++; }
+    if (ok < n * 0.6) return (this.prof = null);
+    for (let k = 0; k < n; k++) if (E[k] == null) E[k] = k ? E[k - 1] : E.find((v) => v != null);
+    const S = E.map((_, k) => { let s = 0, c = 0; for (let j = Math.max(0, k - 2); j <= Math.min(n - 1, k + 2); j++) { s += E[j]; c++; } return s / c; });
+    const lo = Math.min(...S), hi = Math.max(...S), span = Math.max(25, hi - lo);
+    return (this.prof = S.map((v) => 0.12 + (0.88 * (v - lo)) / span));
   },
 
   // trajeto simplificado (~1 ponto a cada 12 m) para desenhar no vídeo
