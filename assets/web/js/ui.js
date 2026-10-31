@@ -88,6 +88,18 @@ const UI = {
       else if (!en.isIntersecting && el._map && this.thumbs.length > 4) this.dropThumb(el);
     }), { rootMargin: '120px 0px' });
     document.querySelectorAll('.post-map[data-route]').forEach((el) => this._io.observe(el));
+    // treinos que chegam depois (Social, clubes, perfis carregam da nuvem) também ganham o mapa de ruas
+    if (!this._mo && 'MutationObserver' in window) {
+      this._mo = new MutationObserver((muts) => {
+        if (!this._io) return;
+        muts.forEach((m) => m.addedNodes.forEach((n) => {
+          if (n.nodeType !== 1) return;
+          if (n.matches && n.matches('.post-map[data-route]')) this._io.observe(n);
+          if (n.querySelectorAll) n.querySelectorAll('.post-map[data-route]').forEach((el) => this._io.observe(el));
+        }));
+      });
+      this._mo.observe($('#app'), { childList: true, subtree: true });
+    }
   },
   thumbMap(el) {
     let pts; try { pts = JSON.parse(el.dataset.route); } catch (e) { return; }
