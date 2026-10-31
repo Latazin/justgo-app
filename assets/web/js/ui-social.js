@@ -115,16 +115,83 @@ Object.assign(UI, {
       ${clubs.length ? `<div class="list">${clubs.map((c) => `<button class="row tap" data-act="clubOpen" data-v="${c.id}">${this.iconBox('users', 'var(--brand)')}<div class="grow"><b>${esc(c.name)}</b><small>Meta coletiva: ${c.goal_km} km/mês · código ${esc(c.invite_code)}</small></div>${I('chevronRight', 'chev')}</button>`).join('')}</div>`
         : `<div class="empty">${I('users')}<h3>Nenhum clube ainda</h3><p>Crie o clube da empresa, da igreja ou da assessoria e compartilhe o código.</p></div>`}`;
   },
+  /* ---------- clube ---------- */
   async club(id) {
+    const tab = App.clubTab || 'rank';
     this.render(`${this.back('social', 'Clube')}<main class="screen"><div id="clubBody" class="loading">Carregando…</div></main>`);
     try {
-      const d = await Cloud.club(id), pct = (d.total / (d.c.goal_km || 1)) * 100;
-      $('#clubBody').outerHTML = `<section class="card club-head"><span class="eyebrow">${d.members} membro${d.members > 1 ? 's' : ''}</span><h2>${esc(d.c.name)}</h2>
-        <div class="week-n"><b class="num">${Fmt.num(d.total)}</b><span>de ${d.c.goal_km} km no mês</span></div>${this.bar(pct, 'brand')}
-        <button class="chip-btn" data-act="copy" data-v="${esc(d.c.invite_code)}">${I('copy')}Código de convite: <b>${esc(d.c.invite_code)}</b></button></section>
-        ${this.sectionHead('Ranking do mês')}${this.board(d.board, (v) => Fmt.num(v) + ' km')}`;
-    } catch (e) { $('#clubBody').textContent = 'Não foi possível abrir o clube.'; }
+      const d = this._club && this._club.c.id === id && Date.now() - this._clubAt < 30000 ? this._club : await Cloud.clubFull(id);
+      this._club = d; this._clubAt = Date.now();
+      const pct = (d.total / (d.c.goal_km || 1)) * 100, top = d.wboard[0], me = Cloud.user.id;
+      const mo = new Date(), days = new Date(mo.getFullYear(), mo.getMonth() + 1, 0).getDate() - mo.getDate() + 1;
+      const tabs = this.tabsBar([['rank', 'Ranking'], ['members', `Membros · ${d.members.length}`], ['feed', 'Atividades']], tab, 'clubTab');
+      let body = '';
+      if (tab === 'members') body = `<div class="list">${d.members.map((m) => { const p = m.profiles || {}; return `<div class="row tap" data-act="userOpen" data-v="${m.user_id}">${this.avatarOf(p.name, p.frame, p.avatar)}<div class="grow"><b>${esc(p.name || 'Atleta')}${m.user_id === me ? ' (você)' : ''}</b><small>${p.username ? '@' + esc(p.username) : ''}${p.city ? ' · ' + esc(p.city) : ''}</small></div>${m.role === 'admin' ? '<span class="badge">Admin</span>' : ''}<b class="num">${Fmt.num(m.km)} km</b></div>`; }).join('')}</div>`;
+      else if (tab === 'feed') body = d.acts.length ? d.acts.map((a) => this.remotePost(a)).join('') : `<div class="empty compact">${I('activity')}<p>Os treinos dos membros aparecem aqui.</p></div>`;
+      else body = `${this.board(d.board, (v) => Fmt.num(v) + ' km')}`;
+      $('#clubBody').outerHTML = `<section class="club-hero"><span class="eyebrow">${d.members.length} membro${d.members.length > 1 ? 's' : ''} · código ${esc(d.c.invite_code)}</span><h2>${esc(d.c.name)}</h2>${d.c.description ? `<p class="muted">${esc(d.c.description)}</p>` : ''}
+          <div class="club-goal"><div class="row-t"><b class="num">${Fmt.num(d.total)} <small>de ${d.c.goal_km} km no mês</small></b><small class="num">${Math.min(100, Math.round(pct))}%</small></div>${this.bar(pct, 'brand')}<small>${pct >= 100 ? 'Meta do mês batida! 🎉'.replace(' 🎉', '') : `Faltam ${Fmt.num(Math.max(0, d.c.goal_km - d.total))} km · ${days} dia${days > 1 ? 's' : ''} para acabar o mês`}</small></div>
+          <div class="club-acts"><button class="btn primary sm" data-act="clubInvite">${I('userPlus')}Convidar</button><button class="btn ghost sm" data-act="copy" data-v="${esc(d.c.invite_code)}">${I('copy')}Copiar código</button>${d.admin ? `<button class="btn ghost sm" data-act="clubEdit">${I('settings')}Editar</button>` : `<button class="btn ghost sm" data-act="clubLeave">${I('logout')}Sair</button>`}</div></section>
+        ${top ? `<section class="club-star"><div class="cs-ic">${I('crown')}</div><div class="grow"><span class="eyebrow">Destaque da semana</span><b>${esc(top.name)}</b><small class="num">${Fmt.num(Number(top.value))} km desde segunda</small></div></section>` : ''}
+        ${tabs}${body}`;
+    } catch (e) { console.error(e); const el = $('#clubBody'); if (el) el.textContent = 'Não foi possível abrir o clube.'; }
   },
+
+  /* ---------- desafio em detalhe ---------- */
+  async challenge(id) {
+    this.render(`${this.back('social', 'Desafio')}<main class="screen"><div id="chalBody" class="loading">Carregando…</div></main>`);
+    try {
+      const { c, acts } = await Cloud.challengeDetail(id), me = Cloud.user.id;
+      const P = [c.from_user === me ? c.a : c.b, c.from_user === me ? c.b : c.a].map((p, i) => ({ p: p || { name: 'Atleta' }, id: i === 0 ? me : (c.from_user === me ? c.to_user : c.from_user) }));
+      P.forEach((x) => { const l = acts.filter((a) => a.user_id === x.id); x.km = l.reduce((s, a) => s + a.distance, 0) / 1000; x.n = l.length; x.t = l.reduce((s, a) => s + a.duration, 0); });
+      const end = new Date(c.ends_at).getTime(), start = new Date(c.starts_at).getTime(), over = Date.now() > end;
+      const left = Math.max(0, Math.ceil((end - Date.now()) / 864e5)), tot = P[0].km + P[1].km || 1;
+      const lead = P[0].km === P[1].km ? null : P[0].km > P[1].km ? 0 : 1;
+      const spn = c.sport ? CONFIG.sports[c.sport].name : 'Qualquer esporte';
+      // km por dia de cada um
+      const nd = Math.max(1, Math.round((end - start) / 864e5)), perDay = P.map(() => Array(nd).fill(0));
+      acts.forEach((a) => { const i = Math.min(nd - 1, Math.floor((Date.parse(a.start) - start) / 864e5)); const k = a.user_id === me ? 0 : 1; if (i >= 0) perDay[k][i] += a.distance / 1000; });
+      const maxD = Math.max(0.1, ...perDay.flat());
+      const status = over ? (lead == null ? 'Empate!' : lead === 0 ? 'Você venceu! 🏆'.replace(' 🏆', '') : `${esc(P[1].p.name)} venceu`) : lead == null ? 'Empatados' : lead === 0 ? `Você está na frente por ${Fmt.num(P[0].km - P[1].km)} km` : `${esc(P[1].p.name)} está na frente por ${Fmt.num(P[1].km - P[0].km)} km`;
+      $('#chalBody').outerHTML = `<section class="duel"><span class="eyebrow">${spn} · ${c.days} dias · ${over ? 'encerrado' : `termina em ${left} dia${left === 1 ? '' : 's'}`}</span>
+          <div class="duel-row">${P.map((x, i) => `<div class="duel-side ${lead === i ? 'lead' : ''}">${this.avatarOf(x.p.name, x.p.frame, x.p.avatar, 'lg')}<b>${i === 0 ? 'Você' : esc(x.p.name)}</b><span class="num duel-km">${Fmt.num(x.km)}<small> km</small></span><small>${x.n} treino${x.n === 1 ? '' : 's'} · ${Fmt.time(x.t)}</small></div>${i === 0 ? '<div class="duel-vs">×</div>' : ''}`).join('')}</div>
+          <div class="duel-bar"><i style="width:${(P[0].km / tot) * 100}%"></i></div><p class="duel-status">${status}</p></section>
+        ${this.sectionHead('Dia a dia')}<section class="card duel-days">${perDay[0].map((_, i) => `<div class="dd"><div class="dd-bars"><i class="me" style="height:${Math.max(perDay[0][i] ? 6 : 2, (perDay[0][i] / maxD) * 100)}%"></i><i class="op" style="height:${Math.max(perDay[1][i] ? 6 : 2, (perDay[1][i] / maxD) * 100)}%"></i></div><small>${new Date(start + i * 864e5).toLocaleDateString('pt-BR', { weekday: 'short' }).slice(0, 3)}</small></div>`).join('')}<div class="dd-leg"><span><i class="me"></i>Você</span><span><i class="op"></i>${esc(P[1].p.name)}</span></div></section>
+        ${this.sectionHead('Treinos do desafio')}${acts.length ? `<div class="list">${acts.map((a) => { const mine = a.user_id === me, sp = CONFIG.sports[a.sport] || CONFIG.sports.run; return `<div class="row">${this.iconBox(sp.icon, sp.color)}<div class="grow"><b>${esc(a.title || sp.name)}</b><small>${mine ? 'Você' : esc(P[1].p.name)} · ${Fmt.date(Date.parse(a.start))}</small></div><b class="num">${Fmt.km(a.distance)} km</b></div>`; }).join('')}</div>` : `<div class="empty compact">${I('activity')}<p>Nenhum treino ainda. Quem sair primeiro sai na frente!</p></div>`}`;
+    } catch (e) { console.error(e); const el = $('#chalBody'); if (el) el.textContent = 'Não foi possível abrir o desafio.'; }
+  },
+
+  /* ---------- notificações ---------- */
+  async notifs() {
+    this.render(`${this.back(App.backTo2 || 'home', 'Notificações')}<main class="screen"><div id="nBody" class="loading">Carregando…</div></main>`);
+    let seen = 0; try { seen = +localStorage.getItem(Cloud.seenKey()) || 0; } catch (e) {}
+    const list = await Cloud.refreshNotifs(true); Cloud.markSeen();
+    const fol = new Set(await Cloud.following().catch(() => []));
+    const ago = (t) => { if (!t) return ''; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'agora' : m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`; };
+    const txt = (n) => ({ follow: 'começou a seguir você', like: `curtiu ${n.title ? `“${esc(n.title)}”` : 'seu treino'}`, comment: `comentou: “${esc((n.text || '').slice(0, 80))}”`, chal: 'desafiou você', chalOn: 'desafio aceito: valendo!', chalOk: 'aceitou seu desafio', zone: `roubou sua área de ${Zones.areaTxt(n.area || 0)}` })[n.k];
+    const act = (n) => n.k === 'follow' ? `data-act="userOpen" data-v="${n.u.id}"` : n.k === 'like' || n.k === 'comment' ? `data-act="comments" data-v="${n.act}"` : n.k === 'zone' ? 'data-act="go" data-v="mapa"' : n.k === 'chal' ? 'data-act="sub" data-v="social:challenges"' : `data-act="chalOpen" data-v="${n.id}"`;
+    const ic = { follow: 'userPlus', like: 'heart', comment: 'message', chal: 'swords', chalOn: 'swords', chalOk: 'swords', zone: 'flag' };
+    const el = $('#nBody'); if (!el) return;
+    el.outerHTML = list.length ? `<div class="list notif-list">${list.map((n) => `<div class="row tap notif ${n.t > seen ? 'new' : ''}" ${act(n)}><div class="n-av">${this.avatarOf(n.u.name, n.u.frame, n.u.avatar)}<i class="n-ic n-${n.k}">${I(ic[n.k], 'xs')}</i></div><div class="grow"><p><b>${esc(n.u.name || 'Atleta')}</b> ${txt(n)}</p><small>${ago(n.t)}</small></div>${n.k === 'follow' && !fol.has(n.u.id) ? `<button class="chip-btn sm primary-chip" data-act="followHere" data-v="${n.u.id}">Seguir de volta</button>` : ''}</div>`).join('')}</div>`
+      : `<div class="empty">${I('bell')}<h3>Nenhuma notificação</h3><p>Quando alguém seguir você, curtir ou comentar seus treinos, aparece aqui.</p></div>`;
+  },
+  bellBadge() {
+    const b = $('#bellBadge'); if (!b) return;
+    const n = Cloud.unread || 0; b.hidden = !n; b.textContent = n > 9 ? '9+' : n;
+  },
+
+  /* ---------- seguidores / seguindo ---------- */
+  async followList(which, uid) {
+    const id = uid || Cloud.user.id;
+    this.render(`${this.back(uid && uid !== Cloud.user.id ? 'social' : 'profile', which === 'followers' ? 'Seguidores' : 'Seguindo')}<main class="screen"><div id="flBody" class="loading">Carregando…</div></main>`);
+    try {
+      const [rows, fol] = await Promise.all([Cloud.followList(id, which), Cloud.following()]);
+      const el = $('#flBody'); if (!el) return;
+      el.outerHTML = rows.length ? `<div class="list">${rows.map((r) => `<div class="row"><span class="tap" data-act="userOpen" data-v="${r.id}">${this.avatarOf(r.name, r.frame, r.avatar)}</span><div class="grow tap" data-act="userOpen" data-v="${r.id}"><b>${esc(r.name)}</b><small>${r.username ? '@' + esc(r.username) : ''}${r.city ? ' · ' + esc(r.city) : ''}</small></div>${r.id === Cloud.user.id ? '' : fol.includes(r.id) ? '<span class="badge">Seguindo</span>' : `<button class="chip-btn sm primary-chip" data-act="followHere" data-v="${r.id}">Seguir</button>`}</div>`).join('')}</div>`
+        : `<div class="empty">${I('users')}<h3>${which === 'followers' ? 'Ainda sem seguidores' : 'Você ainda não segue ninguém'}</h3><p>${which === 'followers' ? 'Publique seus treinos para mais gente encontrar você.' : 'Veja o Descobrir no Social para encontrar atletas.'}</p></div>`;
+    } catch (e) { const el = $('#flBody'); if (el) el.textContent = 'Não foi possível carregar.'; }
+  },
+
   async socialChallenges() {
     const list = await Cloud.challenges(), me = Cloud.user.id;
     const row = (c) => {
@@ -139,7 +206,8 @@ Object.assign(UI, {
         right = `<div class="vs num"><b class="${a >= b ? 'win' : ''}">${Fmt.num(a)}</b><span>×</span><b class="${b > a ? 'win' : ''}">${Fmt.num(b)}</b><small>km</small></div>`;
         if (c.over) sub += a > b ? ' · você venceu!' : a < b ? ` · ${esc(other && other.name)} venceu` : ' · empate';
       }
-      return `<div class="row">${this.iconBox('swords', 'var(--brand)')}<div class="grow"><b>${title}</b><small>${sub}</small></div>${right}</div>`;
+      const open = c.status === 'active';
+      return `<div class="row ${open ? 'tap' : ''}" ${open ? `data-act="chalOpen" data-v="${c.id}"` : ''}>${this.iconBox('swords', 'var(--brand)')}<div class="grow"><b>${title}</b><small>${sub}</small></div>${right}${open ? I('chevronRight', 'chev') : ''}</div>`;
     };
     return `<button class="btn primary" data-act="chalNew">${I('swords')}Novo desafio</button>
       ${list.length ? `<div class="list">${list.map(row).join('')}</div>` : `<div class="empty">${I('swords')}<h3>Nenhum desafio</h3><p>Desafie um amigo que você segue: quem fizer mais km no período vence.</p></div>`}`;

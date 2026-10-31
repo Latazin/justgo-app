@@ -10,7 +10,7 @@ const App = {
   tracker: null, coach: null, routeLive: null, wl: null,
 
   // tela -> aba da barra inferior que fica acesa
-  parents: { pro: 'profile', progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', club: 'social', history: 'home', heatmap: 'home' },
+  parents: { notifs: 'home', pro: 'profile', progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', club: 'social', history: 'home', heatmap: 'home' },
 
   init() {
     Store.load();
@@ -61,8 +61,10 @@ const App = {
   },
   go(tab) {
     if (tab !== 'record') this.stopRecWatch();
+    if (this.tab === 'view3d' && tab !== 'view3d') View3D.close();
     if (tab === 'safety') this.from = this.tab;
     if (tab === 'record' && this.tab !== 'record' && !this.tracker && Pref('defaultSport') && !this.route) { this.sport = Pref('defaultSport'); if (this.sport !== 'swim') this.mode = this.mode === 'manual' || this.mode === 'set' ? 'free' : this.mode; }
+    if (tab === 'notifs' && this.tab !== 'notifs') this.backTo2 = ['home', 'profile', 'mapa', 'social'].includes(this.tab) ? this.tab : 'home';
     if (tab === 'progress' && this.tab !== 'progress') this.backTo = ['home', 'profile', 'mapa', 'social'].includes(this.tab) ? this.tab : 'profile';
     this.tab = tab; this.nav = this.parents[tab] || tab;
     const fn = UI[tab]; (typeof fn === 'function' ? fn : UI.home).call(UI);
@@ -177,7 +179,7 @@ const App = {
     const tr = this.tracker;
     FX.vibrate([100]);
     if (Game.has('voice') && !(this.coach && !this.coach.done)) {
-      const pace = tr.sport === 'ride' ? `velocidade média de ${Math.round((tr.distance / (tr.moving / 1000)) * 3.6)} quilômetros por hora` : `ritmo do último quilômetro: ${FX.spokenTime(t)}`;
+      const pace = Fmt.isSpeed(tr.sport) ? `velocidade média de ${Math.round((tr.distance / (tr.moving / 1000)) * 3.6)} quilômetros por hora` : `ritmo do último quilômetro: ${FX.spokenTime(t)}`;
       FX.say(`Quilômetro ${n}. Tempo total: ${FX.spokenTime(tr.moving / 1000)}. ${pace}.`);
     }
     if (Game.has('splits')) FX.toast(`Km ${n}: ${Fmt.time(t)}`);
@@ -286,6 +288,7 @@ const App = {
     else if (t.id === 'privEnds') { D.privacy.trimEnds = t.checked; Store.save(); }
     else if (t.name === 'privR') { D.privacy.radius = +t.value; Store.save(); }
     else if (t.dataset.pref) { P[t.dataset.pref] = t.checked; Store.save(); FX.toast(t.checked ? 'Ativado' : 'Desativado'); }
+    else if (t.id === 'v3Prog') View3D.seek(+t.value / 1000);
     else if (t.dataset.pro) {
       const k = t.dataset.pro, num = t.type === 'number';
       let v = t.type === 'checkbox' ? t.checked : num ? Math.max(0, +t.value || 0) : t.value;
@@ -360,6 +363,42 @@ const App = {
     go: (el) => App.go(el.dataset.v),
     sub: (el) => { const [t, s] = el.dataset.v.split(':'); App.sub[t] = s; App.go(t); },
     subTab: (el) => { App.sub[App.tab] = el.dataset.v; App.go(App.tab); },
+    view3d: (el) => { const a = App.find(el.dataset.v); if (!a) return; App.v3From = App.tab; App.v3Act = a.id; App.tab = 'view3d'; UI.view3d(a); },
+    v3Close: () => { View3D.close(); App.tab = 'detail'; const a = App.find(App.v3Act); if (a) UI.summary(a, null, false); else App.go('home'); },
+    v3Play: () => (View3D.playing ? View3D.pause() : View3D.play()),
+    v3Light: () => { View3D.light = !View3D.light; const a = App.find(App.v3Act); View3D.close(); if (a) UI.view3d(a); FX.toast(View3D.light ? 'Modo leve ligado' : 'Qualidade máxima'); },
+    chalOpen: (el) => { App.tab = 'challenge'; App.nav = 'social'; UI.challenge(el.dataset.v); },
+    followList: (el) => { App.tab = 'followList'; App.nav = 'profile'; UI.followList(el.dataset.v); },
+    clubTab: (el) => { App.clubTab = el.dataset.v; UI.club(UI._club.c.id); },
+    clubInvite: () => {
+      const c = UI._club && UI._club.c; if (!c) return;
+      const msg = `Bora treinar comigo no clube "${c.name}" do JustGo! Baixe o app e entre com o código ${c.invite_code}.`;
+      try { navigator.clipboard.writeText(msg); } catch (e) {}
+      window.open('https://wa.me/?text=' + encodeURIComponent(msg)); FX.toast('Convite copiado. Mande no WhatsApp!');
+    },
+    clubEdit: async () => {
+      const c = UI._club && UI._club.c; if (!c) return;
+      const f = await FX.prompt('Editar clube', [['ceName', 'Nome', 'text', c.name], ['ceGoal', 'Meta do mês (km, somando todos)', 'number', c.goal_km], ['ceDesc', 'Descrição', 'text', c.description || '', 'ex.: Corredores da Cibien', 'maxlength="120"']], 'Salvar');
+      if (!f) return;
+      try { await Cloud.clubUpdate(c.id, { name: (f.ceName || c.name).trim().slice(0, 60), goal_km: Math.max(1, +f.ceGoal || c.goal_km), description: (f.ceDesc || '').trim().slice(0, 120) || null }); UI._club = null; FX.toast('Clube atualizado'); UI.club(c.id); } catch (e) { FX.toast('Não foi possível salvar.'); }
+    },
+    clubLeave: async () => {
+      const c = UI._club && UI._club.c; if (!c) return;
+      if (!(await FX.confirm('Sair do clube?', `Você deixa de aparecer no ranking de ${c.name}. Dá para voltar com o código.`, 'Sair', true))) return;
+      try { await Cloud.clubLeave(c.id); UI._club = null; FX.toast('Você saiu do clube'); App.sub.social = 'clubs'; App.go('social'); } catch (e) { FX.toast('Não foi possível sair agora.'); }
+    },
+    msToggle: (el) => {
+      const k = el.dataset.v, sel = App.msPick || (App.msPick = []);
+      const i = sel.indexOf(k); if (i >= 0) sel.splice(i, 1); else { if (sel.length >= 2) sel.shift(); sel.push(k); }
+      UI.progress();
+    },
+    msSave: () => { const sel = (App.msPick || []).slice(0, 2); if (!sel.length) return; Store.data.profile.missionSports = sel; Store.save(); App.msEditing = false; App.msPick = null; FX.toast('Missões atualizadas!'); UI.progress(); },
+    msEdit: () => { App.msEditing = true; App.msPick = [...(Store.data.profile.missionSports || [])]; UI.progress(); },
+    swapDaily: (el) => { const n = Game.swapDaily(el.dataset.v); if (n) FX.toast(`Nova missão: ${n.text}`); else FX.toast('Você já trocou uma missão hoje.'); UI.go ? null : null; if (App.tab === 'progress') UI.progress(); else App.go(App.tab); },
+    sportPick: async () => {
+      const v = await FX.modal(UI.sportGrid(App.sport));
+      if (v && CONFIG.sports[v]) App.actions.sport({ dataset: { v } });
+    },
     sport: (el) => { App.sport = el.dataset.v; App.mode = App.sport === 'swim' && App.swimMode === 'pool' ? 'manual' : 'free'; App.route = null; App.go('record'); },
     swimMode: (el) => { App.swimMode = el.dataset.v; App.mode = el.dataset.v === 'pool' ? 'manual' : 'free'; App.go('record'); },
     recenter: () => { const m = UI.recMap, d = UI.recDot; if (m && d) m.setView(d.getLatLng(), 16); else Geo.locate(true).then((p) => { if (p && UI.recMap) UI.recMap.setView([p[0], p[1]], 16); }); },
@@ -584,7 +623,7 @@ const App = {
       if (!f || !f.cCode) return;
       try { const id = await Cloud.joinClub(f.cCode); FX.toast('Você entrou no clube!'); App.tab = 'club'; UI.club(id); } catch (e) { FX.toast('Código não encontrado.'); }
     },
-    clubOpen: (el) => { App.tab = 'club'; App.nav = 'social'; UI.club(el.dataset.v); },
+    clubOpen: (el) => { App.tab = 'club'; App.nav = 'social'; App.clubTab = 'rank'; UI._club = null; UI.club(el.dataset.v); },
     chalNew: async (el) => {
       let to = el.dataset.v;
       if (!to) {

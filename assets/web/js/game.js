@@ -88,13 +88,38 @@ const Game = {
   /* ---------- missões ---------- */
   hash(s) { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; },
   // 3 missões por dia, sorteio fixo pela data (todos os aparelhos veem as mesmas)
+  // esportes das missões: escolhidos pela pessoa (até 2); sem escolha, os favoritos do perfil
+  missionSports() { const P = Store.data.profile; return (P.missionSports && P.missionSports.length ? P.missionSports : P.sports || []).filter((k) => CONFIG.sports[k]); },
   dailyMissions(ts) {
-    const fav = Store.data.profile.sports || [];
-    const avail = CONFIG.daily.filter((m) => !m.sport || m.sport === 'all' || !fav.length || fav.includes(m.sport));
-    let seed = this.hash(this.dayKey(ts)); const out = [];
-    while (out.length < 3 && avail.length) { seed = (Math.imul(seed, 1103515245) + 12345) >>> 0; out.push(avail.splice(seed % avail.length, 1)[0]); }
-    return out;
+    const fav = this.missionSports(), D = Store.data, day = this.dayKey(ts);
+    const mine = CONFIG.daily.filter((m) => m.sport && m.sport !== 'all' && fav.includes(m.sport));
+    const gen = CONFIG.daily.filter((m) => !m.sport || m.sport === 'all');
+    let seed = this.hash(day); const rnd = (n) => { seed = (Math.imul(seed, 1103515245) + 12345) >>> 0; return seed % n; };
+    const out = [], pool1 = [...mine], pool2 = [...gen];
+    // 2 do(s) seu(s) esporte(s) + 1 geral (ou 3 gerais se não escolheu esporte)
+    while (out.length < (mine.length ? 2 : 0) && pool1.length) out.push(pool1.splice(rnd(pool1.length), 1)[0]);
+    while (out.length < 3 && pool2.length) out.push(pool2.splice(rnd(pool2.length), 1)[0]);
+    // trocas feitas hoje
+    const sw = D.dailySwap && D.dailySwap.day === day ? D.dailySwap.map : {};
+    return out.map((m) => (sw[m.id] && CONFIG.daily.find((x) => x.id === sw[m.id])) || m);
   },
+  // troca uma missão do dia por outra (1 troca por dia)
+  swapDaily(id, ts = Date.now()) {
+    const D = Store.data, day = this.dayKey(ts), cur = this.dailyMissions(ts);
+    if (D.dailySwap && D.dailySwap.day === day && D.dailySwap.used) return false;
+    const fav = this.missionSports(), used = new Set(cur.map((m) => m.id));
+    const opts = CONFIG.daily.filter((m) => !used.has(m.id) && (!m.sport || m.sport === 'all' || fav.includes(m.sport)));
+    if (!opts.length) return false;
+    const pick = opts[Math.floor(Math.random() * opts.length)];
+    const sw = D.dailySwap && D.dailySwap.day === day ? D.dailySwap : (D.dailySwap = { day, map: {} });
+    sw.map[id] = pick.id; sw.used = 1; Store.save();
+    return pick;
+  },
+  weeklyMissions() {
+    const fav = this.missionSports(), chosen = (Store.data.profile.missionSports || []).length;
+    return CONFIG.weekly.filter((m) => (m.sport && m.sport !== 'all' ? fav.includes(m.sport) : !(chosen && m.type === 'sports')));
+  },
+  dailyBonusKey(ts = Date.now()) { return `b:${this.dayKey(ts)}`; },
   seasonal(ts) { const mo = new Date(ts).getMonth() + 1; return CONFIG.seasonal[mo] || { ...CONFIG.seasonalDefault, id: 'mes' + mo }; },
   mKey(pre, m, ts) { const k = pre === 'd' ? this.dayKey(ts) : pre === 'w' ? this.weekKey(ts) : this.monthKey(ts); return `${pre}:${k}:${m.id}`; },
   mProgress(m, list) {
@@ -231,7 +256,7 @@ const Game = {
 
     // missões diárias, semanais e do mês
     const ts = act.start;
-    const groups = [['d', this.dailyMissions(ts), 'day'], ['w', CONFIG.weekly, 'week'], ['s', [this.seasonal(ts)], 'month']];
+    const groups = [['d', this.dailyMissions(ts), 'day'], ['w', this.weeklyMissions(), 'week'], ['s', [this.seasonal(ts)], 'month']];
     for (const [pre, list, kind] of groups) {
       const scoped = this.scope(kind, ts);
       for (const m of list) {
@@ -244,6 +269,14 @@ const Game = {
           if (pre === 'd') D.dailyDoneCount = (D.dailyDoneCount || 0) + 1;
         }
       }
+    }
+
+    // bônus: completou as 3 missões do dia
+    const dl = this.dailyMissions(ts), bk = this.dailyBonusKey(ts);
+    if (!D.missionsDone[bk] && dl.every((m) => D.missionsDone[this.mKey('d', m, ts)])) {
+      D.missionsDone[bk] = Date.now(); const B = CONFIG.dailyBonus;
+      r.missions.push({ id: 'bonus', icon: 'gift', text: 'Bônus: todas as missões do dia', xp: B.xp, coins: B.coins, kind: 'b' });
+      r.xp += B.xp; r.coins += B.coins;
     }
 
     // módulos extras (rotas, segmentos, plano, território...)

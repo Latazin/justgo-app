@@ -34,6 +34,7 @@ const Native = {
         return 'handled';
       }
       if (window.App && App.tracker) return 'training';
+      if (window.App && App.tab === 'view3d') { App.actions.v3Close(); return 'handled'; }
       if (window.SwimSet && SwimSet.s) return 'training';
       if (window.App && App.tab && App.tab !== 'home') {
         const back = document.querySelector('.top .back');

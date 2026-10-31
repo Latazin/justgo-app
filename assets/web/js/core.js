@@ -68,13 +68,16 @@ const Fmt = {
   km(m, dec = 2) { return ((m || 0) / 1000).toFixed(dec).replace('.', ','); },
   num(n, dec = 1) { return (n || 0).toFixed(dec).replace('.', ','); },
   // ritmo/velocidade conforme o esporte, a partir de m/s
+  // esportes de rodas e barco mostram velocidade (km/h); natação, ritmo por 100 m; o resto, min/km
+  isSpeed(sport) { return !!(CONFIG.sports[sport] && CONFIG.sports[sport].speed); },
   pace(sport, mps) {
     if (!mps || mps < 0.15 || !isFinite(mps)) return '--';
-    if (sport === 'ride') return this.num(mps * 3.6);
+    if (this.isSpeed(sport)) return this.num(mps * 3.6);
     if (sport === 'swim') return this.time(100 / mps);
     return this.time(1000 / mps);
   },
-  paceUnit(sport) { return sport === 'ride' ? 'km/h' : sport === 'swim' ? 'min/100 m' : 'min/km'; },
+  paceUnit(sport) { return this.isSpeed(sport) ? 'km/h' : sport === 'swim' ? 'min/100 m' : 'min/km'; },
+  paceLabel(sport, avg) { return this.isSpeed(sport) ? (avg ? 'Vel. média' : 'Velocidade') : (avg ? 'Ritmo médio' : 'Ritmo'); },
   date(ts) {
     const d = new Date(ts);
     return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' }) + ' · ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });

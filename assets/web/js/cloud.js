@@ -253,17 +253,99 @@ const Cloud = {
     return { c, members: ids.length, board, total: board.reduce((s, x) => s + Number(x.value), 0) };
   },
 
+  /* ---------- clube: membros, atividades e administração ---------- */
+  async clubFull(id) {
+    const { data: c, error } = await this.sb.from('clubs').select('*').eq('id', id).single();
+    if (error) throw error;
+    const { data: m } = await this.sb.from('club_members').select('user_id, role, profiles(name, username, city, frame, avatar)').eq('club_id', id);
+    const mem = m || [], ids = mem.map((x) => x.user_id);
+    const month = new Date(); month.setDate(1); month.setHours(0, 0, 0, 0);
+    const week = new Date(Game.weekStart(Date.now()));
+    const [board, wboard, acts] = ids.length ? await Promise.all([
+      this.leaderboard({ since: month, ids }),
+      this.leaderboard({ since: week, ids }),
+      this.sb.from('activities').select('*, profiles(name,username,frame,avatar)').in('user_id', ids).eq('flagged', false).order('start', { ascending: false }).limit(20).then((r) => r.data || []),
+    ]) : [[], [], []];
+    const km = {}; board.forEach((x) => (km[x.user_id] = Number(x.value)));
+    return { c, members: mem.map((x) => ({ ...x, km: km[x.user_id] || 0 })).sort((a, b) => b.km - a.km), board, wboard, acts, total: board.reduce((s, x) => s + Number(x.value), 0), admin: c.created_by === this.user.id };
+  },
+  async clubUpdate(id, f) { const { error } = await this.sb.from('clubs').update(f).eq('id', id); if (error) throw error; },
+  async clubLeave(id) { const { error } = await this.sb.from('club_members').delete().eq('club_id', id).eq('user_id', this.user.id); if (error) throw error; },
+
+  /* ---------- seguidores ---------- */
+  async followCounts(id) {
+    const [a, b] = await Promise.all([
+      this.sb.from('follows').select('*', { count: 'exact', head: true }).eq('following', id),
+      this.sb.from('follows').select('*', { count: 'exact', head: true }).eq('follower', id),
+    ]);
+    return { followers: a.count || 0, following: b.count || 0 };
+  },
+  async followList(id, which) {
+    const col = which === 'followers' ? 'follower' : 'following', by = which === 'followers' ? 'following' : 'follower';
+    const { data, error } = await this.sb.from('follows').select(`${col}, created_at, p:profiles!follows_${col}_fkey(id,name,username,city,frame,avatar)`).eq(by, id).order('created_at', { ascending: false }).limit(200);
+    if (error) throw error;
+    return (data || []).map((x) => x.p).filter(Boolean);
+  },
+
+  /* ---------- notificações (montadas a partir do que já existe no banco) ---------- */
+  async notifications() {
+    const me = this.user.id, out = [];
+    const safe = (p) => p.then((r) => r).catch(() => ({ data: [] }));
+    const { data: mine } = await this.sb.from('activities').select('id,title,sport').eq('user_id', me).order('start', { ascending: false }).limit(60);
+    const ids = (mine || []).map((a) => a.id), title = {}; (mine || []).forEach((a) => (title[a.id] = a.title));
+    const [fol, likes, cms, chal, zon] = await Promise.all([
+      safe(this.sb.from('follows').select('follower, created_at, p:profiles!follows_follower_fkey(id,name,frame,avatar)').eq('following', me).order('created_at', { ascending: false }).limit(30)),
+      ids.length ? this.sb.from('likes').select('activity_id, user_id, created_at, profiles(id,name,frame,avatar)').in('activity_id', ids).neq('user_id', me).limit(60).then((r) => (r.error ? this.sb.from('likes').select('activity_id, user_id, profiles(id,name,frame,avatar)').in('activity_id', ids).neq('user_id', me).limit(60) : r)).catch(() => ({ data: [] })) : { data: [] },
+      ids.length ? safe(this.sb.from('comments').select('activity_id, user_id, text, created_at, profiles(id,name,frame,avatar)').in('activity_id', ids).neq('user_id', me).order('created_at', { ascending: false }).limit(40)) : { data: [] },
+      safe(this.sb.from('challenges').select('id, status, sport, days, created_at, starts_at, from_user, to_user, a:profiles!challenges_from_user_fkey(id,name,frame,avatar), b:profiles!challenges_to_user_fkey(id,name,frame,avatar)').or(`to_user.eq.${me},and(from_user.eq.${me},status.eq.active)`).order('created_at', { ascending: false }).limit(20)),
+      safe(this.sb.from('zones').select('id, area, owner, owner_name, captured_at').eq('prev_owner', me).neq('owner', me).order('captured_at', { ascending: false }).limit(20)),
+    ]);
+    (fol.data || []).forEach((x) => x.p && out.push({ k: 'follow', t: Date.parse(x.created_at), u: x.p }));
+    (likes.data || []).forEach((x) => x.profiles && out.push({ k: 'like', t: x.created_at ? Date.parse(x.created_at) : 0, u: x.profiles, act: x.activity_id, title: title[x.activity_id] }));
+    (cms.data || []).forEach((x) => x.profiles && out.push({ k: 'comment', t: Date.parse(x.created_at), u: x.profiles, act: x.activity_id, text: x.text, title: title[x.activity_id] }));
+    (chal.data || []).forEach((x) => {
+      if (x.to_user === me && x.a) out.push({ k: x.status === 'pending' ? 'chal' : 'chalOn', t: Date.parse(x.status === 'pending' ? x.created_at : x.starts_at || x.created_at), u: x.a, id: x.id, status: x.status });
+      else if (x.from_user === me && x.b && x.status === 'active') out.push({ k: 'chalOk', t: Date.parse(x.starts_at || x.created_at), u: x.b, id: x.id });
+    });
+    (zon.data || []).forEach((x) => out.push({ k: 'zone', t: Date.parse(x.captured_at), u: { id: x.owner, name: x.owner_name || 'Alguém' }, area: x.area }));
+    out.sort((a, b) => b.t - a.t);
+    return out.slice(0, 60);
+  },
+  seenKey() { return 'justgo_notif_seen_' + (this.user ? this.user.id : ''); },
+  unreadOf(list) { let seen = 0; try { seen = +localStorage.getItem(this.seenKey()) || 0; } catch (e) {} return list.filter((n) => n.t > seen).length; },
+  markSeen() { try { localStorage.setItem(this.seenKey(), String(Date.now())); } catch (e) {} this.unread = 0; UI.bellBadge && UI.bellBadge(); },
+  async refreshNotifs(force) {
+    if (!this.loggedIn() || (!force && this._nAt && Date.now() - this._nAt < 60000)) return this._notifs || [];
+    this._nAt = Date.now();
+    try { this._notifs = await this.notifications(); this.unread = this.unreadOf(this._notifs); UI.bellBadge && UI.bellBadge(); } catch (e) { console.error(e); }
+    return this._notifs || [];
+  },
+
+  /* ---------- desafio em detalhe ---------- */
+  async challengeDetail(id) {
+    const { data: c, error } = await this.sb.from('challenges').select('*, a:profiles!challenges_from_user_fkey(id,name,username,frame,avatar), b:profiles!challenges_to_user_fkey(id,name,username,frame,avatar)').eq('id', id).single();
+    if (error) throw error;
+    let acts = [];
+    if (c.status === 'active' && c.starts_at) {
+      let q = this.sb.from('activities').select('id,user_id,sport,start,distance,duration,title,route,flagged').in('user_id', [c.from_user, c.to_user]).gte('start', c.starts_at).lte('start', c.ends_at).eq('flagged', false).order('start', { ascending: false });
+      if (c.sport) q = q.eq('sport', c.sport);
+      const r = await q; acts = r.data || [];
+    }
+    return { c, acts };
+  },
+
   /* ---------- desafios entre amigos ---------- */
   async challenges() {
     const { data } = await this.sb.from('challenges').select('*, a:profiles!challenges_from_user_fkey(name), b:profiles!challenges_to_user_fkey(name)').or(`from_user.eq.${this.user.id},to_user.eq.${this.user.id}`).order('created_at', { ascending: false }).limit(20);
     const list = data || [];
-    for (const c of list) {
-      if (c.status === 'pending') continue;
-      const board = await this.leaderboard({ since: c.starts_at, sport: c.sport, ids: [c.from_user, c.to_user] });
-      const ends = new Date(c.ends_at).getTime();
-      c.scores = {}; board.forEach((x) => (c.scores[x.user_id] = Number(x.value)));
-      c.over = Date.now() > ends;
-    }
+    await Promise.all(list.filter((c) => c.status === 'active' && c.starts_at).map(async (c) => {
+      // só conta o que foi feito dentro do período do desafio
+      let q = this.sb.from('activities').select('user_id,distance').in('user_id', [c.from_user, c.to_user]).gte('start', c.starts_at).lte('start', c.ends_at).eq('flagged', false);
+      if (c.sport) q = q.eq('sport', c.sport);
+      const { data } = await q;
+      c.scores = {}; (data || []).forEach((x) => (c.scores[x.user_id] = (c.scores[x.user_id] || 0) + x.distance / 1000));
+      c.over = Date.now() > new Date(c.ends_at).getTime();
+    }));
     return list;
   },
   async challenge(toId, sport, days) {
@@ -355,7 +437,7 @@ const ShareCard = {
     // título e números
     x.fillStyle = '#fff'; x.font = F(700, 58); x.fillText(UI.actTitle(act), 80, 980);
     const avg = act.duration ? act.distance / act.duration : 0;
-    const cols = [['Distância', Fmt.km(act.distance) + ' km'], [act.sport === 'ride' ? 'Vel. média' : 'Ritmo', Fmt.pace(act.sport, avg) + (act.sport === 'ride' ? ' km/h' : act.sport === 'swim' ? ' /100m' : ' /km')], ['Tempo', Fmt.time(act.duration)]];
+    const cols = [['Distância', Fmt.km(act.distance) + ' km'], [Fmt.isSpeed(act.sport) ? 'Vel. média' : 'Ritmo', Fmt.pace(act.sport, avg) + (act.sport === 'ride' ? ' km/h' : act.sport === 'swim' ? ' /100m' : ' /km')], ['Tempo', Fmt.time(act.duration)]];
     cols.forEach(([l, v], i) => {
       const X = 80 + i * 320;
       x.fillStyle = '#8E8E93'; x.font = F(600, 26); x.fillText(l.toUpperCase(), X, 1070);

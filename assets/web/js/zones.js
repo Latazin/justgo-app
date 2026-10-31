@@ -6,7 +6,7 @@
    Liberado para todo mundo desde o primeiro treino.
    ========================================================= */
 const Zones = {
-  SPORTS: ['run', 'ride'],
+  SPORTS: ['run', 'ride', 'walk', 'hike', 'skate', 'board'],
   CLOSE_M: 40,       // distância para considerar que voltou ao ponto
   MIN_LOOP_M: 300,   // circuito mínimo
   MIN_AREA: 2000,    // m² (≈ meio quarteirão)

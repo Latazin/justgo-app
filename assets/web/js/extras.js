@@ -8,7 +8,7 @@ const Gear = {
   list(type) { return Store.data.gear.filter((g) => !type || g.type === type); },
   get(id) { return Store.data.gear.find((g) => g.id === id); },
   km(g) { return (g.km0 || 0) + Store.data.activities.filter((a) => a.gear === g.id && !a.flagged).reduce((s, a) => s + a.distance, 0) / 1000; },
-  typeFor(sport) { return sport === 'run' ? 'shoe' : sport === 'ride' ? 'bike' : null; },
+  typeFor(sport) { const s = CONFIG.sports[sport] || {}; return s.foot ? 'shoe' : sport === 'ride' ? 'bike' : null; },
   add(type, name, km0) { const g = { id: uid(), type, name, km0: +km0 || 0, retired: false, isDefault: !this.list(type).some((x) => x.isDefault && !x.retired) }; Store.data.gear.push(g); Store.save(); return g; },
   setDefault(id) { const g = this.get(id); this.list(g.type).forEach((x) => (x.isDefault = x.id === id)); Store.save(); },
   status(g) {

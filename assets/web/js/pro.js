@@ -94,7 +94,8 @@ const Pro = {
       }
       s = end ? i : e;
     }
-    const mov = blocks.filter((b) => b.v > (sp === 'ride' ? 1 : 0.4));
+    const mov = blocks.filter((b) => b.v > (Fmt.isSpeed(sp) ? 1 : 0.4));
+    const foot = !!CONFIG.sports[sp].foot;
     const movT = mov.reduce((x, b) => x + b.dt, 0) || act.duration;
     R.moving = Math.round(movT);
 
@@ -112,6 +113,10 @@ const Pro = {
         mech += p * b.dt; pw.push([p, b.dt]);
         k = (p * b.dt) / 0.24 / 4184 + (b.dt / 3600) * W * 1.0; // eficiência humana ~24% + metabolismo de repouso
         b.p = p;
+      } else if (!foot) {
+        // patins, skate, remo: METs do esporte ajustados pela velocidade
+        const ref = CONFIG.sports[sp].simSpeed || 4, met0 = CONFIG.sports[sp].met;
+        k = b.v > 0.5 ? (met0 * Math.max(0.6, Math.min(1.6, b.v / ref)) * W * b.dt) / 3600 : (b.dt / 3600) * W;
       } else {
         const C = b.v < 2.1 ? this.costWalk(b.g) : this.costRun(b.g);
         k = b.v > 0.4 ? (Math.max(0, C) * run[1] * m * b.d) / 4184 : 0;
@@ -123,7 +128,7 @@ const Pro = {
     R.kcal = Math.round(kcal);
     R.met = movT ? (kcal / (movT / 3600)) / W : 0;
     R.zones = zone;
-    R.method = sp === 'ride'
+    R.method = !foot && sp !== 'ride' ? `METs de ${CONFIG.sports[sp].name.toLowerCase()} ajustados pela velocidade · ${W} kg` : sp === 'ride'
       ? `Potência pela física do pedal · ${bike.name}, ${Fmt.num(bike.weight, 1)} kg · você ${W} kg${c.carry ? ` + ${c.carry} kg de carga` : ''}`
       : `Custo energético por inclinação (Minetti) · ${W} kg${c.carry ? ` + ${c.carry} kg de carga` : ''} · ${run[0].toLowerCase()}`;
 
@@ -147,7 +152,7 @@ const Pro = {
       for (let i = 1; i < pts.length; i++) { while (a < i && cum[i] - cum[a + 1] >= L) a++; if (cum[i] - cum[a] >= L) b = Math.min(b, (mt[i] - mt[a]) * (L / (cum[i] - cum[a]))); }
       return isFinite(b) && b > 0 ? b : null;
     };
-    R.best = sp === 'run' ? [['400 m', 400], ['1 km', 1000], ['5 km', 5000], ['10 km', 10000]].map(([n, L]) => [n, best(L), L]).filter((x) => x[1])
+    R.best = foot ? [['400 m', 400], ['1 km', 1000], ['5 km', 5000], ['10 km', 10000]].map(([n, L]) => [n, best(L), L]).filter((x) => x[1])
       : [['1 km', 1000], ['5 km', 5000], ['10 km', 10000], ['20 km', 20000], ['40 km', 40000]].map(([n, L]) => [n, best(L), L]).filter((x) => x[1]);
 
     // elevação

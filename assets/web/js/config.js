@@ -4,7 +4,7 @@
    Nada neste arquivo exige mexer no resto do código.
    ========================================================= */
 const CONFIG = {
-  version: '2.8.2',
+  version: '2.9.0',
 
   /* ---------- Esportes ----------
      xpPerKm: peso do XP por km (natação vale mais que pedal)
@@ -12,10 +12,16 @@ const CONFIG = {
      met: usado na estimativa de calorias
      simSpeed: velocidade (m/s) do modo teste */
   sports: {
-    run:  { name: 'Corrida',  icon: 'run', color: '#1F6BFF', xpPerKm: 10, coinsPerKm: 2, maxKmh: 25, met: 9.8, verb: 'Corra',  simSpeed: 3.0 },
-    ride: { name: 'Pedalada', icon: 'bike', color: '#12B886', xpPerKm: 3,  coinsPerKm: 1, maxKmh: 75, met: 7.5, verb: 'Pedale', simSpeed: 7.5 },
-    swim: { name: 'Natação',  icon: 'swim', color: '#14C2D6', xpPerKm: 40, coinsPerKm: 8, maxKmh: 8,  met: 8.0, verb: 'Nade',   simSpeed: 0.9 },
+    run:   { name: 'Corrida',    icon: 'run',      color: '#1F6BFF', xpPerKm: 10, coinsPerKm: 2,   maxKmh: 25, met: 9.8, verb: 'Corra',   simSpeed: 3.0, g: 'f', gps: true, foot: true },
+    ride:  { name: 'Pedalada',   icon: 'bike',     color: '#12B886', xpPerKm: 3,  coinsPerKm: 1,   maxKmh: 75, met: 7.5, verb: 'Pedale',  simSpeed: 7.5, g: 'm', gps: true, speed: true, title: 'Pedal' },
+    swim:  { name: 'Natação',    icon: 'swim',     color: '#14C2D6', xpPerKm: 40, coinsPerKm: 8,   maxKmh: 8,  met: 8.0, verb: 'Nade',    simSpeed: 0.9, g: 'f' },
+    walk:  { name: 'Caminhada',  icon: 'walk',     color: '#F59E0B', xpPerKm: 6,  coinsPerKm: 1.5, maxKmh: 10, met: 3.8, verb: 'Caminhe', simSpeed: 1.4, g: 'f', gps: true, foot: true },
+    hike:  { name: 'Trilha',     icon: 'mountain', color: '#65A30D', xpPerKm: 9,  coinsPerKm: 2,   maxKmh: 14, met: 6.5, verb: 'Faça trilha', simSpeed: 1.2, g: 'f', gps: true, foot: true },
+    skate: { name: 'Patins',     icon: 'skate',    color: '#EC4899', xpPerKm: 4,  coinsPerKm: 1,   maxKmh: 40, met: 7.0, verb: 'Patine',  simSpeed: 4.5, g: 'm', gps: true, speed: true },
+    board: { name: 'Skate',      icon: 'board',    color: '#F97316', xpPerKm: 4,  coinsPerKm: 1,   maxKmh: 40, met: 5.0, verb: 'Ande de skate', simSpeed: 4.0, g: 'm', gps: true, speed: true },
+    paddle:{ name: 'Remo/Caiaque', icon: 'paddle', color: '#0EA5E9', xpPerKm: 15, coinsPerKm: 3,   maxKmh: 18, met: 5.0, verb: 'Reme',    simSpeed: 2.0, g: 'm', gps: true, speed: true, title: 'Remada', tg: 'f' },
   },
+
 
   /* ---------- GPS ---------- */
   gps: {
@@ -76,6 +82,19 @@ const CONFIG = {
     { id: 'ride10',  text: 'Pedale 10 km',                     type: 'km',       sport: 'ride', value: 10,  xp: 40, coins: 10 },
     { id: 'ride20m', text: 'Pedale 20 minutos',                type: 'minutes',  sport: 'ride', value: 20,  xp: 35, coins: 10 },
     { id: 'swim500', text: 'Nade 500 m',                       type: 'km',       sport: 'swim', value: 0.5, xp: 50, coins: 15 },
+    { id: 'walk3',   text: 'Caminhe 3 km',                     type: 'km',       sport: 'walk', value: 3,   xp: 30, coins: 8 },
+    { id: 'walk40m', text: 'Caminhe 40 minutos',               type: 'minutes',  sport: 'walk', value: 40,  xp: 35, coins: 10 },
+    { id: 'hike5',   text: 'Faça 5 km de trilha',              type: 'km',       sport: 'hike', value: 5,   xp: 50, coins: 15 },
+    { id: 'hike60m', text: 'Fique 1 hora na trilha',           type: 'minutes',  sport: 'hike', value: 60,  xp: 50, coins: 15 },
+    { id: 'skate8',  text: 'Patine 8 km',                      type: 'km',       sport: 'skate', value: 8,  xp: 40, coins: 10 },
+    { id: 'skate30m',text: 'Patine 30 minutos',                type: 'minutes',  sport: 'skate', value: 30, xp: 35, coins: 10 },
+    { id: 'board5',  text: 'Ande 5 km de skate',               type: 'km',       sport: 'board', value: 5,  xp: 35, coins: 10 },
+    { id: 'board30m',text: 'Ande de skate por 30 minutos',     type: 'minutes',  sport: 'board', value: 30, xp: 35, coins: 10 },
+    { id: 'paddle3', text: 'Reme 3 km',                        type: 'km',       sport: 'paddle', value: 3, xp: 45, coins: 12 },
+    { id: 'paddle30m',text: 'Reme 30 minutos',                 type: 'minutes',  sport: 'paddle', value: 30, xp: 40, coins: 12 },
+    { id: 'swim30m', text: 'Nade 30 minutos',                  type: 'minutes',  sport: 'swim', value: 30,  xp: 45, coins: 12 },
+    { id: 'run5',    text: 'Corra 5 km',                       type: 'km',       sport: 'run',  value: 5,   xp: 70, coins: 18 },
+    { id: 'ride20',  text: 'Pedale 20 km',                     type: 'km',       sport: 'ride', value: 20,  xp: 60, coins: 15 },
     { id: 'early',   text: 'Faça um treino antes das 8h',      type: 'before',   hour: 8,       value: 1,   xp: 40, coins: 15 },
     { id: 'any3',    text: 'Some 3 km em qualquer esporte',    type: 'km',       sport: 'all',  value: 3,   xp: 30, coins: 8  },
     { id: 'move30',  text: 'Treine 30 minutos (qualquer esporte)', type: 'minutes', sport: 'all', value: 30, xp: 35, coins: 10 },
@@ -87,6 +106,14 @@ const CONFIG = {
     { id: 'w15',      text: 'Some 15 km na semana',          type: 'km',       sport: 'all', value: 15, xp: 150, coins: 50 },
     { id: 'w3sports', text: 'Treine 3 esportes diferentes',  type: 'sports',   value: 3,     xp: 200, coins: 80 },
     { id: 'w4work',   text: 'Faça 4 treinos na semana',      type: 'workouts', value: 4,     xp: 120, coins: 40 },
+    { id: 'wrun20',   text: 'Corra 20 km na semana',         type: 'km', sport: 'run',    value: 20, xp: 180, coins: 60 },
+    { id: 'wride80',  text: 'Pedale 80 km na semana',        type: 'km', sport: 'ride',   value: 80, xp: 180, coins: 60 },
+    { id: 'wswim3',   text: 'Nade 3 km na semana',           type: 'km', sport: 'swim',   value: 3,  xp: 180, coins: 60 },
+    { id: 'wwalk20',  text: 'Caminhe 20 km na semana',       type: 'km', sport: 'walk',   value: 20, xp: 150, coins: 50 },
+    { id: 'whike15',  text: 'Faça 15 km de trilha na semana',type: 'km', sport: 'hike',   value: 15, xp: 180, coins: 60 },
+    { id: 'wskate30', text: 'Patine 30 km na semana',        type: 'km', sport: 'skate',  value: 30, xp: 160, coins: 55 },
+    { id: 'wboard20', text: 'Ande 20 km de skate na semana', type: 'km', sport: 'board',  value: 20, xp: 160, coins: 55 },
+    { id: 'wpaddle10',text: 'Reme 10 km na semana',          type: 'km', sport: 'paddle', value: 10, xp: 180, coins: 60 },
   ],
 
   /* ---------- Missões especiais do mês (chave = número do mês) ---------- */
@@ -96,6 +123,7 @@ const CONFIG = {
     11: { id: 'azul',    icon: 'heart', text: 'Novembro Azul: 30 km no mês',       type: 'km', sport: 'all', value: 30, xp: 300, coins: 150 },
     12: { id: 'natal',   icon: 'sparkles', text: 'Fecha o ano: 50 km em dezembro',    type: 'km', sport: 'all', value: 50, xp: 400, coins: 200 },
   },
+  dailyBonus: { xp: 60, coins: 25 }, // completar as 3 diárias
   seasonalDefault: { id: 'mes', icon: 'calendar', text: 'Desafio do mês: 40 km', type: 'km', sport: 'all', value: 40, xp: 300, coins: 150 },
 
   /* ---------- Medalhas ----------
