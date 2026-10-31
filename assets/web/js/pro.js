@@ -51,9 +51,9 @@ const Pro = {
   /* ---------- análise completa de um treino ---------- */
   analyze(act) {
     const sig = this.sig(), hit = this._cache.get(act);
-    if (hit && hit.sig === sig && hit.hr === JSON.stringify(act.hr || null)) return hit.r;
+    if (hit && hit.sig === sig && hit.hr === JSON.stringify(act.hr || null) && hit.k === `${act.altSrc}|${act.distance}|${(act.points || []).length}`) return hit.r;
     const r = this._analyze(act);
-    this._cache.set(act, { sig, hr: JSON.stringify(act.hr || null), r });
+    this._cache.set(act, { sig, hr: JSON.stringify(act.hr || null), k: `${act.altSrc}|${act.distance}|${(act.points || []).length}`, r });
     return r;
   },
   _analyze(act) {

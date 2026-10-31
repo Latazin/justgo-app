@@ -159,13 +159,19 @@ const Game = {
   },
 
   calories(act) {
-    if (typeof Pro !== 'undefined' && Pro.on()) { try { return Pro.analyze(act).kcal; } catch (e) { console.error(e); } }
+    if (typeof Pro !== 'undefined' && act.points && act.points.length > 3) { try { const k = Pro.analyze(act).kcal; if (k > 0) return k; } catch (e) { console.error(e); } }
     return this.caloriesBasic(act);
   },
   caloriesBasic(act) {
     const P = Store.data.profile, w = P.weight || 70, age = P.age || 30;
     const ageF = age > 40 ? 1 - Math.min(0.1, (age - 40) * 0.004) : 1; // gasto cai levemente com a idade
-    return Math.round(CONFIG.sports[act.sport].met * w * (act.duration / 3600) * ageF);
+    // sem GPS (piscina, manual): MET ajustado pela velocidade média
+    const v = act.duration ? (act.distance || 0) / act.duration : 0, sp = act.sport;
+    let met = CONFIG.sports[sp].met;
+    if (sp === 'run' && v) met = Math.max(6, Math.min(16, 1 + 3.5 * v * 0.98)); // ≈ ACSM: 1 MET a cada ~1 km/h
+    else if (sp === 'walk' && v) met = Math.max(2.5, Math.min(6.5, 1.3 + 1.6 * v));
+    else if (sp === 'swim' && v) met = Math.max(5, Math.min(11, 3 + 7 * v));
+    return Math.round(met * w * (act.duration / 3600) * ageF);
   },
 
   /* ---------- temporadas (XP do mês) ---------- */
@@ -184,16 +190,25 @@ const Game = {
     return { league: l, xp };
   },
   /* ---------- clima (Open-Meteo, grátis e sem chave) ---------- */
-  async fetchWeather(act) {
-    const p = act.points && act.points[0]; if (!p || act.weather) return null;
-    const d = new Date(act.start), day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  async fetchWeather(act, force) {
+    const p = act.points && act.points.find((q) => q && q[0] != null); if (!p || (act.weather && act.weather.v === 2 && !force)) return null;
+    // clima no MEIO do treino, interpolado entre as horas, no fuso UTC (não depende do fuso do celular)
+    const mid = act.start + ((act.elapsed || act.duration || 0) * 1000) / 2, day = (t) => new Date(t).toISOString().slice(0, 10);
+    const old = Date.now() - mid > 80 * 864e5;
+    const base = old ? 'https://archive-api.open-meteo.com/v1/archive' : 'https://api.open-meteo.com/v1/forecast';
+    const url = `${base}?latitude=${p[0].toFixed(3)}&longitude=${p[1].toFixed(3)}&hourly=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,precipitation&timezone=GMT&start_date=${day(mid - 3600e3)}&end_date=${day(mid + 3600e3)}`;
     try {
-      const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p[0].toFixed(3)}&longitude=${p[1].toFixed(3)}&hourly=temperature_2m,precipitation&timezone=auto&start_date=${day}&end_date=${day}`);
-      if (!r.ok) return null;
-      const j = await r.json(), h = d.getHours();
-      act.weather = { temp: Math.round(j.hourly.temperature_2m[h]), rain: j.hourly.precipitation[h] || 0 };
+      const r = await fetch(url); if (!r.ok) return null;
+      const j = await r.json(), H = j.hourly; if (!H || !H.time) return null;
+      const ts = H.time.map((t) => Date.parse(t + ':00Z'));
+      let i = ts.findIndex((t) => t > mid); if (i <= 0) i = Math.max(1, ts.length - 1);
+      const f = Math.max(0, Math.min(1, (mid - ts[i - 1]) / (ts[i] - ts[i - 1] || 1)));
+      const at = (arr) => (arr && arr[i - 1] != null && arr[i] != null ? arr[i - 1] + (arr[i] - arr[i - 1]) * f : arr && (arr[i] ?? arr[i - 1]));
+      const temp = at(H.temperature_2m); if (temp == null || !isFinite(temp)) return null;
+      const wasRain = act.weather && act.weather.rain >= 0.2;
+      act.weather = { v: 2, temp: Math.round(temp * 10) / 10, feels: H.apparent_temperature ? Math.round(at(H.apparent_temperature)) : null, hum: H.relative_humidity_2m ? Math.round(at(H.relative_humidity_2m)) : null, wind: H.wind_speed_10m ? Math.round(at(H.wind_speed_10m)) : null, rain: Math.max(H.precipitation[i - 1] || 0, H.precipitation[i] || 0) };
       const out = { weather: act.weather, medal: null };
-      if (act.weather.rain >= 0.2 && !act.flagged && !Store.data.medals.rain) {
+      if (!wasRain && act.weather.rain >= 0.2 && !act.flagged && !Store.data.medals.rain) {
         Store.data.medals.rain = act.start; Store.data.xp += CONFIG.medalReward.xp; Store.data.coins += CONFIG.medalReward.coins;
         out.medal = CONFIG.medals.find((m) => m.id === 'rain');
       }

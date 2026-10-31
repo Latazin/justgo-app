@@ -15,6 +15,7 @@ const App = {
   init() {
     Store.load();
     // 2.8.2: todos os treinos já feitos passam a ser públicos (uma vez)
+    setTimeout(() => this.statsFix().catch((e) => console.warn(e)), 9000);
     if (!Store.data.fixGps1) { try { this.repairActs(); } catch (e) { console.warn(e); } }
     if (!Store.data.pubAll1) { Store.data.activities.forEach((a) => { delete a.private; }); Store.data.pubAll1 = 1; try { Store.save(); } catch (e) {} }
     Shop.apply();
@@ -227,10 +228,12 @@ const App = {
     FX.celebrate(res);
     Game.fetchWeather(act).then((w) => {
       if (!w) return;
-      const el = $('#sWeather'); if (el) el.innerHTML = `${I(w.weather.rain >= 0.2 ? 'cloudRain' : 'cloud', 'xs')} ${w.weather.temp}°C`;
+      const el = $('#sWeather'); if (el) el.innerHTML = `${I(w.weather.rain >= 0.2 ? 'cloudRain' : 'cloud', 'xs')} ${Math.round(w.weather.temp)}°C`;
       if (w.medal) { FX.toast('Medalha: Treino na chuva!'); FX.beep([659, 784, 988]); }
     });
     Cloud.publish(act).catch(() => {});
+    // altitude pelo relevo real (subida/descida e calorias mais exatas); publica de novo com os números certos
+    Elev.apply(act).then((ch) => { if (!ch) return; Store.save(); if (act.pub) Cloud.publish(act).catch(() => {}); if (App.tab === 'detail' && $('#sWeather')) UI.summary(act, null, false); }).catch(() => {});
     // território: disputa as áreas fechadas neste treino
     if (res.zones && res.zones.loops.length && !act.private) {
       Zones.claim(act, res.zones.loops).then((r) => {
@@ -267,6 +270,22 @@ const App = {
   },
   // conserta treinos antigos: tira leituras de GPS repetidas (menos de 0,8 s da anterior),
   // que somavam metros "fantasmas" e geravam velocidades absurdas. Recalcula distância e parciais.
+  // revisão geral dos treinos já salvos (uma vez): relevo real, clima preciso e republica no Social
+  async statsFix() {
+    const D = Store.data; if (D.statsV >= 3) return;
+    const list = [...D.activities].sort((a, b) => b.start - a.start);
+    let n = 0, fail = 0;
+    for (const a of list) {
+      if (App.tracker) return; // nunca durante um treino
+      let ch = false;
+      try { ch = (await Elev.apply(a)) || ch; } catch (e) { fail++; }
+      if (a.points && a.points.length && !(a.weather && a.weather.v === 2)) { try { ch = !!(await Game.fetchWeather(a, true)) || ch; } catch (e) {} }
+      if (ch) { n++; Store.save(); if (a.pub) Cloud.publish(a).catch(() => {}); }
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    if (!fail) D.statsV = 3; Store.save(); // sem internet em algum: tenta de novo na próxima abertura
+    if (n) FX.toast(`Estatísticas revisadas em ${n} treino${n > 1 ? 's' : ''}: relevo e clima mais precisos.`);
+  },
   repairActs() {
     const D = Store.data, changed = [];
     D.activities.forEach((a) => {

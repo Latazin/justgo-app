@@ -549,7 +549,8 @@ const UI = {
     const hasMap = act.points && act.points.length > 1;
     const stats = [['Distância', Fmt.km(act.distance), 'km'], [Fmt.paceLabel(act.sport, true), Fmt.pace(act.sport, avg), Fmt.paceUnit(act.sport)], ['Tempo', Fmt.time(act.duration), '']];
     const more = [['Calorias', `${Game.calories(act)} kcal`]];
-    if (hasMap) more.push(['Ganho de elevação', `${Geo.elevationGain(act.points)} m`]);
+    if (hasMap) { const E = Geo.elevation(act.points); if (E.max != null) { more.push(['Subida total', `${E.gain} m`], ['Descida total', `${E.loss} m`], ['Altitude mín. / máx.', `${E.min} / ${E.max} m`]); more.push(['Fonte da altitude', act.altSrc === 'dem' ? 'Relevo do terreno (preciso)' : 'GPS do celular (calculando relevo…)']); } }
+    if (act.weather && act.weather.temp != null) { const W2 = act.weather; more.push(['Clima no treino', `${Math.round(W2.temp)}°C${W2.feels != null ? ` · sensação ${W2.feels}°C` : ''}`]); if (W2.hum != null) more.push(['Umidade · vento', `${W2.hum}% · ${W2.wind != null ? W2.wind + ' km/h' : '--'}`]); }
     if (act.elapsed && act.elapsed !== act.duration) more.push(['Tempo total', Fmt.time(act.elapsed)]);
     if (act.estimated) more.push(['Distância estimada (app minimizado)', Fmt.km(act.estimated) + ' km']);
     if (act.pool) more.push(['Piscina', `${act.pool.laps} × ${String(act.pool.length).replace('.', ',')} m`]);
@@ -617,7 +618,7 @@ const UI = {
     this.render(`<header class="top"><div class="top-l"><button class="back" data-act="go" data-v="${isNew ? 'home' : 'history'}">${I('chevronLeft')}</button></div>
       <div class="top-r">${!isNew ? `<button class="icon-btn" data-act="del" data-v="${act.id}" title="Excluir">${I('trash')}</button>` : ''}</div></header>
     <main class="screen summary">
-      <div class="post-h">${this.avatar()}<div class="grow"><b>${esc(Store.data.profile.name)}</b><small>${Fmt.date(act.start)}${act.mode === 'gpx' ? ' · importado' : ''}</small></div>${act.private ? `<span class="badge">${I('lock', 'xs')} Privado</span>` : ''}<span class="weather" id="sWeather">${W ? `${I(W.rain >= 0.2 ? 'cloudRain' : 'cloud', 'xs')} ${W.temp}°C` : ''}</span></div>
+      <div class="post-h">${this.avatar()}<div class="grow"><b>${esc(Store.data.profile.name)}</b><small>${Fmt.date(act.start)}${act.mode === 'gpx' ? ' · importado' : ''}</small></div>${act.private ? `<span class="badge">${I('lock', 'xs')} Privado</span>` : ''}<span class="weather" id="sWeather">${W && W.temp != null ? `${I(W.rain >= 0.2 ? 'cloudRain' : 'cloud', 'xs')} ${Math.round(W.temp)}°C` : ''}</span></div>
       <h1 class="act-title">${this.actTitle(act)}</h1>
       ${act.flagged ? `<div class="notice bad">${I('alert')}<div><b>Não conta para missões e rankings</b><small>${esc(act.flagReason)}</small></div></div>` : ''}
       <div class="big-stats">${stats.map(([l, v, u]) => `<div><span class="eyebrow">${l}</span><b class="num">${v}</b>${u ? `<small>${u}</small>` : ''}</div>`).join('')}</div>
@@ -635,6 +636,10 @@ const UI = {
       ${isNew ? '<button class="btn primary lg" data-act="go" data-v="home">Concluir</button>' : ''}
     </main>`, !isNew);
 
+    if (hasMap && act.altSrc !== 'dem' && !act.remote && !this._elevBusy) {
+      this._elevBusy = true;
+      Elev.apply(act).then((ch) => { this._elevBusy = false; if (!ch) return; Store.save(); if (act.pub) Cloud.publish(act).catch(() => {}); if (App.tab === 'detail' && $('#sMap')) this.summary(act, res, isNew); }).catch(() => { this._elevBusy = false; });
+    }
     const map = hasMap && this.map('sMap');
     if (map) {
       const line = this.routeLine(map, Geo.segments(act.points), color, 5);

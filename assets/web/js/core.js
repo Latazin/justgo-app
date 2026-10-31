@@ -123,15 +123,21 @@ const Geo = {
     if (cur.length) segs.push(cur);
     return segs;
   },
-  elevationGain(points) {
-    let gain = 0, last = null;
-    (points || []).forEach((p) => {
-      if (p[3] == null) return;
-      if (last == null) { last = p[3]; return; }
-      const d = p[3] - last;
-      if (Math.abs(d) >= 2) { if (d > 0) gain += d; last = p[3]; } // filtro de ruído de 2 m
-    });
-    return Math.round(gain);
+  elevationGain(points) { return this.elevation(points).gain; },
+  // subida/descida: média móvel por distância (±40 m) e só conta variação a partir de 3 m
+  elevation(points) {
+    const P = (points || []).filter((p) => p && p[3] != null);
+    if (P.length < 2) return { gain: 0, loss: 0, min: null, max: null };
+    const D = [0]; for (let i = 1; i < P.length; i++) D.push(D[i - 1] + (P[i][4] ? 0 : this.dist(P[i - 1], P[i])));
+    const S = []; let a = 0, b = 0, sum = 0;
+    for (let i = 0; i < P.length; i++) {
+      while (D[b] !== undefined && D[b] <= D[i] + 40) { sum += P[b][3]; b++; }
+      while (D[a] < D[i] - 40) { sum -= P[a][3]; a++; }
+      S.push(sum / (b - a));
+    }
+    let gain = 0, loss = 0, ref = S[0];
+    S.forEach((v) => { const d = v - ref; if (d >= 3) { gain += d; ref = v; } else if (d <= -3) { loss -= d; ref = v; } });
+    return { gain: Math.round(gain), loss: Math.round(loss), min: Math.round(Math.min(...S)), max: Math.round(Math.max(...S)) };
   },
 };
 
@@ -169,7 +175,7 @@ class Tracker {
   // chamado quando o usuário volta para o app
   wakeUp() {
     if (this.sim || this.state !== 'running' || !('geolocation' in navigator)) return;
-    navigator.geolocation.getCurrentPosition((p) => this.onPos({ lat: p.coords.latitude, lng: p.coords.longitude, alt: p.coords.altitude, acc: p.coords.accuracy, t: Date.now() }), () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+    navigator.geolocation.getCurrentPosition((p) => { const now = Date.now(), ts = p.timestamp && Math.abs(now - p.timestamp) < 10000 ? p.timestamp : now; this.onPos({ lat: p.coords.latitude, lng: p.coords.longitude, alt: p.coords.altitude, acc: p.coords.accuracy, t: ts }); }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
     this.tick();
   }
   pause() { this.state = 'paused'; this.speed = 0; this.emit(); }
@@ -184,7 +190,8 @@ class Tracker {
   watch() {
     if (!('geolocation' in navigator)) { this.gpsStatus = 'sem GPS neste aparelho'; return; }
     this.watchId = navigator.geolocation.watchPosition(
-      (p) => this.onPos({ lat: p.coords.latitude, lng: p.coords.longitude, alt: p.coords.altitude, acc: p.coords.accuracy, t: Date.now() }),
+      (p) => { const now = Date.now(), ts = p.timestamp && Math.abs(now - p.timestamp) < 10000 ? p.timestamp : now; this.onPos({ lat: p.coords.latitude, lng: p.coords.longitude, alt: p.coords.altitude, acc: p.coords.accuracy, t: ts }); }, // hora da leitura do GPS
+
       (e) => { this.gpsStatus = e.code === 1 ? 'permissão de GPS negada' : 'sinal de GPS fraco'; this.emit(); },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
     );
@@ -241,7 +248,12 @@ class Tracker {
       return this.emit();
     }
     this.rejects = 0;
-    if (d < CONFIG.gps.minMoveM) return this.emit();
+    // parado (sinal, semáforo): o GPS "passeia" dentro da margem de precisão. Só conta deslocamento maior
+    // que essa margem (mín. 3 m, máx. 15 m). O último ponto fica onde está: andando de verdade nada se perde.
+    const minMove = Math.max(CONFIG.gps.minMoveM, Math.min(15, (p.acc || 6) * 1.1));
+    if (d < minMove) return this.emit();
+    // deslocamento lento demais para ser gente se movendo (< 0,5 m/s) e dentro de ~2,5× a precisão: é o GPS oscilando
+    if (v < 0.5 && d < Math.min(30, (p.acc || 6) * 2.5)) return this.emit();
 
     if (v >= CONFIG.gps.autoPauseSpeed) { this.lastMove = p.t; this.autoPaused = false; }
     this.distance += d;

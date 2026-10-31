@@ -169,7 +169,7 @@ const Cloud = {
     const { error } = await this.sb.from('activities').upsert({
       id: act.id, user_id: this.user.id, sport: act.sport, start: new Date(act.start).toISOString(), distance: act.distance, duration: act.duration,
       elapsed: act.elapsed, title: UI.actTitle(act), route, xp: act.xp || 0, flagged: !!act.flagged,
-      stats: { elev: Geo.elevationGain(act.points), pool: act.pool || null, weather: act.weather || null },
+      stats: { elev: Geo.elevationGain(act.points), alt: act.altSrc || 'gps', kcal: Game.calories(act), pool: act.pool || null, weather: act.weather || null },
     });
     if (!error && !act.pub) { act.pub = 1; Store.save(); }
     this.pushProfile();
