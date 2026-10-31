@@ -316,57 +316,87 @@ const View3D = {
     this.hud(g, t, outro, intro);
   },
 
-  // informações do vídeo: dois cartões de vidro compactos (topo e rodapé), o meio fica livre para a rota
+  // logo do JustGo desenhada direto no canvas (mesmo desenho do ícone do app)
+  logo(g, x, y, sz) {
+    g.save(); g.translate(x, y); g.scale(sz / 64, sz / 64);
+    const gr = g.createLinearGradient(0, 0, 64, 64); gr.addColorStop(0, '#4A8CFF'); gr.addColorStop(0.55, '#1F6BFF'); gr.addColorStop(1, '#0F47D6');
+    g.beginPath(); g.roundRect ? g.roundRect(0, 0, 64, 64, 15) : g.rect(0, 0, 64, 64); g.fillStyle = gr; g.fill();
+    g.translate(32, 32); g.scale(1.075, 1.075); g.transform(1, 0, Math.tan((-14 * Math.PI) / 180), 1, 0, 0); g.translate(-30, -32);
+    g.fillStyle = '#fff'; g.fill(new Path2D('M29 15.5h11.5L56 32 40.5 48.5H29L44.5 32z'));
+    const bar = (bx, by, w, o) => { g.globalAlpha = o; g.beginPath(); g.roundRect ? g.roundRect(bx, by, w, 5.6, 2.8) : g.rect(bx, by, w, 5.6); g.fill(); };
+    const A = g.globalAlpha; bar(11, 21.5, 15, 0.7 * A); bar(5, 29.2, 21, A); bar(13, 36.9, 13, 0.7 * A); g.globalAlpha = A;
+    g.restore();
+  },
+
+  // informações do vídeo: faixa de cinema no topo (logo + título) e no rodapé (números + altimetria).
+  // O meio do quadro fica livre para a rota.
   hud(g, t, outro, intro) {
     const W = this.W, H = this.H, a = this.act, sp = CONFIG.sports[a.sport] || {}, col = this.color;
-    const ap = intro == null ? 1 : Math.min(1, intro * 1.4), slide = (1 - ap) * 40;
-    const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
-    const glass = (x, y, w, h, r) => { g.save(); g.shadowColor = 'rgba(0,0,0,.28)'; g.shadowBlur = 24; g.shadowOffsetY = 6; rr(x, y, w, h, r); g.fillStyle = 'rgba(12,17,32,.66)'; g.fill(); g.restore(); rr(x + 0.5, y + 0.5, w - 1, h - 1, r); g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 1.5; g.stroke(); };
+    const ap = intro == null ? 1 : Math.min(1, intro * 1.3), slide = (1 - ap) * 30;
+    const ls = (v) => { try { g.letterSpacing = v; } catch (e) {} };
     const fit = (txt, max) => { let t2 = txt; while (g.measureText(t2).width > max && t2.length > 4) t2 = t2.slice(0, -2); return t2 === txt ? txt : t2 + '…'; };
-    g.globalAlpha = ap; g.textBaseline = 'alphabetic'; g.textAlign = 'left';
+    const shadow = (on) => { g.shadowColor = on ? 'rgba(0,0,0,.45)' : 'transparent'; g.shadowBlur = on ? 14 : 0; g.shadowOffsetY = on ? 2 : 0; };
+    g.textBaseline = 'alphabetic'; g.textAlign = 'left';
 
-    // ---- topo: marca + título (cartão do tamanho do texto)
-    g.font = '700 27px Inter, sans-serif'; const title = fit(UI.actTitle(a), W - 210);
-    const sub = `${sp.name || ''} · ${Fmt.date(a.start)}`;
-    const tw1 = g.measureText(title).width; g.font = '500 20px Inter, sans-serif'; const tw2 = g.measureText(sub).width;
-    const cx = 32, cy = 40 - slide, cw = Math.max(tw1, tw2) + 116, ch = 96;
-    glass(cx, cy, cw, ch, 26);
-    g.beginPath(); g.arc(cx + 50, cy + 48, 28, 0, 7); g.fillStyle = col; g.fill();
-    g.font = 'italic 800 30px "Barlow Condensed", Inter, sans-serif'; g.fillStyle = '#fff'; g.textAlign = 'center'; g.fillText('JG', cx + 49, cy + 58); g.textAlign = 'left';
-    g.font = '700 27px Inter, sans-serif'; g.fillStyle = '#fff'; g.fillText(title, cx + 92, cy + 44);
-    g.font = '500 20px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.7)'; g.fillText(sub, cx + 92, cy + 74);
+    // degradês suaves (curtos) só para dar leitura ao texto
+    let gr = g.createLinearGradient(0, 0, 0, 250); gr.addColorStop(0, 'rgba(6,10,24,.82)'); gr.addColorStop(0.55, 'rgba(6,10,24,.4)'); gr.addColorStop(1, 'rgba(6,10,24,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, W, 250);
+    gr = g.createLinearGradient(0, H - 330, 0, H); gr.addColorStop(0, 'rgba(6,10,24,0)'); gr.addColorStop(0.4, 'rgba(6,10,24,.62)'); gr.addColorStop(1, 'rgba(6,10,24,.92)');
+    g.fillStyle = gr; g.fillRect(0, H - 330, W, 330);
 
-    // ---- rodapé: números + perfil de altimetria que vai enchendo
+    g.globalAlpha = ap;
+    // ---- topo: logo + JustGo · etiqueta do esporte
+    const ty = 44 - slide;
+    this.logo(g, 40, ty, 54);
+    g.font = 'italic 800 44px "Barlow Condensed", Inter, sans-serif'; g.fillStyle = '#fff'; g.fillText('Just', 106, ty + 42);
+    const jw = g.measureText('Just').width; g.fillStyle = '#5B9BFF'; g.fillText('Go', 106 + jw, ty + 42);
+    g.font = '800 17px Inter, sans-serif'; ls('2px'); const tag = String(sp.name || 'Treino').toUpperCase(), tw = g.measureText(tag).width + 46; ls('0px');
+    const tx = W - 40 - tw; g.beginPath(); g.roundRect ? g.roundRect(tx, ty + 9, tw, 36, 18) : g.rect(tx, ty + 9, tw, 36); g.fillStyle = 'rgba(255,255,255,.14)'; g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1.5; g.stroke();
+    g.beginPath(); g.arc(tx + 19, ty + 27, 5.5, 0, 7); g.fillStyle = col; g.fill();
+    g.fillStyle = '#fff'; ls('2px'); g.fillText(tag, tx + 32, ty + 33); ls('0px');
+    // título + data
+    shadow(true);
+    g.font = '800 38px Inter, sans-serif'; g.fillStyle = '#fff'; g.fillText(fit(UI.actTitle(a), W - 80), 40, ty + 112);
+    g.font = '500 21px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.75)'; g.fillText(Fmt.date(a.start), 40, ty + 144);
+    shadow(false);
+
+    // ---- rodapé: três números grandes
     const dist = t * this.total, secs = (a.duration || 0) * (dist / (a.distance || this.total || 1));
     const avg = a.duration ? (a.distance || this.total) / a.duration : 0;
-    const bx = 32, bw = W - 64, bh = 196, by = H - bh - 36 + slide;
-    glass(bx, by, bw, bh, 30);
-    const cols = [['Distância', Fmt.km(dist), 'km'], ['Tempo', Fmt.time(secs), ''], [Fmt.paceLabel(a.sport, true), Fmt.pace(a.sport, avg), Fmt.paceUnit(a.sport)]];
-    const cw3 = (bw - 40) / 3;
+    const cols = [['DISTÂNCIA', Fmt.km(dist), 'km'], ['TEMPO', Fmt.time(secs), ''], [String(Fmt.paceLabel(a.sport, true)).toUpperCase(), Fmt.pace(a.sport, avg), Fmt.paceUnit(a.sport)]];
+    const by = H - 214 + slide, cw3 = (W - 80) / 3;
     cols.forEach(([lab, val, unit], k) => {
-      const x = bx + 26 + k * cw3;
-      if (k) { g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(x - 14, by + 28, 1.5, 76); }
-      g.font = '600 18px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.62)'; g.fillText(String(lab).toUpperCase(), x, by + 46);
-      g.font = '800 44px Inter, sans-serif'; g.fillStyle = '#fff'; g.fillText(val, x, by + 96);
-      if (unit) { const vw = g.measureText(val).width; g.font = '600 19px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.62)'; if (x + vw + 8 + g.measureText(unit).width < x + cw3 - 10) g.fillText(unit, x + vw + 7, by + 96); }
+      const x = 40 + k * cw3;
+      g.fillStyle = col; g.fillRect(x, by - 18, 22, 4);
+      g.font = '700 16px Inter, sans-serif'; ls('1.6px'); g.fillStyle = 'rgba(255,255,255,.66)'; g.fillText(lab, x, by + 12); ls('0px');
+      shadow(true); g.font = '800 62px "Barlow Condensed", Inter, sans-serif'; g.fillStyle = '#fff'; g.fillText(val, x, by + 72); shadow(false);
+      if (unit) { const vw = g.measureText(val).width; g.font = '700 20px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.66)'; if (vw + 10 + g.measureText(unit).width < cw3 - 8) g.fillText(unit, x + vw + 8, by + 72); }
     });
-    // perfil (ou barra simples sem altitude)
-    const px0 = bx + 26, pw = bw - 52, py0 = by + 128, ph = 46, E = this.prof;
+    // ---- altimetria (ou barra) que vai enchendo
+    const px0 = 40, pw = W - 80, py0 = H - 108 + slide, ph = 52, E = this.prof;
     if (E) {
-      const path = () => { g.beginPath(); g.moveTo(px0, py0 + ph); E.forEach((e, k) => g.lineTo(px0 + (pw * k) / (E.length - 1), py0 + ph - e * ph)); g.lineTo(px0 + pw, py0 + ph); g.closePath(); };
-      path(); g.fillStyle = 'rgba(255,255,255,.14)'; g.fill();
-      g.save(); g.beginPath(); g.rect(px0, py0 - 4, pw * t, ph + 8); g.clip(); path(); g.fillStyle = col; g.fill(); g.restore();
-      const ke = Math.min(E.length - 1, Math.round(t * (E.length - 1))), hx = px0 + pw * t, hy = py0 + ph - E[ke] * ph;
-      g.beginPath(); g.arc(hx, hy, 8, 0, 7); g.fillStyle = '#fff'; g.fill();
+      const X = (k) => px0 + (pw * k) / (E.length - 1), Y = (k) => py0 + ph - E[k] * ph;
+      const path = () => { g.beginPath(); g.moveTo(px0, py0 + ph); E.forEach((_, k) => g.lineTo(X(k), Y(k))); g.lineTo(px0 + pw, py0 + ph); g.closePath(); };
+      path(); g.fillStyle = 'rgba(255,255,255,.12)'; g.fill();
+      g.save(); g.beginPath(); g.rect(px0, py0 - 10, pw * t, ph + 20); g.clip();
+      const fg = g.createLinearGradient(0, py0, 0, py0 + ph); fg.addColorStop(0, col); fg.addColorStop(1, col + '33'); path(); g.fillStyle = fg; g.fill();
+      g.beginPath(); E.forEach((_, k) => (k ? g.lineTo(X(k), Y(k)) : g.moveTo(X(k), Y(k)))); g.strokeStyle = '#fff'; g.lineWidth = 2.5; g.stroke(); g.restore();
+      const f = t * (E.length - 1), k0 = Math.min(E.length - 2, Math.floor(f)), hy = Y(k0) + (Y(k0 + 1) - Y(k0)) * (f - k0), hx = px0 + pw * t;
+      g.beginPath(); g.arc(hx, hy, 14, 0, 7); g.fillStyle = col + '55'; g.fill();
+      g.beginPath(); g.arc(hx, hy, 7.5, 0, 7); g.fillStyle = '#fff'; g.fill();
     } else {
-      rr(px0, py0 + ph - 10, pw, 10, 5); g.fillStyle = 'rgba(255,255,255,.18)'; g.fill();
-      if (t > 0) { rr(px0, py0 + ph - 10, Math.max(10, pw * t), 10, 5); g.fillStyle = col; g.fill(); }
+      const ry = py0 + ph - 8, rd = (x, w) => { g.beginPath(); g.roundRect ? g.roundRect(x, ry, w, 8, 4) : g.rect(x, ry, w, 8); g.fill(); };
+      g.fillStyle = 'rgba(255,255,255,.18)'; rd(px0, pw); if (t > 0) { g.fillStyle = col; rd(px0, Math.max(8, pw * t)); }
     }
     g.globalAlpha = 1;
+    // fim: chamada com a logo, acima dos números
     if (outro > 0.35) {
-      g.globalAlpha = Math.min(1, (outro - 0.35) * 3); g.font = '600 20px Inter, sans-serif'; g.textAlign = 'center';
-      const msg = 'Grave o seu no app JustGo', mw = g.measureText(msg).width + 40; rr((W - mw) / 2, by - 58, mw, 40, 20); g.fillStyle = 'rgba(12,17,32,.66)'; g.fill();
-      g.fillStyle = '#fff'; g.fillText(msg, W / 2, by - 31); g.textAlign = 'left'; g.globalAlpha = 1;
+      g.globalAlpha = Math.min(1, (outro - 0.35) * 3);
+      g.font = '700 21px Inter, sans-serif'; const msg = 'Grave o seu no app JustGo', mw = g.measureText(msg).width, bw = mw + 82, bx = (W - bw) / 2, yy = by - 96;
+      g.beginPath(); g.roundRect ? g.roundRect(bx, yy, bw, 50, 25) : g.rect(bx, yy, bw, 50); g.fillStyle = 'rgba(6,10,24,.72)'; g.fill();
+      this.logo(g, bx + 10, yy + 9, 32); g.fillStyle = '#fff'; g.fillText(msg, bx + 56, yy + 33);
+      g.globalAlpha = 1;
     }
   },
 
