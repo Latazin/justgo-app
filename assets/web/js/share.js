@@ -1,0 +1,194 @@
+/* =========================================================
+   JustGo — IMAGEM PARA COMPARTILHAR
+   3 modelos × 2 formatos:
+   - Mapa: o percurso sobre o mapa real das ruas
+   - Neon: fundo escuro com o trajeto brilhando
+   - Adesivo: fundo transparente (PNG) para colar em cima da
+     sua foto no Story do Instagram
+   Formatos: Post (1080×1350, 4:5) e Story (1080×1920, 9:16)
+   ========================================================= */
+const ShareCard = {
+  tpl: 'map', fmt: 'story', _map: {},
+  TPLS: [['map', 'Mapa'], ['neon', 'Neon'], ['clear', 'Adesivo']],
+  size(fmt) { return fmt === 'story' ? [1080, 1920] : [1080, 1350]; },
+  F(w, s, fam) { return `${w} ${s}px ${fam || 'Inter'}, -apple-system, Segoe UI, sans-serif`; },
+
+  cells(act) {
+    const avg = act.duration ? act.distance / act.duration : 0, out = [
+      ['Distância', Fmt.km(act.distance), 'km'],
+      [Fmt.isSpeed(act.sport) ? 'Vel. média' : 'Ritmo', Fmt.pace(act.sport, avg), Fmt.isSpeed(act.sport) ? 'km/h' : act.sport === 'swim' ? '/100m' : '/km'],
+      ['Tempo', Fmt.time(act.duration), ''],
+    ];
+    const elev = act.points && act.points.length > 1 ? Geo.elevationGain(act.points) : 0;
+    if (elev >= 5) out.push(['Subida', String(elev), 'm']);
+    else { const k = Game.calories(act); if (k) out.push(['Calorias', String(k), 'kcal']); }
+    return out;
+  },
+
+  // marca JustGo (quadrado azul com a seta + nome)
+  logo(x, X, Y, s, light) {
+    const tg = x.createLinearGradient(X, Y, X + s, Y + s); tg.addColorStop(0, '#5B9BFF'); tg.addColorStop(0.52, '#1F6BFF'); tg.addColorStop(1, '#0F47D6');
+    x.fillStyle = tg; x.beginPath(); x.roundRect(X, Y, s, s, s * 0.24); x.fill();
+    x.save(); x.translate(X, Y); x.scale(s / 64, s / 64); x.translate(32, 32); x.transform(1, 0, Math.tan((-14 * Math.PI) / 180), 1, 0, 0); x.translate(-30, -32); x.fillStyle = '#fff';
+    x.fill(new Path2D('M29 15.5h11.5L56 32 40.5 48.5H29L44.5 32z'));
+    [[11, 21.5, 15, 0.7], [5, 29.2, 21, 1], [13, 36.9, 13, 0.7]].forEach(([rx, ry, rw, o]) => { x.globalAlpha = o; x.beginPath(); x.roundRect(rx, ry, rw, 5.6, 2.8); x.fill(); });
+    x.globalAlpha = 1; x.restore();
+    x.font = 'italic ' + this.F(900, s * 0.75); x.textBaseline = 'middle'; x.fillStyle = light ? '#fff' : '#0B1220';
+    x.fillText('Just', X + s * 1.25, Y + s / 2 + 2); const jw = x.measureText('Just').width; x.fillStyle = light ? '#7DB0FF' : '#1F6BFF'; x.fillText('Go', X + s * 1.25 + jw, Y + s / 2 + 2);
+    x.textBaseline = 'alphabetic';
+  },
+
+  // trajeto encaixado numa caixa (para Neon e Adesivo)
+  fit(act, bx, by, bw, bh) {
+    const pts = Privacy.trim(act.points || []).filter((p) => p && p[0] != null); if (pts.length < 2) return null;
+    const lat0 = (pts[0][0] * Math.PI) / 180, P = pts.map((p) => [p[1] * Math.cos(lat0), -p[0]]);
+    const xs = P.map((p) => p[0]), ys = P.map((p) => p[1]), mnx = Math.min(...xs), mxx = Math.max(...xs), mny = Math.min(...ys), mxy = Math.max(...ys);
+    const sc = Math.min(bw / (mxx - mnx || 1e-9), bh / (mxy - mny || 1e-9));
+    const ox = bx + (bw - (mxx - mnx) * sc) / 2, oy = by + (bh - (mxy - mny) * sc) / 2;
+    return { pts, XY: P.map((p) => [ox + (p[0] - mnx) * sc, oy + (p[1] - mny) * sc]) };
+  },
+  path(x, R) { x.beginPath(); R.XY.forEach(([X, Y], i) => (i && !R.pts[i][4] ? x.lineTo(X, Y) : x.moveTo(X, Y))); },
+
+  // mapa real (MapLibre fora da tela) — guardado por treino/formato
+  async mapImage(act, W, H) {
+    const k = `${act.id}|${W}x${H}`; if (this._map[k]) return this._map[k];
+    const pts = Privacy.trim(act.points || []).filter((p) => p && p[0] != null);
+    if (pts.length < 2 || !window.maplibregl || !View3D.supported()) return null;
+    const div = document.createElement('div'); div.style.cssText = `position:fixed;left:-10000px;top:0;width:${W / 2}px;height:${H / 2}px;`;
+    document.body.appendChild(div);
+    const lngs = pts.map((p) => p[1]), lats = pts.map((p) => p[0]), color = Shop.lineColor(act.sport);
+    let map;
+    try {
+      map = new maplibregl.Map({ container: div, style: CONFIG.maps.color, interactive: false, attributionControl: false, fadeDuration: 0, pixelRatio: 2, preserveDrawingBuffer: true, canvasContextAttributes: { preserveDrawingBuffer: true },
+        bounds: [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], fitBoundsOptions: { padding: { top: H * 0.5 * (H > 1500 ? 0.12 : 0.14), bottom: H * 0.5 * (H > 1500 ? 0.4 : 0.42), left: 34, right: 34 } } });
+      await new Promise((ok) => { map.once('load', ok); setTimeout(ok, 9000); });
+      const segs = Geo.segments(pts).map((s) => s.map((p) => [p[1], p[0]]));
+      map.getStyle().layers.forEach((l) => { try { if (l.type === 'symbol' && /poi|housenum|transit/i.test(l.id)) map.setLayoutProperty(l.id, 'visibility', 'none'); } catch (e) {} });
+      map.addSource('r', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: segs } } });
+      map.addLayer({ id: 'r-c', type: 'line', source: 'r', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#fff', 'line-width': 11 } });
+      map.addLayer({ id: 'r-l', type: 'line', source: 'r', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': color, 'line-width': 6 } });
+      const e = pts[pts.length - 1];
+      map.addSource('e', { type: 'geojson', data: { type: 'FeatureCollection', features: [{ type: 'Feature', properties: { c: '#12B886' }, geometry: { type: 'Point', coordinates: [pts[0][1], pts[0][0]] } }, { type: 'Feature', properties: { c: '#111827' }, geometry: { type: 'Point', coordinates: [e[1], e[0]] } }] } });
+      map.addLayer({ id: 'e', type: 'circle', source: 'e', paint: { 'circle-radius': 8, 'circle-color': ['get', 'c'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 3.5 } });
+      await new Promise((ok) => { map.once('idle', ok); setTimeout(ok, 9000); });
+      const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(map.getCanvas(), 0, 0, W, H);
+      this._map[k] = c; return c;
+    } catch (err) { console.warn('share map', err); return null; }
+    finally { try { map && map.remove(); } catch (e) {} div.remove(); }
+  },
+
+  // bloco de números (2 colunas × 2 linhas no story; 4 colunas no post)
+  numbers(x, cells, X, Y, Wd, light, story) {
+    const cols = story ? 2 : cells.length, cw = Wd / cols, rowH = story ? 170 : 0;
+    cells.forEach(([l, v, u], i) => {
+      const cx = X + (i % cols) * cw, cy = Y + Math.floor(i / cols) * rowH;
+      x.fillStyle = light ? 'rgba(255,255,255,.72)' : '#6B7280'; x.font = this.F(700, story ? 30 : 26); x.fillText(l.toUpperCase(), cx, cy);
+      x.fillStyle = light ? '#fff' : '#0B1220'; const big = story ? (i === 0 ? 104 : 84) : i === 0 ? 76 : 62;
+      x.font = this.F(800, big); let vv = v; while (x.measureText(vv).width > cw - 30 - (u ? 60 : 0) && big > 40) { x.font = this.F(800, big * 0.9); break; }
+      x.fillText(vv, cx, cy + big + 6);
+      if (u) { const w = x.measureText(vv).width; x.font = this.F(600, story ? 32 : 26); x.fillStyle = light ? 'rgba(255,255,255,.75)' : '#6B7280'; x.fillText(u, cx + w + 8, cy + big + 6); }
+    });
+  },
+  title(act) { let t = UI.actTitle(act); return t.length > 34 ? t.slice(0, 33) + '…' : t; },
+
+  async render(act, tpl = this.tpl, fmt = this.fmt) {
+    const [W, H] = this.size(fmt), story = fmt === 'story', c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d'), sp = CONFIG.sports[act.sport] || {}, color = Shop.lineColor(act.sport), cells = this.cells(act);
+    try { await Promise.all(['800 80px Inter', '700 30px Inter', 'italic 900 50px Inter'].map((f) => document.fonts.load(f))); } catch (e) {}
+    const date = new Date(act.start).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+    const nameLine = `${sp.name || ''} · ${date}`;
+
+    if (tpl === 'map') {
+      const img = await this.mapImage(act, W, H);
+      if (img) x.drawImage(img, 0, 0); else { const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#E8EEF7'); g.addColorStop(1, '#CBD5E1'); x.fillStyle = g; x.fillRect(0, 0, W, H); const R = this.fit(act, 120, H * 0.16, W - 240, H * 0.42); if (R) { x.lineJoin = x.lineCap = 'round'; x.strokeStyle = '#fff'; x.lineWidth = 22; this.path(x, R); x.stroke(); x.strokeStyle = color; x.lineWidth = 12; this.path(x, R); x.stroke(); } }
+      // topo: marca num selo branco
+      x.fillStyle = 'rgba(255,255,255,.94)'; x.beginPath(); x.roundRect(48, 56, 330, 96, 48); x.fill();
+      this.logo(x, 68, 74, 60, false);
+      // base: cartão branco com os números
+      const ch = story ? 640 : 470, cy = H - ch - 48;
+      x.save(); x.shadowColor = 'rgba(15,23,42,.25)'; x.shadowBlur = 40; x.shadowOffsetY = 12; x.fillStyle = '#fff'; x.beginPath(); x.roundRect(48, cy, W - 96, ch, 44); x.fill(); x.restore();
+      x.fillStyle = color; x.beginPath(); x.roundRect(96, cy + 52, 10, story ? 112 : 92, 5); x.fill();
+      x.fillStyle = '#0B1220'; x.font = this.F(800, story ? 62 : 54); x.fillText(this.title(act), 128, cy + (story ? 104 : 96));
+      x.fillStyle = '#6B7280'; x.font = this.F(600, story ? 32 : 28); x.fillText(nameLine, 128, cy + (story ? 156 : 140));
+      x.fillStyle = '#E5E7EB'; x.fillRect(96, cy + (story ? 200 : 178), W - 192, 2);
+      this.numbers(x, cells, 96, cy + (story ? 270 : 240), W - 192, false, story);
+      x.fillStyle = '#9CA3AF'; x.font = this.F(600, 26); x.textAlign = 'right'; x.fillText(Store.data.profile.name || '', W - 96, cy + ch - 40); x.textAlign = 'left';
+    } else if (tpl === 'neon') {
+      const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#050816'); g.addColorStop(0.55, '#0B1530'); g.addColorStop(1, '#101827'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+      const top = story ? 300 : 210, bh = story ? 860 : 600;
+      const glow = x.createRadialGradient(W / 2, top + bh / 2, 40, W / 2, top + bh / 2, W * 0.75); glow.addColorStop(0, color + '55'); glow.addColorStop(1, '#0000'); x.fillStyle = glow; x.fillRect(0, 0, W, H);
+      // grade sutil
+      x.strokeStyle = 'rgba(255,255,255,.04)'; x.lineWidth = 2; for (let i = 0; i < W; i += 90) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, H); x.stroke(); } for (let j = 0; j < H; j += 90) { x.beginPath(); x.moveTo(0, j); x.lineTo(W, j); x.stroke(); }
+      this.logo(x, 80, 80, 66, true);
+      x.fillStyle = 'rgba(255,255,255,.6)'; x.font = this.F(600, 30); x.textAlign = 'right'; x.fillText(date, W - 80, 124); x.textAlign = 'left';
+      const R = this.fit(act, 120, top, W - 240, bh);
+      if (R) {
+        x.lineJoin = x.lineCap = 'round';
+        [[46, color + '22'], [28, color + '44'], [14, color], [5, '#fff']].forEach(([w, c2]) => { x.strokeStyle = c2; x.lineWidth = w; x.shadowColor = color; x.shadowBlur = w > 20 ? 40 : 0; this.path(x, R); x.stroke(); });
+        x.shadowBlur = 0;
+        const a = R.XY[0], b = R.XY[R.XY.length - 1];
+        [[a, '#12B886'], [b, '#fff']].forEach(([p, c2]) => { x.fillStyle = c2; x.beginPath(); x.arc(p[0], p[1], 14, 0, 7); x.fill(); });
+      } else { x.fillStyle = color; x.globalAlpha = 0.2; x.beginPath(); x.arc(W / 2, top + bh / 2, 260, 0, 7); x.fill(); x.globalAlpha = 1; }
+      const ty = top + bh + (story ? 130 : 90);
+      x.fillStyle = '#fff'; x.font = this.F(800, story ? 64 : 56); x.fillText(this.title(act), 80, ty);
+      x.fillStyle = color; x.font = this.F(700, 30); x.fillText(`${(sp.name || '').toUpperCase()}  ·  ${(Store.data.profile.name || '').toUpperCase()}`, 80, ty + 54);
+      this.numbers(x, cells, 80, ty + (story ? 150 : 130), W - 160, true, story);
+    } else {
+      // adesivo transparente: só trajeto + números com sombra (cole sobre sua foto)
+      x.clearRect(0, 0, W, H);
+      x.shadowColor = 'rgba(0,0,0,.45)'; x.shadowBlur = 18; x.shadowOffsetY = 3;
+      const top = story ? 360 : 150, bh = story ? 760 : 560;
+      const R = this.fit(act, 160, top, W - 320, bh);
+      if (R) { x.lineJoin = x.lineCap = 'round'; x.strokeStyle = '#fff'; x.lineWidth = 14; this.path(x, R); x.stroke(); }
+      const ty = top + bh + (story ? 150 : 110);
+      x.textAlign = 'center'; const cx = W / 2;
+      cells.slice(0, 3).forEach(([l, v, u], i) => {
+        const y = ty + i * (story ? 190 : 150);
+        x.fillStyle = 'rgba(255,255,255,.88)'; x.font = this.F(700, story ? 32 : 28); x.fillText(l.toUpperCase(), cx, y);
+        x.fillStyle = '#fff'; x.font = this.F(800, story ? 104 : 84); x.fillText(u ? `${v} ${u}` : v, cx, y + (story ? 112 : 92));
+      });
+      x.shadowBlur = 12;
+      x.textAlign = 'left'; this.logo(x, cx - 130, ty + (story ? 590 : 470), 60, true);
+      x.textAlign = 'left'; x.shadowBlur = 0; x.shadowOffsetY = 0;
+    }
+    return c;
+  },
+
+  async open(act) {
+    if (!act) return;
+    const el = document.createElement('div'); el.className = 'crop share-ui';
+    const seg = (name, items, cur) => `<div class="seg" data-g="${name}">${items.map(([v, n]) => `<button class="${v === cur ? 'on' : ''}" data-sv="${v}">${n}</button>`).join('')}</div>`;
+    el.innerHTML = `<div class="crop-box share-box"><h3>Compartilhar treino</h3>
+      <div class="share-prev2 ${this.tpl === 'clear' ? 'checker' : ''}"><div class="sp-load">${I('refresh')}<span>Gerando…</span></div><img alt="Prévia da imagem"></div>
+      <span class="eyebrow">Modelo</span>${seg('tpl', this.TPLS, this.tpl)}
+      <span class="eyebrow">Formato</span>${seg('fmt', [['post', 'Post · 4:5'], ['story', 'Story · 9:16']], this.fmt)}
+      <p class="muted small sp-hint"></p>
+      <div class="row2"><button class="btn ghost" data-c="save">${I('download')} Baixar</button><button class="btn primary" data-c="share">${I('share')} Compartilhar</button></div>
+      <button class="btn ghost sm sp-close" data-c="no">Fechar</button></div>`;
+    document.body.appendChild(el);
+    const img = el.querySelector('img'), prev = el.querySelector('.share-prev2'), hint = el.querySelector('.sp-hint');
+    let canvas = null, busy = 0;
+    const draw = async () => {
+      const my = ++busy; prev.classList.add('busy'); prev.classList.toggle('checker', this.tpl === 'clear'); prev.classList.toggle('story', this.fmt === 'story');
+      hint.textContent = this.tpl === 'clear' ? 'Fundo transparente: no Story, coloque sua foto e cole esta imagem por cima.' : this.tpl === 'map' ? 'Seu percurso no mapa real das ruas.' : 'Fundo escuro com o trajeto em destaque.';
+      const c = await this.render(act); if (my !== busy) return;
+      canvas = c; img.src = c.toDataURL('image/png'); prev.classList.remove('busy');
+    };
+    el.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-sv]');
+      if (b) { const g = b.parentElement.dataset.g; this[g] = b.dataset.sv; b.parentElement.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); try { localStorage.setItem('jg_share', JSON.stringify([this.tpl, this.fmt])); } catch (er) {} return draw(); }
+      const a = e.target.closest('[data-c]'); if (!a) return;
+      if (a.dataset.c === 'no') return el.remove();
+      if (!canvas) return;
+      const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
+      const name = `justgo-${act.sport}-${this.tpl}-${this.fmt}.png`, file = new File([blob], name, { type: 'image/png' });
+      if (a.dataset.c === 'share' && !Native.on && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'JustGo', text: `${UI.actTitle(act)} · ${Fmt.km(act.distance)} km no JustGo` }); return; } catch (er) { if (er.name === 'AbortError') return; }
+      }
+      FX.download(name, blob, 'image/png');
+      if (a.dataset.c === 'save' && !Native.on) FX.toast('Imagem salva.');
+    });
+    draw();
+  },
+};
+try { const s = JSON.parse(localStorage.getItem('jg_share') || 'null'); if (s) { ShareCard.tpl = s[0] || 'map'; ShareCard.fmt = s[1] || 'story'; } } catch (e) {}

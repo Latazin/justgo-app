@@ -1139,3 +1139,20 @@ section.card.pro-grid > div:nth-last-child(-n+2) { border-bottom: 0; }
 .retro-card.open small { color: rgba(255,255,255,.8); } .retro-card.open .rc-ic { background: rgba(255,255,255,.14); color: #fff; }
 .retro-card .rc-go { flex: none; padding: 8px 14px; border-radius: 999px; background: #fff; color: #111827; font-weight: 800; font-size: 13px; }
 .retro-card.used .rc-ic { color: #12B886; background: color-mix(in srgb, #12B886 12%, transparent); }
+/* compartilhar treino */
+.share-box { max-width: 440px; gap: 10px; justify-items: stretch; max-height: calc(100vh - 32px); overflow-y: auto; }
+.share-box h3 { text-align: center; }
+.share-prev2 { position: relative; margin: 0 auto; width: min(100%, 300px); aspect-ratio: 4 / 5; border-radius: 16px; overflow: hidden; background: #0b0f1a; box-shadow: var(--shadow-md); }
+.share-prev2.story { aspect-ratio: 9 / 16; width: min(100%, 230px); }
+.share-prev2.checker { background: repeating-conic-gradient(#cbd5e1 0 25%, #f1f5f9 0 50%) 0 0 / 22px 22px; }
+.share-prev2 img { width: 100%; height: 100%; object-fit: contain; display: block; transition: opacity .2s; }
+.share-prev2.busy img { opacity: .35; }
+.sp-load { position: absolute; inset: 0; display: none; place-items: center; align-content: center; gap: 6px; color: #fff; font-weight: 700; font-size: 13px; z-index: 2; }
+.share-prev2.busy .sp-load { display: grid; } .sp-load .ic { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: var(--surface-2); }
+.seg button { padding: 9px 6px; border-radius: 10px; font-weight: 700; font-size: 13px; color: var(--text-3); }
+.seg button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.share-box .eyebrow { margin-bottom: -4px; }
+.sp-hint { text-align: center; margin: 0; min-height: 18px; }
+.sp-close { justify-self: center; }
