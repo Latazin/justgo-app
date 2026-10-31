@@ -304,11 +304,22 @@ const View3D = {
     const s = Math.max(W / cv.width, H / cv.height), dw = cv.width * s, dh = cv.height * s, ox = (W - dw) / 2, oy = (H - dh) / 2;
     g.drawImage(cv, ox, oy, dw, dh);
     const px = (ll) => { const p = m.project(ll); return [ox + p.x * pr * s, oy + p.y * pr * s]; };
-    const P = this.P, ring = (ll, fill, r) => { const [x, y] = px(ll); if (x < -40 || y < -40 || x > W + 40 || y > H + 40) return; g.beginPath(); g.arc(x, y, r, 0, 7); g.fillStyle = '#fff'; g.fill(); g.beginPath(); g.arc(x, y, r - 5, 0, 7); g.fillStyle = fill; g.fill(); };
+    // pontos atrás da câmera projetam em lugar errado (viravam retas cruzando a tela):
+    // mede o quanto cada ponto está "à frente" e ignora o que está atrás da borda de baixo
+    const el = m.getContainer(), ctr = m.getCenter(), br = (m.getBearing() * Math.PI) / 180, kx = 111320 * Math.cos((ctr.lat * Math.PI) / 180);
+    const fwd = (ll) => (ll[0] - ctr.lng) * kx * Math.sin(br) + (ll[1] - ctr.lat) * 110540 * Math.cos(br);
+    const bot = m.unproject([el.clientWidth / 2, el.clientHeight]), lim = Math.min(-150, fwd([bot.lng, bot.lat]) * 1.6);
+    const vis = (ll) => fwd(ll) > lim;
+    const P = this.P, ring = (ll, fill, r) => { if (!vis(ll)) return; const [x, y] = px(ll); if (x < -40 || y < -40 || x > W + 40 || y > H + 40) return; g.beginPath(); g.arc(x, y, r, 0, 7); g.fillStyle = '#fff'; g.fill(); g.beginPath(); g.arc(x, y, r - 5, 0, 7); g.fillStyle = fill; g.fill(); };
     const Q = this.Q, dNow = t * this.total, seg = [];
     if (Q && Q.length) {
       let cur = [];
-      for (let k = 0; k < Q.length && Q[k].d <= dNow; k++) { if (Q[k].br && cur.length) { seg.push(cur); cur = []; } cur.push(px(Q[k].ll)); }
+      for (let k = 0; k < Q.length && Q[k].d <= dNow; k++) {
+        if (!vis(Q[k].ll)) { if (cur.length) { seg.push(cur); cur = []; } continue; }
+        const q = px(Q[k].ll), l = cur[cur.length - 1];
+        if ((Q[k].br || (l && Math.hypot(q[0] - l[0], q[1] - l[1]) > W * 1.2)) && cur.length) { seg.push(cur); cur = []; }
+        cur.push(q);
+      }
       const h = this.at(dNow).pos; if (cur.length) { const [lx, ly] = cur[cur.length - 1], [hx2, hy2] = px([h[1], h[0]]); if (Math.hypot(hx2 - lx, hy2 - ly) < 400) cur.push([hx2, hy2]); } seg.push(cur);
       g.lineCap = 'round'; g.lineJoin = 'round';
       [['#fff', 14], [this.color, 9]].forEach(([c, w]) => { g.strokeStyle = c; g.lineWidth = w; seg.forEach((sg) => { if (sg.length < 2) return; g.beginPath(); g.moveTo(sg[0][0], sg[0][1]); for (let k = 1; k < sg.length; k++) g.lineTo(sg[k][0], sg[k][1]); g.stroke(); }); });
