@@ -881,12 +881,13 @@ const UI = {
   ZCOL: ['#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#EF4444', '#06B6D4', '#84CC16', '#F97316'],
   zoneColor(owner) { let h = 0; String(owner).split('').forEach((c) => (h = (h * 31 + c.charCodeAt(0)) >>> 0)); return this.ZCOL[h % this.ZCOL.length]; },
   mapa() {
-    const lay = App.mapLayers || (App.mapLayers = { zones: true, acts: false, routes: false });
+    const lay = App.mapLayers || (App.mapLayers = { zones: true, acts: false, routes: false, spots: true });
+    if (lay.spots === undefined) lay.spots = true;
     const chip = (k, ic, n) => `<button class="map-chip ${lay[k] ? 'on' : ''}" data-act="mapLayer" data-v="${k}">${I(ic)}${n}</button>`;
     this.render(`<main class="maptab">
       <div class="map-wrap"><div id="bigMap" class="big-map"></div>
-        <div class="map-top"><div class="map-chips">${chip('zones', 'flag', 'Territórios')}${chip('acts', 'activity', 'Meus treinos')}${chip('routes', 'route', 'Rotas')}${chip('explore', 'compass', 'Ruas novas')}</div>
-          <button class="round-btn" data-act="mapCenter" aria-label="Minha posição">${I('nav')}</button></div></div>
+        <div class="map-top"><div class="map-chips">${chip('spots', 'mapPin', 'Pontos')}${chip('zones', 'flag', 'Territórios')}${chip('acts', 'activity', 'Meus treinos')}${chip('routes', 'route', 'Rotas')}${chip('explore', 'compass', 'Ruas novas')}</div>
+          <div class="map-btns"><button class="round-btn" data-act="mapCenter" aria-label="Minha posição">${I('nav')}</button>${Cloud.loggedIn() ? `<button class="round-btn" data-act="spotSuggest" aria-label="Sugerir ponto" title="Sugerir ponto">${I('plus')}</button>` : ''}</div></div></div>
       <section class="map-sheet" id="mapSheet"><div class="loading">Carregando a região…</div></section>
     </main>`);
     const c = Geo.home(), R = Zones.RADIUS_KM * 1000;
@@ -896,7 +897,9 @@ const UI = {
     map.setView(c, 13);
     const ring = L.circle(c, { radius: R, color: '#1F6BFF', weight: 1.5, opacity: 0.6, dashArray: '6 8', fill: false, interactive: false }).addTo(map);
     map.setMaxBounds(ring.getBounds().pad(0.15));
-    this.mapGroups = { zones: L.featureGroup().addTo(map), acts: L.featureGroup().addTo(map), routes: L.featureGroup().addTo(map) };
+    this.mapGroups = { zones: L.featureGroup().addTo(map), acts: L.featureGroup().addTo(map), routes: L.featureGroup().addTo(map), spots: L.featureGroup().addTo(map) };
+    clearInterval(this._spotT); this._spotT = setInterval(() => { if (App.tab !== 'mapa') return clearInterval(this._spotT); if (App.mapLayers.spots) Spots.draw(this.bigMap, this.mapGroups.spots).then(() => this.spotList()).catch(() => {}); }, 60000);
+    if (Cloud.loggedIn()) Geo.locate(false).catch(() => {});
     this.youDot(map, c);
     setTimeout(() => { try { map.invalidateSize(); } catch (e) {} }, 250);
     this._zonesCloud = null;
@@ -908,7 +911,8 @@ const UI = {
   },
   mapaDraw() {
     const map = this.bigMap, G = this.mapGroups, lay = App.mapLayers; if (!map || !G || !$('#bigMap')) return;
-    Object.values(G).forEach((g) => g.clearLayers());
+    Object.values(G).forEach((g) => { if (g !== G.spots) g.clearLayers(); });
+    if (lay.spots && Cloud.loggedIn()) Spots.draw(map, G.spots).then(() => this.spotList()).catch(() => {}); else G.spots.clearLayers();
     const c = this.mapCenter, R = Zones.RADIUS_KM * 1000, near = (p) => Geo.dist(p, c) <= R * 1.1;
     const me = Cloud.user && Cloud.user.id;
     // áreas: da nuvem (todos) ou só as suas, deste aparelho
@@ -927,12 +931,27 @@ const UI = {
     const owners = {}; inR.forEach((z) => { const k = z.owner || 'me'; const o = owners[k] || (owners[k] = { name: z.mine ? 'Você' : z.owner_name || 'Atleta', n: 0, a: 0, mine: z.mine, col: z.mine ? '#1F6BFF' : this.zoneColor(z.owner) }); o.n++; o.a += z.area; });
     const top = Object.values(owners).sort((x, y) => y.a - x.a).slice(0, 5);
     const sheet = $('#mapSheet'); if (!sheet) return;
-    sheet.innerHTML = `<div class="ms-head"><div><b>Território da região</b><small>${I('mapPin', 'xs')} raio de ${Zones.RADIUS_KM} km ao seu redor</small></div>${cloud ? '' : Cloud.loggedIn() ? '' : '<button class="chip-btn sm" data-act="go" data-v="account">Entrar</button>'}</div>
+    sheet.innerHTML = `<div id="spotList"></div><div class="ms-head"><div><b>Território da região</b><small>${I('mapPin', 'xs')} raio de ${Zones.RADIUS_KM} km ao seu redor</small></div>${cloud ? '' : Cloud.loggedIn() ? '' : '<button class="chip-btn sm" data-act="go" data-v="account">Entrar</button>'}</div>
       <div class="ms-stats"><div><b class="num">${inR.length}</b><small>áreas na região</small></div><div><b class="num">${mineZ.length}</b><small>são suas</small></div><div><b class="num">${Zones.areaTxt(mineArea)}</b><small>sua área</small></div></div>
       ${top.length ? `<div class="ms-list">${top.map((o, i) => `<div class="ms-row"><span class="pos num ${i < 3 ? 'top' + (i + 1) : ''}">${i + 1}</span><i class="ms-dot" style="background:${o.col}"></i><b class="grow">${esc(o.name)}</b><small class="num">${o.n} área${o.n > 1 ? 's' : ''} · ${Zones.areaTxt(o.a)}</small></div>`).join('')}</div>`
         : `<div class="ms-empty">${I('flag')}<div><b>Nenhuma área conquistada aqui ainda</b><small>Seja o primeiro a dominar a região.</small></div></div>`}
       <div class="ms-how">${I('route', 'xs')}<span><b>Como conquistar:</b> corra ou pedale e volte ao mesmo ponto, fechando um circuito. A área de dentro vira sua. <b>Para roubar</b>, feche um circuito por cima de pelo menos metade da área de outra pessoa.</span></div>
       ${!Cloud.loggedIn() ? '<p class="muted small">Sem conta, você vê só as suas áreas. Entre para disputar o mapa com outros atletas.</p>' : this._zonesErr ? '<p class="muted small">Não foi possível carregar as áreas dos outros atletas agora.</p>' : ''}`;
+  },
+  // lista "agora nos pontos" no painel do Mapa
+  spotList() {
+    const el = $('#spotList'); if (!el || !Spots.list) return;
+    if (!App.mapLayers.spots) { el.innerHTML = ''; return; }
+    const c = this.mapCenter || Geo.home();
+    const L0 = Spots.list.filter((s) => s.status === 'official').map((s) => ({ s, d: Geo.dist([s.lat, s.lng], c), lv: Spots.live[s.id] })).filter((x) => x.d < 60000);
+    const busy = L0.filter((x) => x.lv && x.lv.total).sort((a, b) => b.lv.total - a.lv.total || a.d - b.d).slice(0, 5);
+    const near = L0.filter((x) => !(x.lv && x.lv.total)).sort((a, b) => a.d - b.d).slice(0, Math.max(0, 4 - busy.length));
+    const pend = Spots.list.filter((s) => s.status !== 'official' && Geo.dist([s.lat, s.lng], c) < 30000).length;
+    const km = (d) => (d < 1000 ? `${Math.round(d / 10) * 10} m` : `${Fmt.num(d / 1000)} km`);
+    const row = ({ s, d, lv }) => `<button class="spl-row tap" data-act="spotOpen" data-v="${s.id}"><span class="spl-ic ${lv && lv.total ? 'live' : ''}">${I('mapPin', 'xs')}</span><div class="grow"><b>${esc(s.name)}</b><small>${km(d)}${s.city ? ' · ' + esc(s.city) : ''}</small></div>${lv && lv.total ? `<span class="spl-n"><i></i>${lv.total} ${lv.total === 1 ? 'pessoa' : 'pessoas'}${(lv.friends || []).length ? ` · ${lv.friends.length} ${lv.friends.length === 1 ? 'amigo' : 'amigos'}` : ''}</span>` : '<span class="spl-0">ninguém agora</span>'}</button>`;
+    el.innerHTML = L0.length ? `<div class="ms-head"><div><b>Agora nos pontos</b><small>${I('mapPin', 'xs')} quem está treinando nos lugares famosos</small></div></div><div class="spl">${[...busy, ...near].map(row).join('')}</div>
+      <p class="muted small spl-note">${Spots.on() ? `${I('check', 'xs')} Você aparece automaticamente quando chega perto de um ponto (só amigos veem seu nome).` : 'Você está invisível nos pontos (Configurações).'}${pend ? ` · ${pend} ${pend === 1 ? 'sugestão' : 'sugestões'} esperando votos` : ''}</p>`
+      : `<div class="ms-head"><div><b>Pontos</b><small>Nenhum ponto famoso perto daqui ainda</small></div></div><p class="muted small">Toque em ${I('plus', 'xs')} no mapa para sugerir um lugar onde a galera treina.</p>`;
   },
   heatmap() {
     this.render(`${this.back('history', 'Mapa de calor')}<main class="screen full"><div id="hMap" class="h-map"></div></main>`);
@@ -1249,6 +1268,7 @@ const UI = {
       <h3 class="group">Sons e vibração</h3>
       <div class="list cfg-list">
         ${sw('sounds', 'Sons', 'Conquistas, desbloqueios e alertas de treino')}
+        ${sw('spotsOn', 'Aparecer nos pontos do mapa', 'Ao chegar perto de um lugar famoso, seus amigos veem você lá; os outros só veem a quantidade de pessoas')}
         ${sw('haptics', 'Vibração', 'A cada km e nos alertas')}
       </div>
 

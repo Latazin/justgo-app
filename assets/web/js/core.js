@@ -55,7 +55,7 @@ const Store = {
 };
 
 /* ---------- Preferências (tela Configurações) ---------- */
-const PREF_DEFAULTS = { autoPause: true, voice: true, countdown: true, sounds: true, haptics: true, mapStyle: 'color', keepAwake: true, defaultSport: '', bio: '', city: '' };
+const PREF_DEFAULTS = { spotsOn: true, autoPause: true, voice: true, countdown: true, sounds: true, haptics: true, mapStyle: 'color', keepAwake: true, defaultSport: '', bio: '', city: '' };
 const Pref = (k) => { const P = Store.data && Store.data.profile; return P && P[k] !== undefined ? P[k] : PREF_DEFAULTS[k]; };
 
 /* ---------- Formatação pt-BR ---------- */
@@ -90,6 +90,7 @@ const Geo = {
   home() { const p = Store.data && Store.data.lastPos; return p ? [p[0], p[1]] : CONFIG.gps.simStart; },
   hasHome() { return !!(Store.data && Store.data.lastPos); },
   remember(lat, lng) {
+    if (typeof Spots !== 'undefined') Spots.onPos(lat, lng); // presença automática nos pontos
     const old = Store.data.lastPos;
     if (old && Geo.dist(old, [lat, lng]) < 200) return;
     Store.data.lastPos = [+lat.toFixed(5), +lng.toFixed(5)];

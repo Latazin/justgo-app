@@ -446,7 +446,7 @@ const App = {
     else if (t.id === 'privZone') { D.privacy.zone = t.checked; Store.save(); if (t.checked && D.privacy.lat == null) FX.toast('Agora marque onde fica sua casa.'); }
     else if (t.id === 'privEnds') { D.privacy.trimEnds = t.checked; Store.save(); }
     else if (t.name === 'privR') { D.privacy.radius = +t.value; Store.save(); }
-    else if (t.dataset.pref) { P[t.dataset.pref] = t.checked; Store.save(); FX.toast(t.checked ? 'Ativado' : 'Desativado'); }
+    else if (t.dataset.pref) { P[t.dataset.pref] = t.checked; Store.save(); if (t.dataset.pref === 'spotsOn' && !t.checked) Spots.leave(); FX.toast(t.dataset.pref === 'spotsOn' ? (t.checked ? 'Você volta a aparecer nos pontos' : 'Você está invisível nos pontos') : t.checked ? 'Ativado' : 'Desativado'); }
     else if (t.id === 'v3Prog') View3D.seek(+t.value / 1000);
     else if (t.dataset.pro) {
       const k = t.dataset.pro, num = t.type === 'number';
@@ -658,6 +658,8 @@ const App = {
       if (Cloud.loggedIn()) { try { P.photo = await Cloud.uploadPhoto(blob); Store.save(); } catch (e) {} }
       FX.toast('Seu atleta agora é sua foto de perfil!'); App.go('atleta');
     },
+    spotSuggest: () => Spots.suggest(),
+    spotOpen: (el) => Spots.sheet(el.dataset.v),
     retroStart: () => Retro.start(),
     retroCancel: () => { if (Retro.busy) { Retro.cancelVideo = true; FX.toast('Geração cancelada. A retrospectiva continua disponível.'); } else { Retro.close(); App.go('home'); } },
     retroClose: () => { if (Retro.busy) return App.actions.retroCancel(); Retro.close(); App.go('home'); },
