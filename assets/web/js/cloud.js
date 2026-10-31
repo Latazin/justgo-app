@@ -126,6 +126,12 @@ const Cloud = {
     return { url: this.sb.storage.from('treinos').getPublicUrl(path).data.publicUrl, path };
   },
   async removeActPhoto(path) { if (path) await this.sb.storage.from('treinos').remove([path]); },
+  async uploadPhotoSrc(blob) {
+    const path = `${this.user.id}/avatar-src.jpg`;
+    const up = await this.sb.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg', cacheControl: '60' });
+    if (up.error) throw up.error;
+    return this.sb.storage.from('avatars').getPublicUrl(path).data.publicUrl + '?v=' + Date.now();
+  },
   async removePhoto() {
     try { await this.sb.storage.from('avatars').remove([`${this.user.id}/avatar.jpg`]); } catch (e) {}
     await this.sb.from('profiles').update({ photo: null }).eq('id', this.user.id);
@@ -357,6 +363,12 @@ const Cloud = {
     try { const [x, y] = await Promise.all([this.sb.from('follows').select('following').eq('follower', id), this.sb.from('follows').select('follower').eq('following', id)]); const Y = new Set((y.data || []).map((r) => r.follower)); friends = (x.data || []).filter((r) => Y.has(r.following)).length; } catch (e) {}
     return { followers: a.count || 0, following: b.count || 0, friends };
   },
+  // faixa do Social: o treino mais recente de cada pessoa que você segue (últimos 3 dias)
+  async storyRow() {
+    const ids = await this.following(); if (!ids.length) return [];
+    const list = await this.acts(this.sb.from('activities').select('id,user_id,sport,start,distance,duration').in('user_id', ids).gte('start', new Date(Date.now() - 3 * 864e5).toISOString()).order('start', { ascending: false }).limit(60));
+    const seen = new Set(); return list.filter((a) => (seen.has(a.user_id) ? false : seen.add(a.user_id)));
+  },
   async profilesMap(ids) {
     ids = [...new Set(ids.filter(Boolean))]; if (!ids.length) return {};
     const { data } = await this.sb.from('profiles').select('*').in('id', ids); const M = {}; (data || []).forEach((p) => (M[p.id] = p)); return M;
@@ -459,7 +471,7 @@ const Cloud = {
 
   /* ---------- desafios entre amigos ---------- */
   async challenges() {
-    const { data } = await this.sb.from('challenges').select('*, a:profiles!challenges_from_user_fkey(name), b:profiles!challenges_to_user_fkey(name)').or(`from_user.eq.${this.user.id},to_user.eq.${this.user.id}`).order('created_at', { ascending: false }).limit(20);
+    const { data } = await this.sb.from('challenges').select('*, a:profiles!challenges_from_user_fkey(*), b:profiles!challenges_to_user_fkey(*)').or(`from_user.eq.${this.user.id},to_user.eq.${this.user.id}`).order('created_at', { ascending: false }).limit(20);
     const list = data || [];
     await Promise.all(list.filter((c) => c.status === 'active' && c.starts_at).map(async (c) => {
       // só conta o que foi feito dentro do período do desafio

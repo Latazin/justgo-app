@@ -10,7 +10,7 @@ const App = {
   tracker: null, coach: null, routeLive: null, wl: null,
 
   // tela -> aba da barra inferior que fica acesa
-  parents: { notifs: 'home', pro: 'profile', progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', ract: 'social', torch: 'social', retro: 'home', atleta: 'profile', avatarEdit: 'profile', club: 'social', history: 'home', heatmap: 'home' },
+  parents: { notifs: 'home', pro: 'profile', progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', ract: 'social', chalPick: 'social', torch: 'social', retro: 'home', atleta: 'profile', avatarEdit: 'profile', club: 'social', history: 'home', heatmap: 'home' },
 
   init() {
     Store.load();
@@ -244,6 +244,14 @@ const App = {
       }).catch((e) => console.error(e));
     }
   },
+  async adjustPhoto() {
+    const P = Store.data.profile, src = P.photoSrc || P.photo; if (!src) return;
+    try {
+      const r = await fetch(src.startsWith('data:') ? src : src + (src.includes('?') ? '&' : '?') + 'r=' + Date.now(), { mode: 'cors' });
+      const img = await createImageBitmap(await r.blob());
+      return this.setPhotoImg(img, false);
+    } catch (e) { FX.toast('Não deu para abrir a foto. Tente trocar por uma nova.'); }
+  },
   // foto do treino: reduz para no máx. 1280 px (≈150–250 KB) e envia
   async addActPhoto(id, file) {
     const a = this.find(id); if (!a) return;
@@ -274,6 +282,10 @@ const App = {
     try { img = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
     catch (e) { img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = URL.createObjectURL(file); }).catch(() => null); }
     if (!img) return FX.toast('Não deu para abrir essa imagem.');
+    return this.setPhotoImg(img, true);
+  },
+  // recorta (centralizar/zoom) e salva; guarda também a original (até 1280 px) para reajustar depois
+  async setPhotoImg(img, isNew) {
     const crop = await this.cropPhoto(img);
     if (!crop) return;
     const S = 320, c = document.createElement('canvas'); c.width = c.height = S;
@@ -285,7 +297,10 @@ const App = {
     P.photo = c.toDataURL('image/jpeg', 0.7); Store.save(); // aparece na hora, mesmo sem internet
     if (!this.tracker) this.go(this.tab);
     if (!Cloud.loggedIn()) return FX.toast('Foto salva neste aparelho. Entre na conta para os outros verem.');
-    try { P.photo = await Cloud.uploadPhoto(blob); Store.save(); FX.toast('Foto de perfil atualizada!'); }
+    try {
+      P.photo = await Cloud.uploadPhoto(blob); Store.save(); FX.toast('Foto de perfil atualizada!');
+      if (isNew) { const k = Math.min(1, 1280 / Math.max(img.width, img.height)), o = document.createElement('canvas'); o.width = Math.round(img.width * k); o.height = Math.round(img.height * k); o.getContext('2d').drawImage(img, 0, 0, o.width, o.height); const ob = await new Promise((r) => o.toBlob(r, 'image/jpeg', 0.85)); try { P.photoSrc = await Cloud.uploadPhotoSrc(ob); Store.save(); } catch (e) {} }
+    }
     catch (e) {
       console.warn('foto', e);
       FX.toast(/bucket|not found|column|photo/i.test(String(e && (e.message || e.error))) ? 'Falta configurar as fotos no Supabase (SQL do avatars).' : 'Não deu para enviar a foto agora. Ela ficou salva neste aparelho.');
@@ -576,7 +591,8 @@ const App = {
     },
     followHere: async (el) => {
       try { await Cloud.follow(el.dataset.v); } catch (e) {}
-      document.querySelectorAll(`[data-act=followHere][data-v="${el.dataset.v}"]`).forEach((b) => { b.outerHTML = `<span class="react followed">${I('check')}Seguindo</span>`; });
+      document.querySelectorAll(`[data-act=followHere][data-v="${el.dataset.v}"]`).forEach((b) => { b.outerHTML = `<span class="followed-tag">${I('check', 'xs')} Seguindo</span>`; });
+      if (Cloud._fol) Cloud._fol.add(el.dataset.v);
       FX.toast('Seguindo!');
     },
     checkUpdate: async () => {
@@ -695,6 +711,22 @@ const App = {
       FX.toast('Foto removida'); App.go(App.tab);
     },
     photoPick: () => { const i = $('#photoIn'); if (i) i.click(); },
+    // toque na própria foto: ver, trocar, reajustar ou remover
+    myPhoto: async () => {
+      const P = Store.data.profile, has = !!P.photo;
+      const v = await FX.modal(`<div class="ph-sheet"><div class="ph-big">${UI.avatar('xl')}</div><b>${esc(P.name || 'Você')}</b>
+        <div class="ph-acts">${has ? `<button class="ph-a" data-m="view">${I('search')}<span>Ver foto</span></button>` : ''}<button class="ph-a" data-m="pick">${I('camera')}<span>${has ? 'Trocar foto' : 'Escolher foto'}</span></button>${has ? `<button class="ph-a" data-m="adjust">${I('edit')}<span>Ajustar</span></button><button class="ph-a danger" data-m="del">${I('trash')}<span>Remover</span></button>` : ''}</div></div>
+        <button class="btn ghost" data-m="no">Fechar</button>`);
+      if (v === 'view') return App.actions.photoView({ dataset: { v: P.photo } });
+      if (v === 'pick') { const i = $('#photoIn'); if (i) i.click(); else FX.toast('Abra seu perfil para trocar a foto.'); return; }
+      if (v === 'adjust') return App.adjustPhoto();
+      if (v === 'del') return App.actions.photoRemove();
+    },
+    // toque na foto de outra pessoa: ver em tamanho grande
+    avView: (el) => {
+      const p = (UI._people && UI._people[el.dataset.v]) || {};
+      FX.modal(`<div class="ph-sheet">${p.photo ? `<div class="photo-view round"><img src="${esc(p.photo)}" alt="Foto de ${esc(p.name || '')}"></div>` : `<div class="ph-big">${UI.avatarOf(p.name, p.frame, p.avatar, 'xl')}</div>`}<b>${esc(p.name || 'Atleta')}</b>${p.username ? `<small class="muted">@${esc(p.username)}</small>` : ''}</div><button class="btn ghost" data-m="ok">Fechar</button>`);
+    },
     quickStart: (el) => { const v = el.dataset.v; if (!CONFIG.sports[v]) return; App.go('record'); App.actions.sport({ dataset: { v } }); },
     editProfile: async () => {
       const P = Store.data.profile;
@@ -887,20 +919,22 @@ const App = {
       try { const id = await Cloud.joinClub(f.cCode); FX.toast('Você entrou no clube!'); App.tab = 'club'; UI.club(id); } catch (e) { FX.toast('Código não encontrado.'); }
     },
     clubOpen: (el) => { App.tab = 'club'; App.nav = 'social'; App.clubTab = 'rank'; UI._club = null; UI.club(el.dataset.v); },
-    chalNew: async (el) => {
-      let to = el.dataset.v;
-      if (el.dataset.nf) return FX.toast('Desafios são entre amigos: vocês dois precisam se seguir.');
-      if (!to) {
-        const ids = await Cloud.friends();
-        if (!ids.length) return FX.toast('Você ainda não tem amigos. Amigo é quem vocês dois se seguem.');
-        const { data } = await Cloud.sb.from('profiles').select('id,name,username').in('id', ids);
-        const f0 = await FX.prompt('Desafiar quem?', [['chTo', 'Amigo', 'select', (data || []).map((p) => `<option value="${p.id}">${esc(p.name)} (@${esc(p.username || '')})</option>`).join('')]], 'Continuar');
-        if (!f0) return; to = f0.chTo;
-      }
-      const f = await FX.prompt('Novo desafio', [['chSport', 'Esporte', 'select', `<option value="">Qualquer esporte</option>${Object.entries(CONFIG.sports).map(([k, s]) => `<option value="${k}">${s.name}</option>`).join('')}`], ['chDays', 'Duração', 'select', [3, 7, 14, 30].map((d) => `<option value="${d}" ${d === 7 ? 'selected' : ''}>${d} dias</option>`).join('')]], 'Desafiar', 'Vence quem somar mais quilômetros no período.');
-      if (!f) return;
-      try { await Cloud.challenge(to, f.chSport || null, f.chDays); FX.toast('Desafio enviado!'); App.sub.social = 'challenges'; App.go('social'); } catch (e) { FX.toast('Erro ao enviar o desafio.'); }
+    chalNew: (el) => {
+      if (el && el.dataset && el.dataset.nf) return FX.toast('Desafios são entre amigos: vocês dois precisam se seguir.');
+      App.chal = { to: (el && el.dataset && el.dataset.v) || null, sport: '', days: 7, q: '' };
+      App.tab = 'chalPick'; App.nav = 'social'; UI.chalPick();
     },
+    chpTo: (el) => { App.chal.to = App.chal.to === el.dataset.v ? null : el.dataset.v; UI.chalPickDraw(); },
+    chpSport: (el) => { App.chal.sport = el.dataset.v; UI.chalPickDraw(); },
+    chpDays: (el) => { App.chal.days = +el.dataset.v; UI.chalPickDraw(); },
+    chpSend: async (el) => {
+      const S = App.chal; if (!S || !S.to) return;
+      el.disabled = true;
+      try { await Cloud.challenge(S.to, S.sport || null, S.days); FX.vibrate([20, 40, 20]); FX.toast('Desafio enviado! 🔥'); App.sub.social = 'challenges'; App.go('social'); }
+      catch (e) { el.disabled = false; FX.toast('Não deu para enviar o desafio.'); }
+    },
+    subTab2: (el) => { App.sub.social = el.dataset.v; App.go('social'); },
+    followList2: (el) => { const [w, id] = el.dataset.v.split(':'); App.tab = 'followList'; App.nav = 'social'; UI.followList(w, id); },
     chalAnswer: async (el) => { const [id, ok] = el.dataset.v.split(':'); await Cloud.answerChallenge(id, ok === '1'); FX.toast(ok === '1' ? 'Desafio aceito. Valendo!' : 'Desafio recusado'); UI.social(); },
     copy: (el) => { try { navigator.clipboard.writeText(el.dataset.v); FX.toast('Copiado!'); } catch (e) { FX.toast(el.dataset.v); } },
     terrRefresh: async () => { FX.toast('Buscando disputas…'); try { UI._terrOwners = await Cloud.territoryOwners(Object.keys(Store.data.territory)); } catch (e) {} App.go('history'); },
