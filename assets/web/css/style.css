@@ -1063,3 +1063,5 @@ section.card.pro-grid > div:nth-last-child(-n+2) { border-bottom: 0; }
 .cc-f { display: flex; align-items: center; gap: 6px; }
 .cc-f span { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
 .cc-f b { font-size: 15px; font-weight: 800; } .cc-f small { margin-left: auto; font-size: 11px; color: var(--text-3); }
+.pf-month { margin: 18px 2px 10px; font-size: 13px; font-weight: 700; color: var(--text-3); letter-spacing: .01em; } .pf-month::first-letter { text-transform: uppercase; }
+.profile .subtabs { position: sticky; top: var(--top-h, 56px); z-index: 20; background: var(--bg); }

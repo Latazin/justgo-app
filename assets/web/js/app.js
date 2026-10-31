@@ -4,7 +4,7 @@
    ========================================================= */
 const App = {
   tab: 'home', nav: 'home',
-  sub: { progress: 'missions', history: 'mine', social: 'discover', profile: 'overview' },
+  sub: { progress: 'missions', history: 'mine', social: 'discover', profile: 'activities' },
   sport: 'run', swimMode: 'pool', mode: 'free', preset: null, route: null,
   sim: false, simMult: 5,
   tracker: null, coach: null, routeLive: null, wl: null,
@@ -28,7 +28,7 @@ const App = {
 
     // barra inferior com o botão Gravar no centro
     $('#nav').innerHTML = [['home', 'home', 'Início'], ['mapa', 'map', 'Mapa'], ['record', 'play', 'Gravar'], ['social', 'users', 'Social'], ['profile', 'user', 'Perfil']]
-      .map(([v, ic, n]) => v === 'record' ? `<button class="nav-rec" data-act="go" data-v="${v}" aria-label="${n}"><span class="rec-btn">${I(ic)}</span><span>${n}</span></button>` : `<button data-act="go" data-v="${v}">${I(ic)}<span>${n}</span></button>`).join('');
+      .map(([v, ic, n]) => v === 'record' ? `<button class="nav-rec" data-act="go" data-v="${v}" aria-label="${n}"><span class="rec-btn">${I(ic)}</span><span>${n}</span></button>` : `<button data-act="${v === 'profile' ? 'navProfile' : 'go'}" data-v="${v}">${I(ic)}<span>${n}</span></button>`).join('');
     // título pequeno no topo aparece ao rolar
     window.addEventListener('scroll', () => { const t = document.querySelector('.top'); if (t) t.classList.toggle('scrolled', window.scrollY > 36); }, { passive: true });
 
@@ -477,6 +477,7 @@ const App = {
     },
     proSet: (el) => { const [k, v] = el.dataset.v.split(':'); Pro.set(k, v); UI.pro(); },
     proOn: () => { Pro.set('on', true); FX.toast('Modo profissional ativado'); App.go('pro'); },
+    navProfile: () => { App.sub.profile = 'activities'; App.go('profile'); },
     profTab: (el) => { App.sub.profile = el.dataset.v; UI.profile(); },
     setPref: (el) => {
       const [k, v] = el.dataset.v.split(':'), P = Store.data.profile;

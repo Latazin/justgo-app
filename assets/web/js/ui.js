@@ -1052,7 +1052,7 @@ const UI = {
      ========================================================= */
   profile() {
     const D = Store.data, P = D.profile, acts = Game.acts(), lv = this.levelLine();
-    const L0 = Game.league(Game.monthXp()), tab = ['overview', 'activities', 'achievements'].includes(App.sub.profile) ? App.sub.profile : 'overview';
+    const L0 = Game.league(Game.monthXp()), tab = ['activities', 'stats', 'achievements', 'more'].includes(App.sub.profile) ? App.sub.profile : 'activities';
     const city = (Cloud.me && Cloud.me.city) || Pref('city');
     const handle = Cloud.me && Cloud.me.username ? '@' + esc(Cloud.me.username) : '';
     const medals = Object.keys(D.medals).length, zones = Zones.mine();
@@ -1060,7 +1060,8 @@ const UI = {
     let body = '';
     if (tab === 'activities') {
       const list = [...D.activities].sort((x, y) => y.start - x.start), name = esc(P.name);
-      body = list.length ? list.slice(0, 20).map((x) => this.postCard(x, name)).join('') + (list.length > 20 ? `<button class="btn ghost" data-act="go" data-v="history">Ver todas as ${list.length} atividades</button>` : '')
+      let lastM = '';
+      body = list.length ? list.slice(0, 20).map((x) => { const m = new Date(x.start).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }); const h = m !== lastM ? `<h4 class="pf-month">${m}</h4>` : ''; lastM = m; return h + this.postCard(x, name); }).join('') + (list.length > 20 ? `<button class="btn ghost" data-act="go" data-v="history">Ver todas as ${list.length} atividades</button>` : '')
         : `<div class="empty">${I('activity')}<h3>Nenhuma atividade ainda</h3><p>Seus treinos aparecem aqui.</p><button class="btn primary" data-act="go" data-v="record">Começar um treino</button></div>`;
     } else if (tab === 'achievements') {
       const pred = Game.predictions();
@@ -1083,7 +1084,12 @@ const UI = {
         <div class="sport-cards">${Object.entries(CONFIG.sports).map(([k, sp]) => [k, sp, Game.km(acts.filter((x) => x.sport === k))]).sort((a, b) => b[2] - a[2] || ((P.sports || []).includes(b[0]) - (P.sports || []).includes(a[0]))).slice(0, 3).map(([k, sp]) => { const l = acts.filter((x) => x.sport === k), km = Game.km(l); return `<div class="sport-card" style="--c:${sp.color}"><div class="sc-ic">${I(SPORT_IC[k])}</div><b class="num">${Fmt.num(km, km >= 100 ? 0 : 1)}<span> km</span></b><small>${sp.name} · ${l.length} treino${l.length === 1 ? '' : 's'}</small></div>`; }).join('')}</div>
         <button class="pro-entry ${Pro.on() ? 'on' : ''}" data-act="go" data-v="pro"><span class="pro-badge">PRO</span><div class="grow"><b>Modo profissional</b><small>${Pro.on() ? 'Ativado · estatísticas detalhadas em cada treino' : 'Calorias exatas, velocidade máxima, potência e mais'}</small></div><span class="pro-state">${Pro.on() ? 'Ativo' : 'Ativar'}</span></button>
         <button class="terr-card" data-act="go" data-v="mapa"><div class="tc-ic">${I('flag')}</div><div class="grow"><span class="eyebrow">Território</span><b>${zones.length ? `${zones.length} área${zones.length > 1 ? 's' : ''} · ${Zones.areaTxt(Zones.totalArea())}` : 'Nenhuma área ainda'}</b><small>${zones.length ? 'Veja e defenda no mapa' : 'Feche um circuito correndo para conquistar'}</small></div>${I('chevronRight', 'chev')}</button>
-        ${this.sectionHead('Progresso')}
+`;
+    }
+    if (tab === 'more') {
+      const daily = Game.dailyMissions(Date.now()), dDone = daily.filter((m) => D.missionsDone[Game.mKey('d', m, Date.now())]).length;
+      const un = CONFIG.unlocks.filter((u) => Game.has(u.id)).length;
+      body = `        ${this.sectionHead('Progresso')}
         <div class="list">
           ${row('sub', 'progress:missions', 'target', 'Missões', `Hoje: ${dDone} de ${daily.length} concluídas`)}
           ${row('sub', 'progress:tree', 'unlock', 'Desbloqueios', `${un} de ${CONFIG.unlocks.length} funções liberadas`)}
@@ -1097,6 +1103,12 @@ const UI = {
           ${row('go', 'plans', 'clipboard', 'Planos de treino', Plans.today() ? 'Plano ativo' : 'Escolha um objetivo')}
           ${row('go', 'gear', 'shoe', 'Equipamentos', 'Tênis e bikes')}
           ${row('go', 'safety', 'shield', 'Segurança e privacidade', 'Zona de privacidade e contato de confiança')}
+        </div>
+        ${this.sectionHead('Conta e app')}
+        <div class="list">
+          ${row('editProfile', '', 'user', 'Editar perfil', 'Nome, foto, cidade, bio e peso')}
+          ${row('go', 'settings', 'settings', 'Configurações', 'Tema, unidades, voz, mapa, backup e atualizações')}
+          ${row('go', 'account', 'cloud', 'Conta e sincronização', Cloud.loggedIn() ? 'Conectado' : 'Entrar ou criar conta')}
         </div>`;
     }
     this.render(`${this.header('Perfil', `<button class="icon-btn" data-act="go" data-v="settings" aria-label="Configurações">${I('settings')}</button>`)}<main class="screen profile">
@@ -1110,7 +1122,7 @@ const UI = {
         <div class="pf-level"><div class="row-t"><small>Nível ${lv.l + 1}</small><small class="num">${lv.txt}</small></div>${this.bar(lv.pct, 'brand')}</div>
       </section>
       ${Cloud.configured() && !Cloud.loggedIn() ? `<button class="cta login" data-act="go" data-v="account"><div class="cta-ic">${I('user')}</div><div class="grow"><b>Entrar ou criar conta</b><small>Salve na nuvem, siga amigos e dispute o mapa</small></div>${I('chevronRight', 'chev')}</button>` : ''}
-      ${this.tabsBar([['overview', 'Visão geral'], ['activities', 'Atividades'], ['achievements', 'Conquistas']], tab, 'profTab')}
+      ${this.tabsBar([['activities', 'Atividades'], ['stats', 'Estatísticas'], ['achievements', 'Conquistas'], ['more', 'Ajustes']], tab, 'profTab')}
       ${body}
     </main>`);
     if (Cloud.loggedIn()) Cloud.followCounts(Cloud.user.id).then((c) => { const a = $('#pfFollowers'), b = $('#pfFollowing'); if (a) a.textContent = c.followers; if (b) b.textContent = c.following; }).catch(() => {});
