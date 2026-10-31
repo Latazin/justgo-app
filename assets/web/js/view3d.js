@@ -26,6 +26,13 @@ const View3D = {
     try { this.speed = +localStorage.getItem('jg_v3_speed') || 1; } catch (e) { this.speed = 1; }
     // trajeto leve (um ponto a cada ~8 m) com distância acumulada
     const P = [pts[0]]; for (let i = 1; i < pts.length; i++) if (pts[i][4] || Geo.dist(P[P.length - 1], pts[i]) >= 8) P.push(pts[i]);
+    // pedaços soltos no começo/fim depois de um corte do GPS (ex.: um ponto pulado lá em casa
+    // ao terminar) não fazem parte do percurso — sem isso o vídeo puxava uma linha reta até eles
+    const segs = [[]]; P.forEach((p, i) => { if (i && p[4]) segs.push([]); segs[segs.length - 1].push(p); });
+    const len = (sg) => { let d = 0; for (let k = 1; k < sg.length; k++) d += Geo.dist(sg[k - 1], sg[k]); return d; };
+    while (segs.length > 1 && len(segs[segs.length - 1]) < 150) segs.pop();
+    while (segs.length > 1 && len(segs[0]) < 150) { segs.shift(); segs[0][0] = segs[0][0].slice(0, 4); }
+    P.length = 0; segs.forEach((sg) => P.push(...sg));
     const D = [0]; for (let i = 1; i < P.length; i++) D.push(D[i - 1] + (P[i][4] ? 0 : Geo.dist(P[i - 1], P[i])));
     this.P = P; this.D = D; this.total = D[D.length - 1] || 1; this.act = act; this.t = 0; this.playing = false;
     this.color = Shop.lineColor(act.sport);
@@ -184,7 +191,7 @@ const View3D = {
     const b = $('#v3Play'); if (b) b.innerHTML = this.playing ? I('pause') : I('play');
     const l = $('#v3Light'); if (l) l.classList.toggle('on', !!this.light);
     const v = $('#v3Spd'); if (v) v.textContent = `${String(this.speed).replace('.', ',')}x`;
-    const e = $('#v3Len'); if (e) e.textContent = `vídeo de ~${Math.round(this.flySec() + 3.6)} s`;
+    const e = $('#v3Len'); if (e) e.textContent = `vídeo de ~${Math.round(this.flySec() + 4.4)} s`;
   },
   close() { this.cancelVideo = true; this.pause(); if (this.map) { try { this.map.remove(); } catch (e) {} } this.map = null; this.ready = false; this.busy = false; },
 
@@ -249,7 +256,7 @@ const View3D = {
     enc.configure(EC.cfg);
 
     // roteiro: aproxima (1,3 s) → voo (até 16 s) → abre para a visão geral girando (3,2 s)
-    const F = this.FPS, nIn = Math.round(1 * F), nFly = Math.round(this.flySec() * F), nOut = Math.round(2.6 * F), total = nIn + nFly + nOut;
+    const F = this.FPS, nIn = Math.round(1.8 * F), nFly = Math.round(this.flySec() * F), nOut = Math.round(2.6 * F), total = nIn + nFly + nOut;
     const c0 = this.cam(0), c1 = this.cam(1), endB = c1.bearing - 35, over = this.overCam(endB);
     const intro = { ...this.overCam(c0.bearing - 50), pitch: 45 };
     const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
@@ -302,7 +309,7 @@ const View3D = {
     if (Q && Q.length) {
       let cur = [];
       for (let k = 0; k < Q.length && Q[k].d <= dNow; k++) { if (Q[k].br && cur.length) { seg.push(cur); cur = []; } cur.push(px(Q[k].ll)); }
-      const h = this.at(dNow).pos; cur.push(px([h[1], h[0]])); seg.push(cur);
+      const h = this.at(dNow).pos; if (cur.length) { const [lx, ly] = cur[cur.length - 1], [hx2, hy2] = px([h[1], h[0]]); if (Math.hypot(hx2 - lx, hy2 - ly) < 400) cur.push([hx2, hy2]); } seg.push(cur);
       g.lineCap = 'round'; g.lineJoin = 'round';
       [['#fff', 14], [this.color, 9]].forEach(([c, w]) => { g.strokeStyle = c; g.lineWidth = w; seg.forEach((sg) => { if (sg.length < 2) return; g.beginPath(); g.moveTo(sg[0][0], sg[0][1]); for (let k = 1; k < sg.length; k++) g.lineTo(sg[k][0], sg[k][1]); g.stroke(); }); });
     }
@@ -332,22 +339,23 @@ const View3D = {
   // O meio do quadro fica livre para a rota.
   hud(g, t, outro, intro) {
     const W = this.W, H = this.H, a = this.act, sp = CONFIG.sports[a.sport] || {}, col = this.color;
-    const ap = intro == null ? 1 : Math.min(1, intro * 1.3), slide = (1 - ap) * 30;
+    // entrada em etapas (fade + leve deslize): faixas → logo → título → números → altimetria
+    const I0 = intro == null ? 1 : intro, st = (a0, b0) => { const x = Math.max(0, Math.min(1, (I0 - a0) / (b0 - a0))); return 1 - Math.pow(1 - x, 3); };
+    const eBg = st(0, 0.35), eLogo = st(0.1, 0.5), eTitle = st(0.22, 0.62), eNum = st(0.36, 0.8), eProf = st(0.5, 1);
     const ls = (v) => { try { g.letterSpacing = v; } catch (e) {} };
     const fit = (txt, max) => { let t2 = txt; while (g.measureText(t2).width > max && t2.length > 4) t2 = t2.slice(0, -2); return t2 === txt ? txt : t2 + '…'; };
     const shadow = (on) => { g.shadowColor = on ? 'rgba(0,0,0,.45)' : 'transparent'; g.shadowBlur = on ? 14 : 0; g.shadowOffsetY = on ? 2 : 0; };
     g.textBaseline = 'alphabetic'; g.textAlign = 'left';
 
     // degradês suaves (curtos) só para dar leitura ao texto
-    let gr = g.createLinearGradient(0, 0, 0, 250); gr.addColorStop(0, 'rgba(6,10,24,.82)'); gr.addColorStop(0.55, 'rgba(6,10,24,.4)'); gr.addColorStop(1, 'rgba(6,10,24,0)');
+    g.globalAlpha = eBg; let gr = g.createLinearGradient(0, 0, 0, 250); gr.addColorStop(0, 'rgba(6,10,24,.82)'); gr.addColorStop(0.55, 'rgba(6,10,24,.4)'); gr.addColorStop(1, 'rgba(6,10,24,0)');
     g.fillStyle = gr; g.fillRect(0, 0, W, 250);
     gr = g.createLinearGradient(0, H - 330, 0, H); gr.addColorStop(0, 'rgba(6,10,24,0)'); gr.addColorStop(0.4, 'rgba(6,10,24,.62)'); gr.addColorStop(1, 'rgba(6,10,24,.92)');
     g.fillStyle = gr; g.fillRect(0, H - 330, W, 330);
 
-    g.globalAlpha = ap;
     // ---- topo: logo + JustGo · etiqueta do esporte
-    const ty = 44 - slide;
-    this.logo(g, 40, ty, 54);
+    const ty = 44 - (1 - eLogo) * 24;
+    g.globalAlpha = eLogo; const ls0 = 54 * (0.7 + 0.3 * eLogo); this.logo(g, 40 + (54 - ls0) / 2, ty + (54 - ls0) / 2, ls0);
     g.font = 'italic 800 44px "Barlow Condensed", Inter, sans-serif'; g.fillStyle = '#fff'; g.fillText('Just', 106, ty + 42);
     const jw = g.measureText('Just').width; g.fillStyle = '#5B9BFF'; g.fillText('Go', 106 + jw, ty + 42);
     g.font = '800 17px Inter, sans-serif'; ls('2px'); const tag = String(sp.name || 'Treino').toUpperCase(), tw = g.measureText(tag).width + 46; ls('0px');
@@ -356,25 +364,28 @@ const View3D = {
     g.beginPath(); g.arc(tx + 19, ty + 27, 5.5, 0, 7); g.fillStyle = col; g.fill();
     g.fillStyle = '#fff'; ls('2px'); g.fillText(tag, tx + 32, ty + 33); ls('0px');
     // título + data
-    shadow(true);
+    g.globalAlpha = eTitle; g.save(); g.translate(0, (1 - eTitle) * 18); shadow(true);
     g.font = '800 38px Inter, sans-serif'; g.fillStyle = '#fff'; g.fillText(fit(UI.actTitle(a), W - 80), 40, ty + 112);
     g.font = '500 21px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.75)'; g.fillText(Fmt.date(a.start), 40, ty + 144);
-    shadow(false);
+    shadow(false); g.restore();
 
     // ---- rodapé: três números grandes
     const dist = t * this.total, secs = (a.duration || 0) * (dist / (a.distance || this.total || 1));
     const avg = a.duration ? (a.distance || this.total) / a.duration : 0;
     const cols = [['DISTÂNCIA', Fmt.km(dist), 'km'], ['TEMPO', Fmt.time(secs), ''], [String(Fmt.paceLabel(a.sport, true)).toUpperCase(), Fmt.pace(a.sport, avg), Fmt.paceUnit(a.sport)]];
-    const by = H - 214 + slide, cw3 = (W - 80) / 3;
+    const by0 = H - 214, cw3 = (W - 80) / 3, by = by0;
     cols.forEach(([lab, val, unit], k) => {
+      const ek = st(0.36 + k * 0.08, 0.76 + k * 0.08); g.globalAlpha = ek; g.save(); g.translate(0, (1 - ek) * 28);
       const x = 40 + k * cw3;
       g.fillStyle = col; g.fillRect(x, by - 18, 22, 4);
       g.font = '700 16px Inter, sans-serif'; ls('1.6px'); g.fillStyle = 'rgba(255,255,255,.66)'; g.fillText(lab, x, by + 12); ls('0px');
       shadow(true); g.font = '800 62px "Barlow Condensed", Inter, sans-serif'; g.fillStyle = '#fff'; g.fillText(val, x, by + 72); shadow(false);
       if (unit) { const vw = g.measureText(val).width; g.font = '700 20px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.66)'; if (vw + 10 + g.measureText(unit).width < cw3 - 8) g.fillText(unit, x + vw + 8, by + 72); }
+      g.restore();
     });
+    g.globalAlpha = eProf;
     // ---- altimetria (ou barra) que vai enchendo
-    const px0 = 40, pw = W - 80, py0 = H - 108 + slide, ph = 52, E = this.prof;
+    const px0 = 40, pw = W - 80, py0 = H - 108 + (1 - eProf) * 20, ph = 52 * (0.4 + 0.6 * eProf), E = this.prof;
     if (E) {
       const X = (k) => px0 + (pw * k) / (E.length - 1), Y = (k) => py0 + ph - E[k] * ph;
       const path = () => { g.beginPath(); g.moveTo(px0, py0 + ph); E.forEach((_, k) => g.lineTo(X(k), Y(k))); g.lineTo(px0 + pw, py0 + ph); g.closePath(); };
@@ -392,8 +403,8 @@ const View3D = {
     g.globalAlpha = 1;
     // fim: chamada com a logo, acima dos números
     if (outro > 0.35) {
-      g.globalAlpha = Math.min(1, (outro - 0.35) * 3);
-      g.font = '700 21px Inter, sans-serif'; const msg = 'Grave o seu no app JustGo', mw = g.measureText(msg).width, bw = mw + 82, bx = (W - bw) / 2, yy = by - 96;
+      const eo = 1 - Math.pow(1 - Math.min(1, (outro - 0.35) * 2.2), 3); g.globalAlpha = eo;
+      g.font = '700 21px Inter, sans-serif'; const msg = 'Grave o seu no app JustGo', mw = g.measureText(msg).width, bw = mw + 82, bx = (W - bw) / 2, yy = by - 96 + (1 - eo) * 24;
       g.beginPath(); g.roundRect ? g.roundRect(bx, yy, bw, 50, 25) : g.rect(bx, yy, bw, 50); g.fillStyle = 'rgba(6,10,24,.72)'; g.fill();
       this.logo(g, bx + 10, yy + 9, 32); g.fillStyle = '#fff'; g.fillText(msg, bx + 56, yy + 33);
       g.globalAlpha = 1;
