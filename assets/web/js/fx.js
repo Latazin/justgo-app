@@ -191,7 +191,7 @@ const FX = {
       const dt = (points[i][2] - points[Math.min(j, i - 1)][2]) / 1000;
       const dd = cum[i] - cum[Math.min(j, i - 1)];
       out.x.push(cum[i] / 1000);
-      out.v.push(dt > 0 ? dd / dt : NaN);
+      out.v.push(dt >= 3 && dd / dt < 45 ? dd / dt : NaN);
       out.alt.push(points[i][3] != null ? points[i][3] : NaN);
     }
     // média móvel para tirar o serrilhado do GPS

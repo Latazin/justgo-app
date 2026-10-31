@@ -7,7 +7,9 @@
    ========================================================= */
 const Zones = {
   SPORTS: ['run', 'ride', 'walk', 'hike', 'skate', 'board'],
-  CLOSE_M: 70,       // distância para considerar que voltou ao trajeto (GPS de celular erra 20–50 m)
+  CLOSE_M: 45,       // distância para considerar que voltou ao mesmo ponto
+  GAP_M: 60,         // tolerância extra só para as retas de quando o GPS falhou
+  SHAPE: 0.03,       // área/perímetro² mínima: barra ida-e-volta pela mesma avenida (forma fina) não conta
   MIN_LOOP_M: 300,   // circuito mínimo
   MIN_AREA: 2000,    // m² (≈ meio quarteirão)
   STEAL: 0.5,        // fração da área do outro que precisa ser coberta
@@ -58,7 +60,18 @@ const Zones = {
 
   /* ---------- encontra os circuitos fechados de um treino ---------- */
   loops(points) {
-    const src = (points || []).filter((p) => !p[4]);
+    // cada trecho entre pausas é analisado separado: nunca "fecha" uma área ligando o ponto
+    // onde a pessoa pausou ao ponto onde voltou a gravar
+    const segs = []; let cur = [];
+    (points || []).forEach((p) => { if (p[4] && cur.length) { segs.push(cur); cur = []; } cur.push(p); });
+    if (cur.length) segs.push(cur);
+    const all = []; segs.forEach((sg) => all.push(...this.loopsOne(sg)));
+    all.sort((x, y) => y.area - x.area);
+    const out = [];
+    all.forEach((l) => { if (!out.some((k) => this.overlap(l.poly, k.poly) > 0.7)) out.push(l); });
+    return out;
+  },
+  loopsOne(src) {
     if (src.length < 8) return [];
     // um ponto a cada ~12 m e coordenadas em metros (rápido)
     const P = [src[0]];
@@ -71,18 +84,16 @@ const Zones = {
       for (let j = i - 1; j >= cut; j--) {
         const per = D[i] - D[j];
         if (per < this.MIN_LOOP_M) continue;
-        // voltou perto de um ponto OU de um trecho já feito (inclui as retas de quando o GPS falhou)
-        if (Math.hypot(X[i][0] - X[j][0], X[i][1] - X[j][1]) > this.CLOSE_M && (j + 1 >= i || this.segDist(X[i], X[j], X[j + 1]) > this.CLOSE_M * 0.7)) continue;
+        // voltou ao mesmo ponto — ou, se ali o GPS falhou (reta estimada), perto dessa reta
+        const close = Math.hypot(X[i][0] - X[j][0], X[i][1] - X[j][1]) <= this.CLOSE_M
+          || (j + 1 < i && P[j + 1][5] && this.segDist(X[i], X[j], X[j + 1]) <= this.GAP_M);
+        if (!close) continue;
         const poly = P.slice(j, i + 1).map((p) => [p[0], p[1]]), a = this.area(poly);
         // descarta ida e volta pela mesma rua (área quase zero) e formas finas demais
-        if (a >= this.MIN_AREA && a / (per * per) > 0.012) { found.push({ poly: this.simplify(poly), area: Math.round(a) }); cut = i; break; }
+        if (a >= this.MIN_AREA && a / (per * per) > this.SHAPE) { found.push({ poly: this.simplify(poly), area: Math.round(a) }); cut = i; break; }
       }
     }
-    // voltas repetidas no mesmo circuito viram uma área só (fica a maior)
-    found.sort((x, y) => y.area - x.area);
-    const out = [];
-    found.forEach((l) => { if (!out.some((k) => this.overlap(l.poly, k.poly) > 0.7)) out.push(l); });
-    return out;
+    return found;
   },
 
   /* ---------- áreas guardadas no aparelho ---------- */
@@ -131,6 +142,27 @@ const Zones = {
   },
 };
 Game.hooks.push((act, r) => Zones.hook(act, r));
+
+// regra corrigida (v2.10.2): revê as áreas já conquistadas e apaga as que não eram circuito de verdade
+Zones.cleanup = async function () {
+  const D = Store.data; if (D.zfix === 2) return;
+  const byAct = {}; D.activities.forEach((a) => (byAct[a.id] = a));
+  const valid = {}; // id do treino -> circuitos válidos pela regra nova
+  const okFor = (aid) => { if (!(aid in valid)) { const a = byAct[aid]; valid[aid] = a && a.points ? this.loops(a.points) : null; } return valid[aid]; };
+  const bad = (poly, aid) => { const L = okFor(aid); return L && !L.some((l) => this.overlap(poly, l.poly) > 0.6); };
+  const before = this.mine().length;
+  D.zones = this.mine().filter((z) => !(z.act && bad(z.poly, z.act)));
+  let removed = before - D.zones.length;
+  D.activities.forEach((a) => { if (valid[a.id]) { a.loops = valid[a.id].length; a.loopArea = valid[a.id].reduce((s, l) => s + l.area, 0); } });
+  if (Cloud.loggedIn() && Cloud.user) {
+    try {
+      const { data } = await Cloud.sb.from('zones').select('id,poly,activity_id').eq('owner', Cloud.user.id).limit(500);
+      for (const z of data || []) if (z.activity_id && byAct[z.activity_id] && bad(z.poly, z.activity_id)) { await Cloud.sb.from('zones').delete().eq('id', z.id); removed++; }
+    } catch (e) { console.warn(e); return; } // tenta de novo na próxima abertura
+  } else if (Cloud.configured && Cloud.configured()) { Store.save(); return; } // sem conta agora: limpa a nuvem depois
+  D.zfix = 2; Store.save();
+  if (removed) FX.toast(`Território corrigido: ${removed} área${removed > 1 ? 's' : ''} que não fechava${removed > 1 ? 'm' : ''} circuito ${removed > 1 ? 'foram removidas' : 'foi removida'}.`);
+};
 
 // treinos dos últimos 14 dias feitos em versões antigas (ou com a regra antiga, mais rígida)
 // são verificados de novo: se fecharam área, a área é conquistada agora

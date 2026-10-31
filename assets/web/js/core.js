@@ -224,6 +224,8 @@ class Tracker {
     }
     const d = Geo.dist(last, pt), dt = (p.t - last[2]) / 1000;
     if (dt <= 0) return;
+    // leitura repetida/colada (menos de 0,8 s): espera a próxima. Era isso que gerava 11.000 km/h
+    if (dt < 0.8 && d < 25) return this.emit();
     const v = d / dt;
     // primeiro ponto depois de ficar em segundo plano: soma o trecho que faltou
     if (dt > 20 && v <= this.maxMps * 1.1) {
@@ -243,8 +245,13 @@ class Tracker {
 
     if (v >= CONFIG.gps.autoPauseSpeed) { this.lastMove = p.t; this.autoPaused = false; }
     this.distance += d;
-    this.speed = this.speed ? this.speed * 0.6 + v * 0.4 : v;
     this.points.push(pt);
+    // velocidade atual = distância percorrida nos últimos ~5 s (nunca entre dois pontos colados)
+    { const P = this.points; let k = P.length - 1, dd = 0;
+      while (k > 0 && !P[k][4] && pt[2] - P[k - 1][2] <= 6000) { dd += Geo.dist(P[k - 1], P[k]); k--; }
+      const span = (pt[2] - P[k][2]) / 1000, vw = span >= 2 ? dd / span : v;
+      const vc = Math.min(vw, this.maxMps * 1.15);
+      this.speed = this.speed ? this.speed * 0.5 + vc * 0.5 : vc; }
 
     this.checkSplits();
     this.emit();

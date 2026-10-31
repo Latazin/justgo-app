@@ -15,6 +15,7 @@ const App = {
   init() {
     Store.load();
     // 2.8.2: todos os treinos já feitos passam a ser públicos (uma vez)
+    if (!Store.data.fixGps1) { try { this.repairActs(); } catch (e) { console.warn(e); } }
     if (!Store.data.pubAll1) { Store.data.activities.forEach((a) => { delete a.private; }); Store.data.pubAll1 = 1; try { Store.save(); } catch (e) {} }
     Shop.apply();
     this.sport = Store.data.profile.sports[0] || 'run';
@@ -111,7 +112,7 @@ const App = {
   },
   stopRecWatch() { if (this.recWatch != null) { try { navigator.geolocation.clearWatch(this.recWatch); } catch (e) {} this.recWatch = null; } },
   // nuvem conectada: atualiza a tela atual (mostra/esconde o "Entrar")
-  onCloudReady() { setTimeout(() => Cloud.backfill().catch(() => {}), 3000); setTimeout(() => Zones.recheck().catch(() => {}), 6000); if (!Store.data.profile.onboarded) return; if (['home', 'progress', 'social', 'profile', 'history', 'account', 'mapa'].includes(this.tab) && !this.tracker) this.go(this.tab); },
+  onCloudReady() { setTimeout(() => Cloud.backfill().catch(() => {}), 3000); setTimeout(() => Zones.cleanup().catch(() => {}).then(() => Zones.recheck()).catch(() => {}), 6000); if (!Store.data.profile.onboarded) return; if (['home', 'progress', 'social', 'profile', 'history', 'account', 'mapa'].includes(this.tab) && !this.tracker) this.go(this.tab); },
   async firstLocate() { const p = await Geo.locate(false); if (p && this.tab === 'home') {} },
 
   /* ---------- tela ativa durante o treino ---------- */
@@ -260,6 +261,39 @@ const App = {
     catch (e) {
       console.warn('foto', e);
       FX.toast(/bucket|not found|column|photo/i.test(String(e && (e.message || e.error))) ? 'Falta configurar as fotos no Supabase (SQL do avatars).' : 'Não deu para enviar a foto agora. Ela ficou salva neste aparelho.');
+    }
+  },
+  // conserta treinos antigos: tira leituras de GPS repetidas (menos de 0,8 s da anterior),
+  // que somavam metros "fantasmas" e geravam velocidades absurdas. Recalcula distância e parciais.
+  repairActs() {
+    const D = Store.data, changed = [];
+    D.activities.forEach((a) => {
+      const P = a.points; if (!P || P.length < 3 || a.mode === 'pool') return;
+      const out = [P[0]];
+      for (let i = 1; i < P.length; i++) {
+        const q = P[i], last = out[out.length - 1], dt = (q[2] - last[2]) / 1000;
+        if (!q[4] && !q[5] && dt < 0.8 && Geo.dist(last, q) < 25 && i < P.length - 1) continue;
+        out.push(q);
+      }
+      if (out.length === P.length) return;
+      let dist = 0; const splits = []; let mv = 0, lastSplit = 0;
+      for (let i = 1; i < out.length; i++) {
+        if (out[i][4]) continue;
+        const d = Geo.dist(out[i - 1], out[i]), dt = (out[i][2] - out[i - 1][2]) / 1000;
+        dist += d; if (dt > 0 && d / dt > 0.3) mv += dt;
+        while (dist >= (splits.length + 1) * 1000) { splits.push(Math.round(mv - lastSplit)); lastSplit = mv; }
+      }
+      a.points = out;
+      if (Math.abs(dist - a.distance) > 5) {
+        a.fixedFrom = a.distance; a.distance = Math.round(dist);
+        if (a.splits && a.splits.length && splits.length) a.splits = splits;
+        changed.push(a);
+      }
+    });
+    D.fixGps1 = 1; Store.save();
+    if (changed.length) {
+      setTimeout(() => { changed.forEach((a) => { if (a.pub) Cloud.publish(a).catch(() => {}); }); }, 8000);
+      setTimeout(() => FX.toast(`${changed.length} treino${changed.length > 1 ? 's' : ''} com GPS corrigido${changed.length > 1 ? 's' : ''} (distância mais precisa).`), 2500);
     }
   },
   async checkLive() {
