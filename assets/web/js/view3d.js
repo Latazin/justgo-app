@@ -183,16 +183,20 @@ const View3D = {
     return null;
   },
 
-  // um quadro "pronto": espera o mapa terminar de carregar e copia o canvas no mesmo instante
-  frame(draw) {
-    const m = this.map;
+  // um quadro: copia o canvas logo no próximo desenho do mapa. Só segura (no máximo
+  // ~0,7 s) se ainda faltar pedaço do mapa — o pré-carregamento já trouxe quase tudo.
+  frame(draw, cap) {
+    const m = this.map, t0 = performance.now(); cap = cap || (this.light ? 450 : 700);
     return new Promise((res) => {
       let done = false;
-      const fin = () => { if (done) return; done = true; clearTimeout(to); m.off('idle', fin); try { draw(); } catch (e) { console.warn(e); } res(); };
-      const to = setTimeout(() => { m.off('idle', fin); if (this.cancelVideo || !this.map) { done = true; return res(); } m.once('render', fin); m.triggerRepaint(); }, this.light ? 2500 : 4000);
-      m.once('idle', fin); m.triggerRepaint();
+      const fin = () => { done = true; m.off('render', h); clearTimeout(to); try { draw(); } catch (e) { console.warn(e); } res(); };
+      const h = () => { if (done) return; if (!m.areTilesLoaded() && performance.now() - t0 < cap) return; fin(); };
+      const to = setTimeout(() => { if (done) return; if (this.cancelVideo || !this.map) { done = true; m.off('render', h); return res(); } m.triggerRepaint(); }, cap + 30);
+      m.on('render', h); m.triggerRepaint();
     });
   },
+  // espera o mapa carregar de verdade (usado só no pré-carregamento)
+  settle(ms) { const m = this.map; return new Promise((res) => { let ok = false; const f = () => { if (ok) return; ok = true; m.off('idle', f); res(); }; m.once('idle', f); m.triggerRepaint(); setTimeout(f, ms); }); },
 
   async video() {
     if (!this.ready || this.busy) return;
@@ -205,7 +209,8 @@ const View3D = {
 
     // mapa vira um quadro 9:16 e renderiza já na resolução do vídeo
     root.classList.add('rec'); this.recUI(0);
-    m.resize(); m.setPixelRatio(this.W / m.getContainer().clientWidth); m.resize();
+    m.resize(); m.setPixelRatio((this.light ? 480 : 560) / m.getContainer().clientWidth); m.resize();
+    try { m.setLayoutProperty('jg-done', 'visibility', 'none'); } catch (e) {} // a linha percorrida é desenhada por cima, sem ida ao worker a cada quadro
     this.pins.forEach((p) => (p.getElement().style.visibility = 'hidden')); this.dot.getElement().style.visibility = 'hidden';
 
     const out = document.createElement('canvas'); out.width = this.W; out.height = this.H;
@@ -219,7 +224,7 @@ const View3D = {
     enc.configure(EC.cfg);
 
     // roteiro: aproxima (1,3 s) → voo (até 16 s) → abre para a visão geral girando (3,2 s)
-    const F = this.FPS, nIn = Math.round(1.3 * F), nFly = Math.round(Math.max(8, Math.min(16, this.flyMs() / 2800)) * F), nOut = Math.round(3.2 * F), total = nIn + nFly + nOut;
+    const F = this.FPS, nIn = Math.round(1 * F), nFly = Math.round(Math.max(7, Math.min(12, this.flyMs() / 3500)) * F), nOut = Math.round(2.6 * F), total = nIn + nFly + nOut;
     const c0 = this.cam(0), c1 = this.cam(1), endB = c1.bearing - 35, over = this.overCam(endB);
     const intro = { ...this.overCam(c0.bearing - 50), pitch: 45 };
     const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
@@ -227,19 +232,21 @@ const View3D = {
       let db = b.bearing - a.bearing; while (db > 180) db -= 360; while (db < -180) db += 360;
       return { center: [a.center[0] + (b.center[0] - a.center[0]) * u, a.center[1] + (b.center[1] - a.center[1]) * u], zoom: a.zoom + (b.zoom - a.zoom) * u, pitch: a.pitch + (b.pitch - a.pitch) * u, bearing: a.bearing + db * u };
     };
-    let lastDone = -1;
+    // pré-carrega o mapa ao longo do trajeto (bem mais rápido que esperar quadro a quadro)
+    const stops = [intro, c0]; const gap = Math.max(350, this.total / 28); for (let d = gap; d < this.total; d += gap) stops.push(this.cam(d / this.total)); stops.push(c1, over);
+    for (let k = 0; k < stops.length && !this.cancelVideo; k++) { m.jumpTo(stops[k]); await this.settle(this.light ? 1500 : 2200); this.recUI((k / stops.length) * 0.25, 'Preparando o mapa…'); }
+    this.linePts();
     for (let i = 0; i < total && !this.cancelVideo && !encErr; i++) {
       let t, cam;
       if (i < nIn) { t = 0; cam = mix(intro, c0, ease(i / nIn)); }
       else if (i < nIn + nFly) { const u = (i - nIn) / (nFly - 1); t = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; t = 0.15 * t + 0.85 * u; cam = this.cam(t); } // começa e termina macio
       else { const u = (i - nIn - nFly) / (nOut - 1); t = 1; cam = mix(c1, over, ease(Math.min(1, u * 1.6))); cam.bearing += u * 18; }
       m.jumpTo(cam);
-      const d = t * this.total; if (Math.abs(d - lastDone) > 0.5) { this.setDone(d); lastDone = d; }
       await this.frame(() => this.compose(g, t, i >= nIn + nFly ? (i - nIn - nFly) / (nOut - 1) : 0));
       const vf = new VideoFrame(out, { timestamp: Math.round((i * 1e6) / F), duration: Math.round(1e6 / F) });
       enc.encode(vf, { keyFrame: i % (F * 2) === 0 }); vf.close();
       while (enc.encodeQueueSize > 3) await new Promise((r) => setTimeout(r, 4));
-      if (i % 3 === 0) this.recUI(i / total);
+      if (i % 3 === 0) this.recUI(0.25 + 0.75 * (i / total));
     }
 
     let blob = null;
@@ -249,7 +256,7 @@ const View3D = {
     try { enc.close(); } catch (e) {}
     // volta ao normal
     if (this.map) {
-      root.classList.remove('rec'); m.setPixelRatio(prevPR); m.resize();
+      root.classList.remove('rec'); m.setPixelRatio(prevPR); m.resize(); try { m.setLayoutProperty('jg-done', 'visibility', 'visible'); } catch (e) {}
       this.pins.forEach((p) => (p.getElement().style.visibility = '')); this.dot.getElement().style.visibility = '';
       this.t = prevT; this.setDone(this.t * this.total); m.jumpTo(this.overCam(endB)); this.ui();
     }
@@ -266,6 +273,14 @@ const View3D = {
     g.drawImage(cv, ox, oy, dw, dh);
     const px = (ll) => { const p = m.project(ll); return [ox + p.x * pr * s, oy + p.y * pr * s]; };
     const P = this.P, ring = (ll, fill, r) => { const [x, y] = px(ll); if (x < -40 || y < -40 || x > W + 40 || y > H + 40) return; g.beginPath(); g.arc(x, y, r, 0, 7); g.fillStyle = '#fff'; g.fill(); g.beginPath(); g.arc(x, y, r - 5, 0, 7); g.fillStyle = fill; g.fill(); };
+    const Q = this.Q, dNow = t * this.total, seg = [];
+    if (Q && Q.length) {
+      let cur = [];
+      for (let k = 0; k < Q.length && Q[k].d <= dNow; k++) { if (Q[k].br && cur.length) { seg.push(cur); cur = []; } cur.push(px(Q[k].ll)); }
+      const h = this.at(dNow).pos; cur.push(px([h[1], h[0]])); seg.push(cur);
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      [['#fff', 14], [this.color, 9]].forEach(([c, w]) => { g.strokeStyle = c; g.lineWidth = w; seg.forEach((sg) => { if (sg.length < 2) return; g.beginPath(); g.moveTo(sg[0][0], sg[0][1]); for (let k = 1; k < sg.length; k++) g.lineTo(sg[k][0], sg[k][1]); g.stroke(); }); });
+    }
     ring([P[0][1], P[0][0]], '#12B886', 15);
     if (t >= 0.98) ring([P[P.length - 1][1], P[P.length - 1][0]], '#111827', 15);
     const here = this.at(t * this.total).pos, [hx, hy] = px([here[1], here[0]]);
@@ -302,14 +317,20 @@ const View3D = {
     if (outro > 0.35) { g.globalAlpha = Math.min(1, (outro - 0.35) * 3); g.font = '600 22px Inter, sans-serif'; g.fillStyle = 'rgba(255,255,255,.9)'; g.textAlign = 'right'; g.fillText('Grave o seu no app JustGo', W - 48, H - 20); g.textAlign = 'left'; g.globalAlpha = 1; }
   },
 
-  recUI(f) {
+  // trajeto simplificado (~1 ponto a cada 12 m) para desenhar no vídeo
+  linePts() {
+    const P = this.P, D = this.D, Q = []; let last = -1e9;
+    for (let k = 0; k < P.length; k++) if (P[k][4] || D[k] - last >= 12 || k === P.length - 1) { Q.push({ ll: [P[k][1], P[k][0]], d: D[k], br: !!P[k][4] }); last = D[k]; }
+    this.Q = Q;
+  },
+  recUI(f, label) {
     let el = $('#v3Rec');
     if (!el) {
       el = document.createElement('div'); el.id = 'v3Rec'; el.className = 'v3-rec';
-      el.innerHTML = `<div class="v3-rec-box"><b>Gerando vídeo…</b><small>Pode demorar um pouco. Deixe o app aberto.</small><div class="v3-rec-bar"><i></i></div><button class="btn ghost sm" data-act="v3Cancel">Cancelar</button></div>`;
+      el.innerHTML = `<div class="v3-rec-box"><b>Gerando vídeo…</b><small>Leva alguns segundos. Deixe o app aberto.</small><div class="v3-rec-bar"><i></i></div><button class="btn ghost sm" data-act="v3Cancel">Cancelar</button></div>`;
       $('.v3').appendChild(el);
     }
     el.querySelector('i').style.width = `${Math.round(f * 100)}%`;
-    el.querySelector('b').textContent = f >= 1 ? 'Vídeo pronto!' : `Gerando vídeo… ${Math.round(f * 100)}%`;
+    el.querySelector('b').textContent = f >= 1 ? 'Vídeo pronto!' : `${label || 'Gerando vídeo…'} ${Math.round(f * 100)}%`;
   },
 };
