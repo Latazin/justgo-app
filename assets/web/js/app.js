@@ -531,15 +531,17 @@ const App = {
       const act = App.find(el.dataset.v); if (!act) return;
       if (!Cloud.loggedIn()) return FX.toast('Entre na conta para conquistar no mapa.');
       el.disabled = true; el.textContent = 'Conquistando…';
+      if (el.dataset.home) act.pubNearHome = true;
       act.zc = 0; const r = {}; Zones.hook(act, r); Store.save();
       if (!r.zones || !r.zones.loops.length) { el.disabled = false; el.textContent = 'Conquistar'; return FX.toast('Esse treino não fechou área.'); }
       try {
         const c = await Zones.claim(act, r.zones.loops);
         UI._zonesCloud = null;
-        if (c && c.privacy) FX.toast('A área encosta na sua zona de casa (privacidade), então fica só no seu aparelho.');
+        if (c && c.privacy) FX.toast('A área encosta na sua zona de casa (Privacidade). Toque em Publicar para mostrar no mapa.');
         else if (c && (c.created.length || c.stolen.length)) { FX.beep([523, 659, 784, 1047]); FX.toast(`Território conquistado: ${Zones.areaTxt(r.zones.loops.reduce((s, l) => s + l.area, 0))}!`); }
         else if (Cloud.zoneErr) FX.toast('Erro ao enviar: ' + Cloud.zoneErr.slice(0, 100));
         else FX.toast('Essa área já é sua no mapa.');
+      if (App.tab === 'detail') UI.summary(act, null, false);
       } catch (e) { console.error(e); FX.toast('Não deu para enviar agora. Tente de novo.'); }
       el.disabled = false; el.textContent = 'Conquistar';
     },

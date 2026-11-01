@@ -167,6 +167,7 @@ const Zones = {
     return rdp(pts.slice(0, half + 1), 0.8).slice(0, -1).concat(rdp(pts.slice(half), 0.8)).slice(0, -1);
   },
 
+  nearHome(poly) { const P = Store.data.privacy; return !!(P.zone && P.lat != null && poly.some((p) => Geo.dist(p, [P.lat, P.lng]) < P.radius)); },
   // explica por que um treino virou (ou não) território
   diagnose(act) {
     if (!act || !act.points || act.points.length < 8) return { ok: false, why: 'Este treino não tem percurso de GPS.' };
@@ -207,7 +208,7 @@ const Zones = {
     if (!Cloud.loggedIn() || !Cloud.me || act.private || act.flagged || !loops || !loops.length) return null;
     const P = Store.data.privacy, me = Cloud.user.id, name = Cloud.me.name || 'Atleta';
     // áreas encostadas na zona de privacidade (casa) ficam só no aparelho
-    const ok = loops.filter((l) => !(P.zone && P.lat != null && l.poly.some((p) => Geo.dist(p, [P.lat, P.lng]) < P.radius)));
+    const ok = loops.filter((l) => act.pubNearHome || !this.nearHome(l.poly));
     if (!ok.length) return { stolen: [], created: [], privacy: true };
     const c = this.center(ok[0].poly), near = await Cloud.zonesNear(c[0], c[1], 4);
     const stolen = [], created = [];
@@ -269,16 +270,17 @@ Zones.recheck = async function () {
 
 // áreas que ficaram só no aparelho (envio falhou ou app fechou antes): manda para o mapa
 Zones.pendingOf = function (cloud) {
-  const me = Cloud.user && Cloud.user.id, P = Store.data.privacy, acts = {};
+  const me = Cloud.user && Cloud.user.id, acts = {};
   Store.data.activities.forEach((a) => (acts[a.id] = a));
-  return this.mine().filter((z) => {
-    const a = acts[z.act]; if (a && (a.private || a.flagged)) return false;
-    if (P.zone && P.lat != null && z.poly.some((p) => Geo.dist(p, [P.lat, P.lng]) < P.radius)) return false;
-    if (cloud.some((o) => o.owner === me && this.overlap(z.poly, o.poly) >= 0.6)) return false;
-    // alguém roubou depois: não volta
-    if (cloud.some((o) => o.owner !== me && this.overlap(z.poly, o.poly) >= 0.6 && Date.parse(o.captured_at) > (z.at || 0))) return false;
-    return true;
+  const out = [];
+  this.mine().forEach((z) => {
+    if (cloud.some((o) => o.owner === me && this.overlap(z.poly, o.poly) >= 0.6)) return;            // já está no mapa
+    if (cloud.some((o) => o.owner !== me && this.overlap(z.poly, o.poly) >= 0.6 && Date.parse(o.captured_at) > (z.at || 0))) return; // roubada depois
+    const a = acts[z.act];
+    const why = a && a.private ? 'private' : a && a.flagged ? 'flagged' : this.nearHome(z.poly) && !(a && a.pubNearHome) ? 'home' : 'pending';
+    out.push({ ...z, why });
   });
+  return out;
 };
 Zones.sync = async function () {
   if (!Cloud.loggedIn() || !Cloud.me || this._syncing) return 0;
@@ -286,7 +288,7 @@ Zones.sync = async function () {
   try {
     const L = this.mine(); if (!L.length) return 0;
     const c = this.center(L[L.length - 1].poly), near = await Cloud.zonesNear(c[0], c[1], this.RADIUS_KM);
-    for (const z of this.pendingOf(near)) {
+    for (const z of this.pendingOf(near).filter((x) => x.why === 'pending')) {
       const zc = this.center(z.poly), row = await Cloud.addZone({ poly: z.poly, area: z.area, lat: zc[0], lng: zc[1], activity_id: z.act || null }, Cloud.me.name || 'Atleta');
       if (!row) break;
       near.push(row); up++;

@@ -221,6 +221,7 @@ const UI = {
   terrCard(act) {
     if (!act || !act.points || act.points.length < 8 || !Zones.SPORTS.includes(act.sport)) return '';
     const d = Zones.diagnose(act);
+    if (d.ok && !d.priv && !act.pubNearHome && d.loops.some((l) => Zones.nearHome(l.poly))) return `<section class="terr-card ok"><div class="tc-ic">${I('flag')}</div><div class="grow"><b>Área fechada · ${Zones.areaTxt(d.area)}</b><small>Ela encosta na sua zona de casa (Privacidade), então ficou só no seu aparelho. Publicar mostra a área no mapa, não o seu endereço.</small></div><button class="tc-btn" data-act="terrClaim" data-v="${act.id}" data-home="1">Publicar</button></section>`;
     if (d.ok) return `<section class="terr-card ok"><div class="tc-ic">${I('flag')}</div><div class="grow"><b>${d.loops.length > 1 ? `${d.loops.length} áreas fechadas` : 'Área fechada'} · ${Zones.areaTxt(d.area)}</b><small>${d.priv ? 'Treino está como "Só eu": a área fica só no seu aparelho.' : 'Se não apareceu no mapa, toque em conquistar.'}</small></div>${d.priv ? '' : `<button class="tc-btn" data-act="terrClaim" data-v="${act.id}">Conquistar</button>`}</section>`;
     return `<section class="terr-card"><div class="tc-ic">${I('flag')}</div><div class="grow"><b>Não virou território</b><small>${esc(d.why)}</small></div></section>`;
   },
@@ -929,14 +930,14 @@ const UI = {
     const zones = cloud ? cloud.map((z) => ({ ...z, mine: z.owner === me })) : Zones.mine().map((z) => ({ ...z, mine: true, owner_name: Store.data.profile.name }));
     // suas áreas que ainda não chegaram na nuvem continuam aparecendo (tracejadas) e são reenviadas
     if (cloud && Cloud.loggedIn()) {
-      Zones.pendingOf(cloud).forEach((z) => zones.push({ ...z, mine: true, pending: true, owner: me, owner_name: Store.data.profile.name }));
+      Zones.pendingOf(cloud).forEach((z) => zones.push({ ...z, mine: true, pending: z.why, owner: me, owner_name: Store.data.profile.name }));
       if (!this._zSynced) { this._zSynced = true; setTimeout(() => Zones.sync().catch(() => {}), 800); }
     }
     const inR = zones.filter((z) => near(Zones.center(z.poly)));
     if (lay.zones) inR.forEach((z) => {
       const col = z.mine ? '#1F6BFF' : this.zoneColor(z.owner);
       L.polygon(z.poly, { color: col, weight: 2, fillColor: col, fillOpacity: z.mine ? 0.28 : 0.22, dashArray: z.pending ? '6 6' : null })
-        .bindPopup(`<b>${z.pending ? 'Sua área (enviando para o mapa…)' : z.mine ? 'Sua área' : 'Área de ' + esc(z.owner_name || 'Atleta')}</b><br>${Zones.areaTxt(z.area)}${z.prev_owner_name ? `<br><small>Roubada de ${esc(z.prev_owner_name)}</small>` : ''}`).addTo(G.zones);
+        .bindPopup(`<b>${z.pending ? ({ home: 'Sua área · só no seu aparelho', private: 'Sua área · treino "Só eu"', flagged: 'Sua área · treino suspeito' }[z.pending] || 'Sua área (enviando para o mapa…)') : z.mine ? 'Sua área' : 'Área de ' + esc(z.owner_name || 'Atleta')}</b>${z.pending === 'home' ? '<br><small>Encosta na sua zona de casa (Privacidade). Abra o treino para publicar.</small>' : ''}<br>${Zones.areaTxt(z.area)}${z.prev_owner_name ? `<br><small>Roubada de ${esc(z.prev_owner_name)}</small>` : ''}`).addTo(G.zones);
     });
     if (lay.acts) Game.acts().filter((a) => a.points && a.points.length > 1 && near(a.points[0])).slice(-60).forEach((a) => L.polyline(Geo.segments(a.points), { color: Shop.lineColor(a.sport), weight: 3, opacity: 0.55, interactive: false }).addTo(G.acts));
     if (lay.routes) Store.data.routes.filter((r) => r.points.length && near(r.points[0])).forEach((r) => L.polyline(r.points.map((p) => [p[0], p[1]]), { color: '#111317', weight: 4, opacity: 0.8, dashArray: r.segment ? '2 8' : null }).bindPopup(`<b>${esc(r.name)}</b><br>${Fmt.km(r.distance)} km`).addTo(G.routes));
