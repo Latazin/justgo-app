@@ -46,10 +46,11 @@ jobs:
         run: |
           exec > >(tee -a build.log) 2>&1
           set -x
-          perl -0pi -e 's/\n  ios: false/\n  ios: true\n  remove_alpha_ios: true/' pubspec.yaml
+          perl -0pi -e 's/\n  android: "ic_launcher"/\n  android: false/; s/\n  ios: false/\n  ios: true\n  remove_alpha_ios: true/; s/\n  android_12:\n    color: "[^"]*"\n    image: [^\n]*/\n  android: false/' pubspec.yaml
+          sed -n '/flutter_launcher_icons:/,$p' pubspec.yaml
           grep -n "ios:" pubspec.yaml || true
-          dart run flutter_launcher_icons || true
-          dart run flutter_native_splash:create || true
+          dart run flutter_launcher_icons
+          dart run flutter_native_splash:create
 
       - name: Compilar (sem assinatura — o AltStore assina no seu iPhone)
         run: |
