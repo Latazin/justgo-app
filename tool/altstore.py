@@ -11,7 +11,7 @@ print(json.dumps({
     "name": "JustGo", "bundleIdentifier": bid, "developerName": "JustGo",
     "subtitle": "Domine sua cidade", "localizedDescription": "Grave corridas, pedais e natação com GPS, conquiste territórios no mapa, desafie os amigos e reviva seus treinos em 3D.",
     "iconURL": f"{raw}/icon.png", "tintColor": "#1F6BFF", "category": "lifestyle",
-    "versions": [{"version": ver, "date": today, "localizedDescription": "Nova versão do JustGo.", "downloadURL": f"{raw}/JustGo.ipa", "size": size, "minOSVersion": "13.0"}],
+    "versions": [{"version": ver, "date": today, "localizedDescription": "Nova versão do JustGo.", "downloadURL": f"{raw}/JustGo.ipa", "size": size, "minOSVersion": "15.0"}],
     "appPermissions": {"entitlements": [], "privacy": {
       "NSLocationWhenInUseUsageDescription": "Gravar o percurso dos treinos.",
       "NSLocationAlwaysAndWhenInUseUsageDescription": "Continuar gravando com a tela bloqueada.",
