@@ -36,6 +36,7 @@ const Native = {
         if (b) b.click(); else { m.classList.remove('show'); m.innerHTML = ''; }
         return 'handled';
       }
+      const sd = document.getElementById('spotDraw'); if (sd) { sd.querySelector('[data-sd=close]').click(); return 'handled'; }
       const ov = [...document.querySelectorAll('body > .crop')].pop();
       if (ov) { const b = ov.querySelector('[data-c=no]'); if (b) b.click(); else ov.remove(); return 'handled'; }
       const cd = document.querySelector('body > .countdown'); if (cd) return 'handled';

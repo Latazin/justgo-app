@@ -527,6 +527,21 @@ const App = {
     v3Play: () => (View3D.playing ? View3D.pause() : View3D.play()),
     v3Video: () => View3D.video(),
     v3Speed: () => View3D.setSpeed(),
+    terrClaim: async (el) => {
+      const act = App.find(el.dataset.v); if (!act) return;
+      if (!Cloud.loggedIn()) return FX.toast('Entre na conta para conquistar no mapa.');
+      el.disabled = true; el.textContent = 'Conquistando…';
+      act.zc = 0; const r = {}; Zones.hook(act, r); Store.save();
+      if (!r.zones || !r.zones.loops.length) { el.disabled = false; el.textContent = 'Conquistar'; return FX.toast('Esse treino não fechou área.'); }
+      try {
+        const c = await Zones.claim(act, r.zones.loops);
+        UI._zonesCloud = null;
+        if (c && c.privacy) FX.toast('A área encosta na sua zona de casa (privacidade), então fica só no seu aparelho.');
+        else if (c && (c.created.length || c.stolen.length)) { FX.beep([523, 659, 784, 1047]); FX.toast(`Território conquistado: ${Zones.areaTxt(r.zones.loops.reduce((s, l) => s + l.area, 0))}!`); }
+        else FX.toast('Essa área já é sua no mapa.');
+      } catch (e) { console.error(e); FX.toast('Não deu para enviar agora. Tente de novo.'); }
+      el.disabled = false; el.textContent = 'Conquistar';
+    },
     v3Cancel: () => { View3D.cancelVideo = true; },
     v3Light: () => { View3D.light = !View3D.light; const a = App.find(App.v3Act); View3D.close(); if (a) UI.view3d(a); FX.toast(View3D.light ? 'Modo leve ligado' : 'Qualidade máxima'); },
     chalOpen: (el) => { App.tab = 'challenge'; App.nav = 'social'; UI.challenge(el.dataset.v); },

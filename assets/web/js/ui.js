@@ -217,6 +217,13 @@ const UI = {
       <div class="lock-over"><div class="lock-badge">${I('lock')}</div><b>${esc(u.name)}</b><small>${esc(Game.reqText(u.req))}</small>${this.bar(p.pct)}<small class="num">${p.curTxt}</small></div></div>`;
   },
   lockChip(id, label) { const u = Game.unlock(id); return `<button class="chip-btn is-locked" data-act="sub" data-v="progress:tree" title="${esc(Game.reqText(u.req))}">${I('lock')}${label}</button>`; },
+  // território deste treino: conquistou ou o motivo de não ter conquistado
+  terrCard(act) {
+    if (!act || !act.points || act.points.length < 8 || !Zones.SPORTS.includes(act.sport)) return '';
+    const d = Zones.diagnose(act);
+    if (d.ok) return `<section class="terr-card ok"><div class="tc-ic">${I('flag')}</div><div class="grow"><b>${d.loops.length > 1 ? `${d.loops.length} áreas fechadas` : 'Área fechada'} · ${Zones.areaTxt(d.area)}</b><small>${d.priv ? 'Treino está como "Só eu": a área fica só no seu aparelho.' : 'Se não apareceu no mapa, toque em conquistar.'}</small></div>${d.priv ? '' : `<button class="tc-btn" data-act="terrClaim" data-v="${act.id}">Conquistar</button>`}</section>`;
+    return `<section class="terr-card"><div class="tc-ic">${I('flag')}</div><div class="grow"><b>Não virou território</b><small>${esc(d.why)}</small></div></section>`;
+  },
   sectionHead(title, link) { return `<div class="sec"><h2>${title}</h2>${link ? `<button class="sec-link" data-act="${link[2] || 'go'}" data-v="${link[1]}">${link[0]}</button>` : ''}</div>`; },
   levelLine() {
     const xp = Store.data.xp, l = Game.level(xp), a = Game.xpFor(l), b = Game.xpFor(l + 1);
@@ -634,6 +641,7 @@ const UI = {
       ${hasMap ? `<div class="s-map-wrap"><div id="sMap" class="s-map"></div><button class="map3d-btn" data-act="view3d" data-v="${act.id}">${I('box3d')}Ver em 3D</button></div>` : act.pool ? `<div class="pool-art">${I('swim')}<b class="num">${Fmt.km(act.distance)} km</b><small>${act.pool.laps} voltas</small></div>` : ''}
       <div class="actions wrap">${acts.join('')}</div>
       ${rewards}
+      ${this.terrCard(act)}
       ${this.proSection(act)}
       <section class="card kvl">${more.map(([l, v]) => `<div><span>${l}</span><b class="num">${v}</b></div>`).join('')}</section>
       ${gearHtml ? `<div class="list">${gearHtml}</div>` : ''}

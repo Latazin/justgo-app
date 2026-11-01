@@ -8,6 +8,7 @@
 const Zones = {
   SPORTS: ['run', 'ride', 'walk', 'hike', 'skate', 'board'],
   CLOSE_M: 45,       // distância para considerar que voltou ao mesmo ponto
+  END_CLOSE_M: 150,  // no fim do treino: terminar perto de onde já passou fecha a volta
   GAP_M: 60,         // tolerância extra só para as retas de quando o GPS falhou
   SHAPE: 0.015,      // área/perímetro² mínima: faixas compridas e finas demais não contam
   MIN_LOOP_M: 300,   // circuito mínimo
@@ -97,6 +98,12 @@ const Zones = {
         }
       }
       if (best >= 0 && bd > c) line(X[i], X[best]);
+      // última posição do trecho: tolerância maior (terminou perto do começo/do caminho)
+      if (best < 0 && (i === X.length - 1 || seg[i + 1] !== seg[i])) {
+        let bj = -1, bdd = Infinity;
+        for (let j = 0; j < i; j++) { if (seg[j] !== seg[i] || D[i] - D[j] < this.MIN_LOOP_M) continue; const d = Math.hypot(x - X[j][0], y - X[j][1]); if (d <= this.END_CLOSE_M && d < bdd) { bdd = d; bj = j; } }
+        if (bj >= 0) line(X[i], X[bj]);
+      }
       const k = key(x, y); if (!H.has(k)) H.set(k, []); H.get(k).push(i);
     }
     // tudo que o "lado de fora" não alcança está cercado
@@ -160,6 +167,18 @@ const Zones = {
     return rdp(pts.slice(0, half + 1), 0.8).slice(0, -1).concat(rdp(pts.slice(half), 0.8)).slice(0, -1);
   },
 
+  // explica por que um treino virou (ou não) território
+  diagnose(act) {
+    if (!act || !act.points || act.points.length < 8) return { ok: false, why: 'Este treino não tem percurso de GPS.' };
+    if (!this.SPORTS.includes(act.sport)) return { ok: false, why: 'Esse esporte não conquista território.' };
+    if (act.flagged) return { ok: false, why: 'Treino marcado como suspeito (velocidade fora do normal).' };
+    const L = this.loops(act.points);
+    if (L.length) return { ok: true, loops: L, area: L.reduce((s, l) => s + l.area, 0), priv: !!act.private };
+    const P = act.points.filter((p) => p && p[0] != null), gap = Math.round(Geo.dist(P[0], P[P.length - 1]));
+    if (gap > this.END_CLOSE_M) return { ok: false, why: `O treino terminou a ${gap >= 1000 ? Fmt.km(gap) + ' km' : gap + ' m'} de onde começou e o caminho não se fechou. Para conquistar, termine a menos de ${this.END_CLOSE_M} m do início ou passe de novo por um trecho que já percorreu.` };
+    return { ok: false, why: 'A volta ficou pequena ou fina demais (ida e volta pela mesma rua não conta).' };
+  },
+
   /* ---------- áreas guardadas no aparelho ---------- */
   mine() { return Store.data.zones || (Store.data.zones = []); },
   totalArea(list) { return (list || this.mine()).reduce((s, z) => s + (z.area || 0), 0); },
@@ -168,7 +187,7 @@ const Zones = {
 
   // chamado ao salvar cada treino
   hook(act, r) {
-    act.zc = 3;
+    act.zc = 4;
     if (!this.SPORTS.includes(act.sport) || act.flagged || !act.points || act.points.length < 8) return;
     const L = this.loops(act.points); if (!L.length) return;
     // reprocessando um treino: as áreas antigas dele dão lugar às novas (sem contar duas vezes)
@@ -189,7 +208,7 @@ const Zones = {
     const P = Store.data.privacy, me = Cloud.user.id, name = Cloud.me.name || 'Atleta';
     // áreas encostadas na zona de privacidade (casa) ficam só no aparelho
     const ok = loops.filter((l) => !(P.zone && P.lat != null && l.poly.some((p) => Geo.dist(p, [P.lat, P.lng]) < P.radius)));
-    if (!ok.length) return null;
+    if (!ok.length) return { stolen: [], created: [], privacy: true };
     const c = this.center(ok[0].poly), near = await Cloud.zonesNear(c[0], c[1], 4);
     const stolen = [], created = [];
     for (const l of ok) {
@@ -234,7 +253,7 @@ Zones.cleanup = async function () {
 // são verificados de novo: se fecharam área, a área é conquistada agora
 Zones.recheck = async function () {
   const D = Store.data, since = Date.now() - 30 * 864e5;
-  const todo = D.activities.filter((a) => a.start >= since && a.zc !== 3 && this.SPORTS.includes(a.sport) && !a.flagged && a.points && a.points.length >= 8);
+  const todo = D.activities.filter((a) => a.start >= since && a.zc !== 4 && this.SPORTS.includes(a.sport) && !a.flagged && a.points && a.points.length >= 8);
   if (!todo.length) return;
   let got = 0, area = 0;
   for (const act of todo.sort((x, y) => x.start - y.start)) {

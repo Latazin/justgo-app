@@ -51,10 +51,18 @@ const FX = {
   modal(html) {
     return new Promise((res) => {
       const m = $('#modal');
-      m.innerHTML = `<div class="modal-bg"><div class="modal-box">${html}</div></div>`;
+      m.innerHTML = `<div class="modal-bg"><div class="modal-box"><i class="m-grip"></i>${html}</div></div>`;
+      // emoji do título vira um ícone em destaque (visual mais limpo)
+      const h = m.querySelector('.modal-box > h3');
+      if (h && !m.querySelector('.modal-box > .m-done, .modal-box > .m-ic')) {
+        const re = /\s*(\p{Extended_Pictographic}(\uFE0F|\u200D\p{Extended_Pictographic})*)\s*/u, mm = h.textContent.match(re);
+        if (mm) { h.innerHTML = h.innerHTML.replace(mm[1], '').replace(/\uFE0F/g, '').trim(); const ic = document.createElement('div'); ic.className = 'm-ic'; ic.textContent = mm[1]; h.before(ic); }
+      }
       m.classList.add('show');
       m.onclick = (e) => {
-        const b = e.target.closest('[data-m]');
+        let b = e.target.closest('[data-m]');
+        // toque fora da janela = cancelar (quando existe a opção)
+        if (!b && e.target.classList.contains('modal-bg')) b = m.querySelector('[data-m=no]');
         if (!b) return;
         // guarda o que foi digitado antes de fechar
         this.form = {};
