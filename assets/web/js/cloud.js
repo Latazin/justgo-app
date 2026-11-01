@@ -504,8 +504,8 @@ const Cloud = {
   },
   async addZone(z, name) {
     const { data, error } = await this.sb.from('zones').insert({ ...z, owner: this.user.id, owner_name: name }).select().single();
-    if (error) { console.error(error); return null; }
-    return data;
+    if (error) { console.error(error); this.zoneErr = error.message || String(error); return null; }
+    this.zoneErr = null; return data;
   },
   async stealZone(id, name) { const { error } = await this.sb.rpc('steal_zone', { zid: id, uname: name }); if (error) console.error(error); },
   async territoryOwners(hexes) {

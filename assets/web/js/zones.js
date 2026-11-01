@@ -263,5 +263,36 @@ Zones.recheck = async function () {
     }
   }
   Store.save();
+  setTimeout(() => this.sync().catch(() => {}), 1500);
   if (got) FX.toast(`Território: ${got} área${got > 1 ? 's' : ''} conquistada${got > 1 ? 's' : ''} em treinos recentes${area ? ` (${this.areaTxt(area)})` : ''}`);
+};
+
+// áreas que ficaram só no aparelho (envio falhou ou app fechou antes): manda para o mapa
+Zones.pendingOf = function (cloud) {
+  const me = Cloud.user && Cloud.user.id, P = Store.data.privacy, acts = {};
+  Store.data.activities.forEach((a) => (acts[a.id] = a));
+  return this.mine().filter((z) => {
+    const a = acts[z.act]; if (a && (a.private || a.flagged)) return false;
+    if (P.zone && P.lat != null && z.poly.some((p) => Geo.dist(p, [P.lat, P.lng]) < P.radius)) return false;
+    if (cloud.some((o) => o.owner === me && this.overlap(z.poly, o.poly) >= 0.6)) return false;
+    // alguém roubou depois: não volta
+    if (cloud.some((o) => o.owner !== me && this.overlap(z.poly, o.poly) >= 0.6 && Date.parse(o.captured_at) > (z.at || 0))) return false;
+    return true;
+  });
+};
+Zones.sync = async function () {
+  if (!Cloud.loggedIn() || !Cloud.me || this._syncing) return 0;
+  this._syncing = true; let up = 0;
+  try {
+    const L = this.mine(); if (!L.length) return 0;
+    const c = this.center(L[L.length - 1].poly), near = await Cloud.zonesNear(c[0], c[1], this.RADIUS_KM);
+    for (const z of this.pendingOf(near)) {
+      const zc = this.center(z.poly), row = await Cloud.addZone({ poly: z.poly, area: z.area, lat: zc[0], lng: zc[1], activity_id: z.act || null }, Cloud.me.name || 'Atleta');
+      if (!row) break;
+      near.push(row); up++;
+    }
+    if (up) { FX.toast(`Território enviado para o mapa: ${up} área${up > 1 ? 's' : ''}`); if (App.tab === 'mapa') { UI._zonesCloud = null; UI.mapa(); } }
+    else if (Cloud.zoneErr) FX.toast('Não consegui enviar sua área para o mapa: ' + Cloud.zoneErr.slice(0, 90));
+  } catch (e) { console.warn(e); } finally { this._syncing = false; }
+  return up;
 };

@@ -927,11 +927,16 @@ const UI = {
     // áreas: da nuvem (todos) ou só as suas, deste aparelho
     const cloud = this._zonesCloud;
     const zones = cloud ? cloud.map((z) => ({ ...z, mine: z.owner === me })) : Zones.mine().map((z) => ({ ...z, mine: true, owner_name: Store.data.profile.name }));
+    // suas áreas que ainda não chegaram na nuvem continuam aparecendo (tracejadas) e são reenviadas
+    if (cloud && Cloud.loggedIn()) {
+      Zones.pendingOf(cloud).forEach((z) => zones.push({ ...z, mine: true, pending: true, owner: me, owner_name: Store.data.profile.name }));
+      if (!this._zSynced) { this._zSynced = true; setTimeout(() => Zones.sync().catch(() => {}), 800); }
+    }
     const inR = zones.filter((z) => near(Zones.center(z.poly)));
     if (lay.zones) inR.forEach((z) => {
       const col = z.mine ? '#1F6BFF' : this.zoneColor(z.owner);
-      L.polygon(z.poly, { color: col, weight: 2, fillColor: col, fillOpacity: z.mine ? 0.28 : 0.22 })
-        .bindPopup(`<b>${z.mine ? 'Sua área' : 'Área de ' + esc(z.owner_name || 'Atleta')}</b><br>${Zones.areaTxt(z.area)}${z.prev_owner_name ? `<br><small>Roubada de ${esc(z.prev_owner_name)}</small>` : ''}`).addTo(G.zones);
+      L.polygon(z.poly, { color: col, weight: 2, fillColor: col, fillOpacity: z.mine ? 0.28 : 0.22, dashArray: z.pending ? '6 6' : null })
+        .bindPopup(`<b>${z.pending ? 'Sua área (enviando para o mapa…)' : z.mine ? 'Sua área' : 'Área de ' + esc(z.owner_name || 'Atleta')}</b><br>${Zones.areaTxt(z.area)}${z.prev_owner_name ? `<br><small>Roubada de ${esc(z.prev_owner_name)}</small>` : ''}`).addTo(G.zones);
     });
     if (lay.acts) Game.acts().filter((a) => a.points && a.points.length > 1 && near(a.points[0])).slice(-60).forEach((a) => L.polyline(Geo.segments(a.points), { color: Shop.lineColor(a.sport), weight: 3, opacity: 0.55, interactive: false }).addTo(G.acts));
     if (lay.routes) Store.data.routes.filter((r) => r.points.length && near(r.points[0])).forEach((r) => L.polyline(r.points.map((p) => [p[0], p[1]]), { color: '#111317', weight: 4, opacity: 0.8, dashArray: r.segment ? '2 8' : null }).bindPopup(`<b>${esc(r.name)}</b><br>${Fmt.km(r.distance)} km`).addTo(G.routes));

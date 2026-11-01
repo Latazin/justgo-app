@@ -538,6 +538,7 @@ const App = {
         UI._zonesCloud = null;
         if (c && c.privacy) FX.toast('A área encosta na sua zona de casa (privacidade), então fica só no seu aparelho.');
         else if (c && (c.created.length || c.stolen.length)) { FX.beep([523, 659, 784, 1047]); FX.toast(`Território conquistado: ${Zones.areaTxt(r.zones.loops.reduce((s, l) => s + l.area, 0))}!`); }
+        else if (Cloud.zoneErr) FX.toast('Erro ao enviar: ' + Cloud.zoneErr.slice(0, 100));
         else FX.toast('Essa área já é sua no mapa.');
       } catch (e) { console.error(e); FX.toast('Não deu para enviar agora. Tente de novo.'); }
       el.disabled = false; el.textContent = 'Conquistar';
