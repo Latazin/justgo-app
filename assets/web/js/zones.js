@@ -9,7 +9,7 @@ const Zones = {
   SPORTS: ['run', 'ride', 'walk', 'hike', 'skate', 'board'],
   CLOSE_M: 45,       // distância para considerar que voltou ao mesmo ponto
   GAP_M: 60,         // tolerância extra só para as retas de quando o GPS falhou
-  SHAPE: 0.03,       // área/perímetro² mínima: barra ida-e-volta pela mesma avenida (forma fina) não conta
+  SHAPE: 0.015,      // área/perímetro² mínima: faixas compridas e finas demais não contam
   MIN_LOOP_M: 300,   // circuito mínimo
   MIN_AREA: 2000,    // m² (≈ meio quarteirão)
   STEAL: 0.5,        // fração da área do outro que precisa ser coberta
@@ -58,42 +58,106 @@ const Zones = {
   },
   simplify(poly, max = 90) { const step = Math.max(1, Math.ceil(poly.length / max)); return poly.filter((_, i) => i % step === 0).map((p) => [+p[0].toFixed(6), +p[1].toFixed(6)]); },
 
-  /* ---------- encontra os circuitos fechados de um treino ---------- */
+  /* ---------- encontra as áreas fechadas de um treino ----------
+     O percurso é "pintado" numa grade de poucos metros; tudo o que ficar cercado pela rota
+     (ou por um retorno a menos de 45 m de onde já passou) vira área. Funciona com voltas
+     que se cruzam, oito, várias voltas no mesmo treino e voltinhas dentro do caminho.
+     Ida e volta pela mesma rua não cerca nada. Trechos entre pausas nunca são ligados. */
   loops(points) {
-    // cada trecho entre pausas é analisado separado: nunca "fecha" uma área ligando o ponto
-    // onde a pessoa pausou ao ponto onde voltou a gravar
-    const segs = []; let cur = [];
-    (points || []).forEach((p) => { if (p[4] && cur.length) { segs.push(cur); cur = []; } cur.push(p); });
-    if (cur.length) segs.push(cur);
-    const all = []; segs.forEach((sg) => all.push(...this.loopsOne(sg)));
-    all.sort((x, y) => y.area - x.area);
-    const out = [];
-    all.forEach((l) => { if (!out.some((k) => this.overlap(l.poly, k.poly) > 0.7)) out.push(l); });
-    return out;
-  },
-  loopsOne(src) {
+    const src = (points || []).filter((p) => p && p[0] != null);
     if (src.length < 8) return [];
-    // um ponto a cada ~12 m e coordenadas em metros (rápido)
-    const P = [src[0]];
-    for (let i = 1; i < src.length; i++) if (Geo.dist(P[P.length - 1], src[i]) >= 12) P.push(src[i]);
+    // um ponto a cada ~8 m, separado por trechos (pausas)
+    const P = [src[0]], seg = [0]; let sId = 0;
+    for (let i = 1; i < src.length; i++) {
+      if (src[i][4]) { sId++; P.push(src[i]); seg.push(sId); continue; }
+      if (Geo.dist(P[P.length - 1], src[i]) >= 8) { P.push(src[i]); seg.push(sId); }
+    }
     if (P.length < 8) return [];
     const o = P[0], X = P.map((p) => this.xy(p, o)), D = [0];
-    for (let i = 1; i < X.length; i++) D.push(D[i - 1] + Math.hypot(X[i][0] - X[i - 1][0], X[i][1] - X[i - 1][1]));
-    const found = []; let cut = 0;
-    for (let i = 1; i < X.length; i++) {
-      for (let j = i - 1; j >= cut; j--) {
-        const per = D[i] - D[j];
-        if (per < this.MIN_LOOP_M) continue;
-        // voltou ao mesmo ponto — ou, se ali o GPS falhou (reta estimada), perto dessa reta
-        const close = Math.hypot(X[i][0] - X[j][0], X[i][1] - X[j][1]) <= this.CLOSE_M
-          || (j + 1 < i && P[j + 1][5] && this.segDist(X[i], X[j], X[j + 1]) <= this.GAP_M);
-        if (!close) continue;
-        const poly = P.slice(j, i + 1).map((p) => [p[0], p[1]]), a = this.area(poly);
-        // descarta ida e volta pela mesma rua (área quase zero) e formas finas demais
-        if (a >= this.MIN_AREA && a / (per * per) > this.SHAPE) { found.push({ poly: this.simplify(poly), area: Math.round(a) }); cut = i; break; }
+    for (let i = 1; i < X.length; i++) D.push(D[i - 1] + (seg[i] === seg[i - 1] ? Math.hypot(X[i][0] - X[i - 1][0], X[i][1] - X[i - 1][1]) : 0));
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    X.forEach(([x, y]) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); });
+    const c = Math.max(5, Math.max(x1 - x0, y1 - y0) / 1600), pad = 6;
+    const w = Math.ceil((x1 - x0) / c) + 2 * pad, h = Math.ceil((y1 - y0) / c) + 2 * pad;
+    const G = new Uint8Array(w * h); // 1 = rota
+    const gx = (x) => (x - x0) / c + pad, gy = (y) => (y - y0) / c + pad;
+    const stamp = (fx, fy) => { const cx = Math.round(fx), cy = Math.round(fy); for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const X_ = cx + dx, Y_ = cy + dy; if (X_ >= 0 && Y_ >= 0 && X_ < w && Y_ < h) G[Y_ * w + X_] = 1; } };
+    const line = (a, b) => { const ax = gx(a[0]), ay = gy(a[1]), bx = gx(b[0]), by = gy(b[1]), n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) * 2)); for (let k = 0; k <= n; k++) stamp(ax + ((bx - ax) * k) / n, ay + ((by - ay) * k) / n); };
+    for (let i = 1; i < X.length; i++) if (seg[i] === seg[i - 1]) line(X[i - 1], X[i]);
+    // retorno perto de onde já passou (mesmo trecho, depois de pelo menos 300 m): fecha a volta
+    const H = new Map(), key = (x, y) => Math.floor(x / this.CLOSE_M) + ',' + Math.floor(y / this.CLOSE_M);
+    for (let i = 0; i < X.length; i++) {
+      const [x, y] = X[i], kx = Math.floor(x / this.CLOSE_M), ky = Math.floor(y / this.CLOSE_M);
+      let best = -1, bd = Infinity;
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+        const L = H.get((kx + dx) + ',' + (ky + dy)); if (!L) continue;
+        for (const j of L) {
+          if (seg[j] !== seg[i] || D[i] - D[j] < this.MIN_LOOP_M) continue;
+          const d = Math.hypot(x - X[j][0], y - X[j][1]); if (d <= this.CLOSE_M && d < bd) { bd = d; best = j; }
+        }
       }
+      if (best >= 0 && bd > c) line(X[i], X[best]);
+      const k = key(x, y); if (!H.has(k)) H.set(k, []); H.get(k).push(i);
     }
-    return found;
+    // tudo que o "lado de fora" não alcança está cercado
+    const out = new Uint8Array(w * h), Q = new Int32Array(w * h); let qh = 0, qt = 0;
+    const push = (i) => { if (!out[i] && !G[i]) { out[i] = 1; Q[qt++] = i; } };
+    for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
+    for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
+    while (qh < qt) { const i = Q[qh++], x = i % w; if (x > 0) push(i - 1); if (x < w - 1) push(i + 1); if (i >= w) push(i - w); if (i < w * (h - 1)) push(i + w); }
+    const F = new Uint8Array(w * h); let any = false;
+    for (let i = 0; i < w * h; i++) if (!out[i] && !G[i]) { F[i] = 1; any = true; }
+    if (!any) return [];
+    // junta a área cercada com a rota em volta dela e tira pontas finas (abertura morfológica)
+    const filled = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) filled[i] = out[i] ? 0 : 1;
+    const R = 2, morph = (A, isMin) => {
+      const T = new Uint8Array(w * h), B = new Uint8Array(w * h);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let v = isMin ? 1 : 0; for (let d = -R; d <= R && (isMin ? v : !v); d++) { const X_ = x + d; const a = X_ < 0 || X_ >= w ? 0 : A[y * w + X_]; v = isMin ? v & a : v | a; } T[y * w + x] = v; }
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let v = isMin ? 1 : 0; for (let d = -R; d <= R && (isMin ? v : !v); d++) { const Y_ = y + d; const a = Y_ < 0 || Y_ >= h ? 0 : T[Y_ * w + x]; v = isMin ? v & a : v | a; } B[y * w + x] = v; }
+      return B;
+    };
+    const M = morph(morph(filled, true), false);
+    // componentes
+    const lab = new Int32Array(w * h), res = []; let nl = 0;
+    for (let s = 0; s < w * h; s++) {
+      if (!M[s] || lab[s]) continue;
+      nl++; let qh2 = 0, qt2 = 0, n = 0, inner = 0; Q[qt2++] = s; lab[s] = nl;
+      while (qh2 < qt2) {
+        const i = Q[qh2++], x = i % w; n++; if (F[i]) inner++;
+        const nb = [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i - w, i + w];
+        for (const j of nb) if (j >= 0 && j < w * h && M[j] && !lab[j]) { lab[j] = nl; Q[qt2++] = j; }
+      }
+      if (inner * c * c < this.MIN_AREA) continue;
+      const poly = this.trace(lab, nl, s, w, h).map(([px, py]) => {
+        const mx = (px - pad) * c + x0, my = (py - pad) * c + y0, k = Math.cos((o[0] * Math.PI) / 180);
+        return [o[0] + my / 110574, o[1] + mx / (111320 * k)];
+      });
+      if (poly.length < 4) continue;
+      const a = this.area(poly), per = poly.reduce((s_, p, i) => s_ + Geo.dist(p, poly[(i + 1) % poly.length]), 0);
+      if (a < this.MIN_AREA || a / (per * per) < this.SHAPE) continue;
+      res.push({ poly: this.simplify(poly), area: Math.round(a) });
+    }
+    return res.sort((x, y) => y.area - x.area);
+  },
+  // contorno externo de um componente (vizinhança de Moore) + simplificação Douglas-Peucker
+  trace(lab, id, s, w, h) {
+    const at = (x, y) => x >= 0 && y >= 0 && x < w && y < h && lab[y * w + x] === id;
+    const dirs = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+    let x = s % w, y = (s / w) | 0; const sx = x, sy = y, pts = [[x, y]]; let d = 6, guard = 0;
+    do {
+      let found = false;
+      for (let k = 0; k < 8; k++) { const nd = (d + 6 + k) % 8, nx = x + dirs[nd][0], ny = y + dirs[nd][1]; if (at(nx, ny)) { x = nx; y = ny; d = nd; found = true; break; } }
+      if (!found) break;
+      pts.push([x, y]);
+    } while ((x !== sx || y !== sy) && ++guard < 200000);
+    const rdp = (A, eps) => {
+      if (A.length < 3) return A;
+      let mi = 0, md = 0; const [ax, ay] = A[0], [bx, by] = A[A.length - 1], L = Math.hypot(bx - ax, by - ay) || 1;
+      for (let i = 1; i < A.length - 1; i++) { const dd = Math.abs((bx - ax) * (ay - A[i][1]) - (ax - A[i][0]) * (by - ay)) / L; if (dd > md) { md = dd; mi = i; } }
+      return md > eps ? rdp(A.slice(0, mi + 1), eps).slice(0, -1).concat(rdp(A.slice(mi), eps)) : [A[0], A[A.length - 1]];
+    };
+    const half = Math.floor(pts.length / 2);
+    return rdp(pts.slice(0, half + 1), 0.8).slice(0, -1).concat(rdp(pts.slice(half), 0.8)).slice(0, -1);
   },
 
   /* ---------- áreas guardadas no aparelho ---------- */
@@ -104,9 +168,11 @@ const Zones = {
 
   // chamado ao salvar cada treino
   hook(act, r) {
-    act.zc = 2;
+    act.zc = 3;
     if (!this.SPORTS.includes(act.sport) || act.flagged || !act.points || act.points.length < 8) return;
     const L = this.loops(act.points); if (!L.length) return;
+    // reprocessando um treino: as áreas antigas dele dão lugar às novas (sem contar duas vezes)
+    Store.data.zones = this.mine().filter((z) => z.act !== act.id);
     const Z = this.mine(); let nNew = 0, aNew = 0;
     L.forEach((l) => {
       const same = Z.find((z) => this.overlap(l.poly, z.poly) > 0.8 && this.overlap(z.poly, l.poly) > 0.8);
@@ -164,11 +230,11 @@ Zones.cleanup = async function () {
   if (removed) FX.toast(`Território corrigido: ${removed} área${removed > 1 ? 's' : ''} que não fechava${removed > 1 ? 'm' : ''} circuito ${removed > 1 ? 'foram removidas' : 'foi removida'}.`);
 };
 
-// treinos dos últimos 14 dias feitos em versões antigas (ou com a regra antiga, mais rígida)
+// treinos dos últimos 30 dias feitos em versões antigas (ou com a regra antiga, mais rígida)
 // são verificados de novo: se fecharam área, a área é conquistada agora
 Zones.recheck = async function () {
-  const D = Store.data, since = Date.now() - 14 * 864e5;
-  const todo = D.activities.filter((a) => a.start >= since && a.zc !== 2 && this.SPORTS.includes(a.sport) && !a.flagged && a.points && a.points.length >= 8);
+  const D = Store.data, since = Date.now() - 30 * 864e5;
+  const todo = D.activities.filter((a) => a.start >= since && a.zc !== 3 && this.SPORTS.includes(a.sport) && !a.flagged && a.points && a.points.length >= 8);
   if (!todo.length) return;
   let got = 0, area = 0;
   for (const act of todo.sort((x, y) => x.start - y.start)) {
