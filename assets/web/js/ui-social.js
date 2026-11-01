@@ -298,7 +298,7 @@ Object.assign(UI, {
       <section class="card kvl">${more.map(([l, v]) => `<div><span>${l}</span><b class="num">${v}</b></div>`).join('')}</section>
       ${this.sectionHead('Comentários')}
       <div id="raCm" class="ra-cm"><div class="loading">Carregando…</div></div>
-      <div class="ra-new"><textarea id="raText" maxlength="500" placeholder="Escreva um comentário… (dê os parabéns!)"></textarea><button class="btn primary" data-act="raComment" data-v="${a.id}">${I('send')}Enviar</button></div>`;
+      ${this.composer('raText', 'raComment', a.id)}`;
     if (hasMap) {
       const m = this.map('raMap');
       if (m) {
@@ -327,10 +327,17 @@ Object.assign(UI, {
     if (s < 7 * 86400) return `${Math.floor(s / 86400)} d`;
     return new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
   },
+  // caixa de comentário (estilo app de rede social): avatar, campo que cresce, envio por ícone e reações rápidas
+  composer(id, act, aid, quick = true) {
+    return `<div class="composer">${quick ? `<div class="cp-quick">${['🔥 Que treino!', '👏 Parabéns!', '💪 Monstro!', '🚀 Voando!'].map((q) => `<button class="cp-chip" data-act="cpQuick" data-t="${id}" data-v="${q}">${q}</button>`).join('')}</div>` : ''}
+      <div class="cp-row">${this.avatar('sm')}<div class="cp-box"><textarea id="${id}" class="cp-in" rows="1" maxlength="500" placeholder="Adicione um comentário…"></textarea>
+      <button class="cp-send" ${act.startsWith('m:') ? `data-m="${act.slice(2)}"` : `data-act="${act}" data-v="${aid}"`} aria-label="Enviar">${I('send')}</button></div></div></div>`;
+  },
   async commentsSheet(id) {
     const list = await Cloud.comments(id);
-    const v = await FX.modal(`<h3>Comentários</h3><div class="comments">${list.length ? list.map((c) => `<div class="cm"><b>${esc(c.profiles ? c.profiles.name : 'Atleta')}</b><p>${esc(c.text)}</p><small>${new Date(c.created_at).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</small></div>`).join('') : '<p class="muted">Seja o primeiro a comentar.</p>'}</div>
-      <textarea id="cmText" placeholder="Escreva um comentário… (dê os parabéns!)"></textarea><div class="row2"><button class="btn ghost" data-m="no">Fechar</button><button class="btn primary" data-m="send">Enviar</button></div>`);
+    const me = Cloud.user && Cloud.user.id;
+    const v = await FX.modal(`<h3>Comentários</h3><div class="comments">${list.length ? list.map((c) => { const p = c.profiles || {}; return `<div class="ra-c">${this.avatarOf(p.name, p.frame, p.avatar, 'sm', p.photo)}<div class="grow"><div class="ra-c-h"><b>${esc(p.name || 'Atleta')}</b><small>${this.ago(Date.parse(c.created_at))}</small></div><p>${esc(c.text)}</p></div></div>`; }).join('') : '<div class="cm-empty">' + I('message') + '<b>Nenhum comentário ainda</b><small>Seja o primeiro a dar os parabéns!</small></div>'}</div>
+      ${this.composer('cmText', 'm:send', id)}`);
     return v;
   },
 });

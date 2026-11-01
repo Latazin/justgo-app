@@ -4,7 +4,7 @@
    Nada neste arquivo exige mexer no resto do código.
    ========================================================= */
 const CONFIG = {
-  version: '2.16.3',
+  version: '2.17.0',
 
   /* ---------- Esportes ----------
      xpPerKm: peso do XP por km (natação vale mais que pedal)

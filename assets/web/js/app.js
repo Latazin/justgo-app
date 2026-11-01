@@ -42,6 +42,7 @@ const App = {
     document.addEventListener('submit', (e) => { if (e.target.id === 'authForm') { e.preventDefault(); this.auth(); } });
     document.addEventListener('input', (e) => {
       if (e.target.id === 'rtProg' && typeof Retro !== 'undefined' && Retro.base) { if (Retro.playing) Retro.pause(); Retro.seek(+e.target.value / 1000); return; }
+      if (e.target.classList && e.target.classList.contains('cp-in')) { const t = e.target; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 132) + 'px'; t.closest('.cp-box').classList.toggle('has', !!t.value.trim()); }
       if (e.target.id === 'searchQ') { clearTimeout(this._sq); const q = e.target.value.trim(); this._sq = setTimeout(() => UI.searchResults(q).catch(() => {}), 300); }
     });
     document.addEventListener('visibilitychange', () => {
@@ -898,11 +899,18 @@ const App = {
     // social
     rank: (el) => { const [k, v] = el.dataset.v.split(':'); App.rank[k] = v || null; UI.social(); },
     like: async (el) => {
-      const on = el.dataset.on !== '1', n = el.querySelector('span');
-      el.dataset.on = on ? '1' : '0'; el.classList.toggle('on', on); n.textContent = +n.textContent + (on ? 1 : -1);
+      if (!Cloud.loggedIn()) return FX.toast('Entre na conta para curtir.');
+      const on = el.dataset.on !== '1', n = el.querySelector('.num') || el.querySelector('span');
+      // o mesmo treino pode aparecer em vários lugares da tela: atualiza todos
+      document.querySelectorAll(`[data-act="like"][data-v="${el.dataset.v}"]`).forEach((b) => {
+        b.dataset.on = on ? '1' : '0'; b.classList.toggle('on', on);
+        const c = b.querySelector('.num'); if (c) c.textContent = Math.max(0, (+c.textContent || 0) + (on ? 1 : -1));
+        if (on) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }
+      });
       if (on) FX.vibrate([20]);
-      try { await Cloud.like(el.dataset.v, on); } catch (e) {}
+      try { await Cloud.like(el.dataset.v, on); } catch (e) { FX.toast('Não deu para curtir agora.'); }
     },
+    cpQuick: (el) => { const t = $('#' + el.dataset.t); if (!t) return; t.value = el.dataset.v; t.dispatchEvent(new Event('input', { bubbles: true })); t.focus(); },
     comments: async (el) => {
       const v = await UI.commentsSheet(el.dataset.v);
       if (v === 'send' && FX.form.cmText && FX.form.cmText.trim()) { await Cloud.comment(el.dataset.v, FX.form.cmText.trim()); const s = el.querySelector('span'); s.textContent = +s.textContent + 1; App.actions.comments(el); }

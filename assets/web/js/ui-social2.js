@@ -75,7 +75,7 @@ Object.assign(UI, {
       <div class="sp-body tap" data-act="raOpen" data-v="${a.id}"><h3>${esc(this.actTitle(a))}</h3>
         <div class="sp-stats c${cells.length}">${cells.map(([l, v]) => `<div><span>${l}</span><b class="num">${v}</b></div>`).join('')}</div></div>
       ${media ? `<div class="sp-media tap" data-act="raOpen" data-v="${a.id}">${media}</div>` : ''}
-      ${opts.noFoot ? '' : `${counts}<div class="sp-bar"><button class="sp-btn ${a.liked ? 'on' : ''}" data-act="like" data-v="${a.id}" data-on="${a.liked ? 1 : 0}">${I('heart')}<span>Curtir</span><span class="num" hidden>${a.likes || 0}</span></button><button class="sp-btn" data-act="raOpen" data-cm="1" data-v="${a.id}">${I('message')}<span>Comentar</span></button><button class="sp-btn" data-act="raOpen" data-v="${a.id}">${I('activity')}<span>Ver treino</span></button></div>`}
+      ${opts.noFoot ? '' : `<div class="sp-bar"><button class="sp-btn sp-like ${a.liked ? 'on' : ''}" data-act="like" data-v="${a.id}" data-on="${a.liked ? 1 : 0}" aria-label="Curtir">${I('heart')}<span class="num">${a.likes || 0}</span></button><button class="sp-btn" data-act="raOpen" data-cm="1" data-v="${a.id}" aria-label="Comentar">${I('message')}<span class="num">${a.comments || 0}</span></button><button class="sp-btn sp-see" data-act="raOpen" data-v="${a.id}">Ver treino${I('chevronRight')}</button></div>`}
     </article>`;
   },
 

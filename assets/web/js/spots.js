@@ -101,49 +101,52 @@ const Spots = {
 
   // sugerir um ponto: começa onde a pessoa está (precisa estar no lugar) e ela pode
   // circular com o dedo a área toda do lugar
+  LEVEL: 50,
   async suggest() {
     if (!Cloud.loggedIn()) return FX.toast('Entre na conta para sugerir pontos.');
-    FX.toast('Pegando sua localização…');
-    const p = await Geo.locate(true).catch(() => null);
-    if (!p) return FX.toast('Não consegui sua localização. Ligue o GPS e tente de novo.');
-    if (p[2] && p[2] > 80) return FX.toast('O sinal de GPS está fraco. Vá para um lugar aberto e tente de novo.');
-    const L0 = await this.load(true), near = L0.find((s) => Geo.dist([p[0], p[1]], [s.lat, s.lng]) < 250 || (s.poly && Zones.inside([p[0], p[1]], s.poly)));
-    if (near) return FX.toast(`Você já está no ponto ${near.name}${near.status !== 'official' ? ' (abra no mapa e vote nele!)' : ''}.`);
-    this.drawUI([p[0], p[1]]);
+    const lv = Game.level(Store.data.xp || 0);
+    if (lv < this.LEVEL) {
+      return FX.modal(`<div class="m-ic">📍</div><h3>Sugerir pontos é do nível ${this.LEVEL}</h3><p class="muted">Quem chega ao nível ${this.LEVEL} já conhece bem a cidade e pode colocar lugares no mapa para a galera votar. Você está no nível <b>${lv}</b>: continue treinando!</p><div class="lv-bar"><i style="width:${Math.round((lv / this.LEVEL) * 100)}%"></i></div><div class="row2"><button class="btn primary" data-m="ok">Bora treinar</button></div>`);
+    }
+    const p = await Geo.locate(false).catch(() => null);
+    const c = p ? [p[0], p[1]] : (UI.bigMap ? [UI.bigMap.getCenter().lat, UI.bigMap.getCenter().lng] : Geo.home());
+    this.drawUI(c, !!p);
   },
   circle(c, r, n = 28) { const k = Math.cos((c[0] * Math.PI) / 180), out = []; for (let i = 0; i < n; i++) { const a = (i / n) * 2 * Math.PI; out.push([c[0] + (r * Math.sin(a)) / 110574, c[1] + (r * Math.cos(a)) / (111320 * k)]); } return out; },
   // distância (m) de um ponto até a borda de um polígono
   edgeDist(pt, poly) { const o = pt, X = poly.map((q) => Zones.xy(q, o)); let m = Infinity; for (let i = 0; i < X.length; i++) m = Math.min(m, Zones.segDist([0, 0], X[i], X[(i + 1) % X.length])); return m; },
   areaTxt(m2) { return m2 < 10000 ? `${Math.round(m2).toLocaleString('pt-BR')} m²` : `${Fmt.num(m2 / 10000, 1)} ha`; },
 
-  drawUI(me) {
+  drawUI(me, hasMe) {
     const old = $('#spotDraw'); if (old) old.remove();
     const el = document.createElement('div'); el.id = 'spotDraw'; el.className = 'sd';
     el.innerHTML = `<div id="sdMap" class="sd-map"></div><svg class="sd-ink" id="sdInk"><path d=""/></svg>
-      <div class="sd-top"><button class="sd-x" data-sd="close" aria-label="Fechar">${I('x')}</button><div class="sd-hint" id="sdHint"><b>Você está aqui</b><span>Circule o lugar com o dedo para marcar a área toda</span></div></div>
+      <div class="sd-top"><button class="sd-x" data-sd="close" aria-label="Fechar">${I('x')}</button><div class="sd-hint" id="sdHint"><b>Encontre o lugar no mapa</b><span>Arraste até ele e toque em Circular área</span></div></div>
       <button class="sd-draw" data-sd="draw">${I('edit')}<span>Circular área</span></button>
       <div class="sd-panel">
-        <div class="sd-area"><span class="sd-dot"></span><span id="sdArea">Área do ponto</span><button class="sd-reset" data-sd="reset">Refazer</button></div>
+        <div class="sd-area"><span class="sd-dot"></span><span id="sdArea">Nenhuma área ainda</span><button class="sd-reset" data-sd="reset">Refazer</button></div>
         <label class="sd-field"><span>Nome do lugar</span><input id="sdName" maxlength="60" placeholder="Ex.: Caco de Vidro" autocomplete="off"></label>
         <button class="btn primary sd-send" data-sd="send">Enviar sugestão</button>
-        <p class="sd-note">${I('users', 'xs')} Com 5 votos de outras pessoas vira ponto oficial.</p>
+        <p class="sd-note">${I('users', 'xs')} Vai para votação: com 5 votos vira ponto oficial.</p>
       </div>`;
     document.body.appendChild(el);
     const map = UI.map('sdMap', { attr: false }); if (!map) { el.remove(); return FX.toast('Não deu para abrir o mapa.'); }
-    map.setView(me, 17);
+    map.setView(me, hasMe ? 16 : 14);
     const youIc = L.divIcon({ className: 'sd-you', html: '<i></i>', iconSize: [22, 22], iconAnchor: [11, 11] });
-    L.marker(me, { icon: youIc, interactive: false, zIndexOffset: 1000 }).addTo(map);
-    let poly = this.circle(me, 90), shape = null, drawing = false;
+    if (hasMe) L.marker(me, { icon: youIc, interactive: false, zIndexOffset: 1000 }).addTo(map);
+    let poly = null, shape = null, drawing = false;
     const show = () => {
-      if (shape) shape.remove();
+      if (shape) shape.remove(); shape = null;
+      el.classList.toggle('has', !!poly);
+      if (!poly) { $('#sdArea').textContent = 'Nenhuma área ainda'; return; }
       shape = L.polygon(poly, { color: '#1F6BFF', weight: 3, fillColor: '#1F6BFF', fillOpacity: 0.16, dashArray: drawing ? '6 8' : null, interactive: false }).addTo(map);
       $('#sdArea').textContent = `Área do ponto · ${this.areaTxt(Zones.area(poly))}`;
     };
-    show(); setTimeout(() => { map.invalidateSize(); map.fitBounds(L.polygon(poly).getBounds(), { padding: [70, 70] }); }, 60);
+    show(); setTimeout(() => map.invalidateSize(), 60);
     const ink = $('#sdInk'), path = ink.querySelector('path'), btn = el.querySelector('.sd-draw'), hint = $('#sdHint');
     const mode = (on) => {
       drawing = on; el.classList.toggle('drawing', on); btn.querySelector('span').textContent = on ? 'Cancelar' : 'Circular área';
-      hint.innerHTML = on ? '<b>Desenhe com o dedo</b><span>Faça uma volta em torno do lugar, passando por onde você está</span>' : '<b>Você está aqui</b><span>Circule o lugar com o dedo para marcar a área toda</span>';
+      hint.innerHTML = on ? '<b>Desenhe com o dedo</b><span>Faça uma volta em torno do lugar todo</span>' : poly ? '<b>Área marcada</b><span>Dê um nome e envie para votação</span>' : '<b>Encontre o lugar no mapa</b><span>Arraste até ele e toque em Circular área</span>';
       if (on) { map.dragging.disable(); map.touchZoom.disable(); } else { map.dragging.enable(); map.touchZoom.enable(); path.setAttribute('d', ''); }
     };
     let pts = [];
@@ -158,7 +161,6 @@ const Spots = {
       const a = Zones.area(np);
       if (a < 600) { FX.toast('Área muito pequena. Faça uma volta maior em torno do lugar.'); path.setAttribute('d', ''); return; }
       if (a > 3e6) { FX.toast('Área grande demais. Circule só o lugar do ponto.'); path.setAttribute('d', ''); return; }
-      if (!Zones.inside(me, np) && this.edgeDist(me, np) > 150) { FX.toast('A área precisa incluir onde você está (o ponto azul).'); path.setAttribute('d', ''); return; }
       poly = np; mode(false); show(); map.fitBounds(L.polygon(poly).getBounds(), { padding: [70, 70] });
       Native.haptic && Native.haptic('light');
     });
@@ -168,22 +170,24 @@ const Spots = {
       const v = b.dataset.sd;
       if (v === 'close') return close();
       if (v === 'draw') return mode(!drawing);
-      if (v === 'reset') { poly = this.circle(me, 90); mode(false); show(); map.fitBounds(L.polygon(poly).getBounds(), { padding: [70, 70] }); return; }
+      if (v === 'reset') { poly = null; show(); mode(true); return; }
       if (v === 'send') {
         const name = ($('#sdName').value || '').trim();
+        if (!poly) { mode(true); return FX.toast('Primeiro circule o lugar no mapa.'); }
         if (name.length < 3) { $('#sdName').focus(); return FX.toast('Dê um nome para o lugar (ex.: Caco de Vidro).'); }
         b.disabled = true; b.textContent = 'Enviando…';
         try {
           const pg = poly.map((q) => [+q[0].toFixed(6), +q[1].toFixed(6)]);
-          let { error } = await Cloud.sb.rpc('spot_suggest2', { n: name, la: me[0], ln: me[1], ct: (Cloud.me && Cloud.me.city) || null, st: null, pg });
-          if (error && /spot_suggest2|function/i.test(error.message || '')) ({ error } = await Cloud.sb.rpc('spot_suggest', { n: name, la: me[0], ln: me[1], ct: (Cloud.me && Cloud.me.city) || null, st: null }));
+          const ctr = Zones.center(poly);
+          let { error } = await Cloud.sb.rpc('spot_suggest2', { n: name, la: ctr[0], ln: ctr[1], ct: (Cloud.me && Cloud.me.city) || null, st: null, pg });
+          if (error && /spot_suggest2|function/i.test(error.message || '')) ({ error } = await Cloud.sb.rpc('spot_suggest', { n: name, la: ctr[0], ln: ctr[1], ct: (Cloud.me && Cloud.me.city) || null, st: null }));
           if (error) throw error;
           close(); this.list = null; UI.mapaDraw && UI.mapaDraw();
           FX.modal(`<div class="m-done">${I('check')}</div><h3>Sugestão enviada!</h3><p class="muted"><b>${esc(name)}</b> já aparece no mapa. Chame a galera para votar: com 5 votos vira ponto oficial.</p><div class="row2"><button class="btn primary" data-m="ok">Beleza</button></div>`);
         } catch (err) {
           b.disabled = false; b.textContent = 'Enviar sugestão';
           const m = String(err && err.message || '');
-          FX.toast(/ja existe/.test(m) ? 'Já existe um ponto muito perto daqui.' : /limite/.test(m) ? 'Você já sugeriu 3 pontos hoje. Tente amanhã.' : /longe/.test(m) ? 'A área precisa ficar onde você está.' : 'Não deu para enviar agora. Tente de novo.');
+          FX.toast(/ja existe/.test(m) ? 'Já existe um ponto muito perto daqui.' : /limite/.test(m) ? 'Você já sugeriu 3 pontos hoje. Tente amanhã.' : /nivel/.test(m) ? `Sugerir pontos é a partir do nível ${this.LEVEL}.` : 'Não deu para enviar agora. Tente de novo.');
         }
       }
     });
