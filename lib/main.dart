@@ -24,6 +24,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 const kBrand = Color(0xFF1F6BFF);
 const kPort = 47621; // porta fixa: mantém os dados salvos entre aberturas
@@ -265,7 +266,11 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   /* ---------------- WebView ---------------- */
   void _setupWebView() {
-    final c = WebViewController.fromPlatformCreationParams(const PlatformWebViewControllerCreationParams());
+    // iPhone: vídeos tocam dentro da página (vídeo 3D, retrospectiva) sem abrir em tela cheia
+    final PlatformWebViewControllerCreationParams params = Platform.isIOS
+        ? WebKitWebViewControllerCreationParams(allowsInlineMediaPlayback: true, mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{})
+        : const PlatformWebViewControllerCreationParams();
+    final c = WebViewController.fromPlatformCreationParams(params);
     c
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(kBrand)
@@ -462,7 +467,17 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     _watching = true;
     if (_gps != null && !restart) return;
     await _stopStream(keepFlag: true);
-    final settings = AndroidSettings(
+    // iPhone: GPS em segundo plano (barra azul no topo) enquanto grava o treino
+    final LocationSettings settings = Platform.isIOS
+        ? AppleSettings(
+            accuracy: LocationAccuracy.bestForNavigation,
+            activityType: ActivityType.fitness,
+            distanceFilter: 0,
+            pauseLocationUpdatesAutomatically: false,
+            allowBackgroundLocationUpdates: _training,
+            showBackgroundLocationIndicator: _training,
+          )
+        : AndroidSettings(
       accuracy: LocationAccuracy.bestForNavigation,
       distanceFilter: 0,
       intervalDuration: const Duration(seconds: 1),

@@ -1,0 +1,85 @@
+name: Build iOS (AltStore)
+
+on:
+  push:
+    branches: [main]
+    paths: ['lib/**', 'pubspec.yaml', 'tool/deps.txt', 'tool/dev_deps.txt', 'tool/ios_setup.sh', 'tool/altstore.py', '.github/workflows/ios.yml', 'assets/brand/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-ios
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Gerar projeto iOS
+        run: |
+          exec > >(tee -a build.log) 2>&1
+          set -x
+          flutter --version
+          flutter create --org com.justgo --project-name justgo --platforms ios .
+          rm -rf test
+          bash tool/ios_setup.sh
+
+      - name: Dependências
+        run: |
+          exec > >(tee -a build.log) 2>&1
+          set -x
+          flutter pub add $(cat tool/deps.txt | tr '\n' ' ')
+          flutter pub add --dev $(cat tool/dev_deps.txt | tr '\n' ' ')
+          flutter pub get
+
+      - name: Ícone e abertura
+        run: |
+          exec > >(tee -a build.log) 2>&1
+          set -x
+          perl -0pi -e 's/\n  ios: false/\n  ios: true\n  remove_alpha_ios: true/' pubspec.yaml
+          grep -n "ios:" pubspec.yaml || true
+          dart run flutter_launcher_icons || true
+          dart run flutter_native_splash:create || true
+
+      - name: Compilar (sem assinatura — o AltStore assina no seu iPhone)
+        run: |
+          exec > >(tee -a build.log) 2>&1
+          set -x
+          flutter build ios --release --no-codesign
+          mkdir -p out/Payload
+          cp -R build/ios/iphoneos/Runner.app out/Payload/
+          cd out && zip -qry JustGo.ipa Payload && ls -la JustGo.ipa
+
+      - name: Publicar na branch build-output-ios
+        if: always()
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APP="$GITHUB_WORKSPACE/out/Payload/Runner.app/Info.plist"
+          VER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP" 2>/dev/null || echo 1.0.0)
+          BID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP" 2>/dev/null || echo com.justgo.justgo)
+          mkdir -p "$RUNNER_TEMP/o" && cd "$RUNNER_TEMP/o"
+          git init -q
+          cp "$GITHUB_WORKSPACE/build.log" . || echo "sem log" > build.log
+          if [ -f "$GITHUB_WORKSPACE/out/JustGo.ipa" ]; then
+            cp "$GITHUB_WORKSPACE/out/JustGo.ipa" JustGo.ipa
+            cp "$GITHUB_WORKSPACE/assets/brand/icon.png" icon.png || true
+            python3 "$GITHUB_WORKSPACE/tool/altstore.py" "$GITHUB_REPOSITORY" "$VER" "$(stat -f%z JustGo.ipa)" "$BID" > altstore.json
+            echo "success" > STATUS
+          else
+            echo "failed" > STATUS
+          fi
+          echo "${GITHUB_SHA}" > COMMIT
+          git add -A
+          git -c user.name="JustGo CI" -c user.email="ci@justgo.app" commit -qm "iOS #${GITHUB_RUN_NUMBER} ($(cat STATUS))"
+          git push -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/build-output-ios
