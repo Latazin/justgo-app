@@ -64,8 +64,29 @@ const Zones = {
      (ou por um retorno a menos de 45 m de onde já passou) vira área. Funciona com voltas
      que se cruzam, oito, várias voltas no mesmo treino e voltinhas dentro do caminho.
      Ida e volta pela mesma rua não cerca nada. Trechos entre pausas nunca são ligados. */
-  loops(points) {
-    const src = (points || []).filter((p) => p && p[0] != null);
+  // remove pontos impossíveis do GPS: saltos rápidos demais e "picos" que vão longe e voltam
+  clean(points, sport) {
+    const vmax = { ride: 26, skate: 14, board: 14 }[sport] || 9; // m/s
+    const src = (points || []).filter((p) => p && p[0] != null), out = []; let rej = 0;
+    for (let i = 0; i < src.length; i++) {
+      const p = src[i], q = out[out.length - 1];
+      if (!q || p[4]) { out.push(p); rej = 0; continue; }
+      const d = Geo.dist(q, p), dt = Math.max(1, ((p[2] || 0) - (q[2] || 0)) / 1000);
+      if (p[2] && q[2] && d > 40 && d / dt > vmax) {                   // salto impossível
+        // vários seguidos: o ponto de referência é que estava errado
+        if (++rej >= 3) { out.pop(); out.push(p); rej = 0; }
+        continue;
+      }
+      rej = 0;
+      const n = src[i + 1];
+      if (n && !n[4] && d > 60 && Geo.dist(p, n) > 60 && Geo.dist(q, n) < Math.min(d, Geo.dist(p, n)) * 0.35) continue; // pico
+      out.push(p);
+    }
+    return out;
+  },
+  loops(points, sport) {
+    // trechos em que o GPS falhou (reta estimada) nunca fecham área: viram corte
+    const src = this.clean(points, sport).map((p, i, a) => (i && a[i][5] && !p[4] ? [p[0], p[1], p[2], p[3], 1] : p));
     if (src.length < 8) return [];
     // um ponto a cada ~8 m, separado por trechos (pausas)
     const P = [src[0]], seg = [0]; let sId = 0;
@@ -173,7 +194,7 @@ const Zones = {
     if (!act || !act.points || act.points.length < 8) return { ok: false, why: 'Este treino não tem percurso de GPS.' };
     if (!this.SPORTS.includes(act.sport)) return { ok: false, why: 'Esse esporte não conquista território.' };
     if (act.flagged) return { ok: false, why: 'Treino marcado como suspeito (velocidade fora do normal).' };
-    const L = this.loops(act.points);
+    const L = this.loops(act.points, act.sport);
     if (L.length) return { ok: true, loops: L, area: L.reduce((s, l) => s + l.area, 0), priv: !!act.private };
     const P = act.points.filter((p) => p && p[0] != null), gap = Math.round(Geo.dist(P[0], P[P.length - 1]));
     if (gap > this.END_CLOSE_M) return { ok: false, why: `O treino terminou a ${gap >= 1000 ? Fmt.km(gap) + ' km' : gap + ' m'} de onde começou e o caminho não se fechou. Para conquistar, termine a menos de ${this.END_CLOSE_M} m do início ou passe de novo por um trecho que já percorreu.` };
@@ -188,16 +209,16 @@ const Zones = {
 
   // chamado ao salvar cada treino
   hook(act, r) {
-    act.zc = 4;
+    act.zc = 5;
     if (!this.SPORTS.includes(act.sport) || act.flagged || !act.points || act.points.length < 8) return;
-    const L = this.loops(act.points); if (!L.length) return;
+    const L = this.loops(act.points, act.sport); if (!L.length) return;
     // reprocessando um treino: as áreas antigas dele dão lugar às novas (sem contar duas vezes)
     Store.data.zones = this.mine().filter((z) => z.act !== act.id);
     const Z = this.mine(); let nNew = 0, aNew = 0;
     L.forEach((l) => {
       const same = Z.find((z) => this.overlap(l.poly, z.poly) > 0.8 && this.overlap(z.poly, l.poly) > 0.8);
       if (same) { same.at = act.start; same.act = act.id; return; }
-      Z.push({ id: uid(), poly: l.poly, area: l.area, at: act.start, act: act.id }); nNew++; aNew += l.area;
+      Z.push({ id: uid(), poly: l.poly, area: l.area, at: act.start, act: act.id, v: 5 }); nNew++; aNew += l.area;
     });
     act.loops = L.length; act.loopArea = L.reduce((s, l) => s + l.area, 0);
     r.zones = { loops: L, nNew, aNew };
@@ -231,10 +252,10 @@ Game.hooks.push((act, r) => Zones.hook(act, r));
 
 // regra corrigida (v2.10.2): revê as áreas já conquistadas e apaga as que não eram circuito de verdade
 Zones.cleanup = async function () {
-  const D = Store.data; if (D.zfix === 2) return;
+  const D = Store.data; if (D.zfix === 3) return;
   const byAct = {}; D.activities.forEach((a) => (byAct[a.id] = a));
   const valid = {}; // id do treino -> circuitos válidos pela regra nova
-  const okFor = (aid) => { if (!(aid in valid)) { const a = byAct[aid]; valid[aid] = a && a.points ? this.loops(a.points) : null; } return valid[aid]; };
+  const okFor = (aid) => { if (!(aid in valid)) { const a = byAct[aid]; valid[aid] = a && a.points ? this.loops(a.points, a.sport) : null; } return valid[aid]; };
   const bad = (poly, aid) => { const L = okFor(aid); return L && !L.some((l) => this.overlap(poly, l.poly) > 0.6); };
   const before = this.mine().length;
   D.zones = this.mine().filter((z) => !(z.act && bad(z.poly, z.act)));
@@ -246,7 +267,7 @@ Zones.cleanup = async function () {
       for (const z of data || []) if (z.activity_id && byAct[z.activity_id] && bad(z.poly, z.activity_id)) { await Cloud.sb.from('zones').delete().eq('id', z.id); removed++; }
     } catch (e) { console.warn(e); return; } // tenta de novo na próxima abertura
   } else if (Cloud.configured && Cloud.configured()) { Store.save(); return; } // sem conta agora: limpa a nuvem depois
-  D.zfix = 2; Store.save();
+  D.zfix = 3; Store.save();
   if (removed) FX.toast(`Território corrigido: ${removed} área${removed > 1 ? 's' : ''} que não fechava${removed > 1 ? 'm' : ''} circuito ${removed > 1 ? 'foram removidas' : 'foi removida'}.`);
 };
 
@@ -254,7 +275,7 @@ Zones.cleanup = async function () {
 // são verificados de novo: se fecharam área, a área é conquistada agora
 Zones.recheck = async function () {
   const D = Store.data, since = Date.now() - 30 * 864e5;
-  const todo = D.activities.filter((a) => a.start >= since && a.zc !== 4 && this.SPORTS.includes(a.sport) && !a.flagged && a.points && a.points.length >= 8);
+  const todo = D.activities.filter((a) => a.start >= since && a.zc !== 5 && this.SPORTS.includes(a.sport) && !a.flagged && a.points && a.points.length >= 8);
   if (!todo.length) return;
   let got = 0, area = 0;
   for (const act of todo.sort((x, y) => x.start - y.start)) {
@@ -274,6 +295,7 @@ Zones.pendingOf = function (cloud) {
   Store.data.activities.forEach((a) => (acts[a.id] = a));
   const out = [];
   this.mine().forEach((z) => {
+    if ((z.v || 0) < 5) return; // áreas antigas (regra anterior) não são reenviadas nem mostradas
     if (cloud.some((o) => o.owner === me && this.overlap(z.poly, o.poly) >= 0.6)) return;            // já está no mapa
     if (cloud.some((o) => o.owner !== me && this.overlap(z.poly, o.poly) >= 0.6 && Date.parse(o.captured_at) > (z.at || 0))) return; // roubada depois
     const a = acts[z.act];
