@@ -302,20 +302,23 @@ const UI = {
     const tip = tips[Math.floor(now / 864e5) % tips.length];
     this.render(`${this.header('', '', { brand: true })}
     <main class="screen home home2">
-      <section class="h2-hero">
-        <div class="h2-top"><div><span class="h2-date">${this.today()}</span><h1>${this.greeting()}, ${first}</h1></div><div id="hWx" class="wx-chip h2-wx" hidden></div></div>
-        <button class="h2-week tap" data-act="go" data-v="stats">
-          <div class="h2-ring">${ring}<div><b class="num">${Math.round(gp)}%</b><small>da meta</small></div></div>
-          <div class="grow"><span class="h2-lab">Esta semana</span><div class="h2-km"><b class="num">${Fmt.num(wkKm)}</b><span>de ${goal} km</span></div>
-            <div class="h2-mini"><span>${I('activity', 'xs')} ${week.length} ${week.length === 1 ? 'treino' : 'treinos'}</span><span>${I('timer', 'xs')} ${Fmt.time(wkTime)}</span><span>${I('flame', 'xs')} ${Fmt.num(wkCal, 0)} kcal</span></div></div>
-        </button>
-        <div class="h2-bars">${days.map((v, i) => `<div class="${i === todayI ? 'today' : ''}"><i style="height:${Math.max(v ? 14 : 6, (v / maxD) * 100)}%" class="${v ? 'has' : ''}"></i><small>${WEEKDAYS[i]}</small></div>`).join('')}</div>
-        <button class="h2-go" data-act="go" data-v="record"><span class="h2-play">${I('play')}</span><div class="grow"><b>Iniciar treino</b><small>${plan && plan.session ? `Hoje no plano: ${esc(plan.session.type)} · ${Fmt.num(plan.session.km)} km` : lastAct ? `Último: ${Fmt.km(lastAct.distance)} km · ${this.agoDay(lastAct.start)}` : 'GPS pronto quando você estiver'}</small></div>${I('chevronRight')}</button>
-      </section>
-      <div class="h2-sports">${quick.map((k) => { const v = CONFIG.sports[k]; return `<button style="--c:${v.color}" data-act="quickStart" data-v="${k}"><span>${I(v.icon)}</span>${v.name}</button>`; }).join('')}</div>
+      <section class="hello"><div class="grow"><span class="eyebrow">${this.today()}</span><h1>${this.greeting()}, ${esc(D.profile.name.split(' ')[0])}</h1></div><div id="hWx" class="wx-chip" hidden></div></section>
       ${this.loginCard()}
       <div id="hTorch"></div>
       ${this.retroCard()}
+      <section class="card week tap" data-act="go" data-v="stats">
+        <div class="week-top">
+          <div><span class="eyebrow">Esta semana</span><div class="week-n"><b class="num">${Fmt.num(wkKm)}</b><span>km</span></div><small>${week.length} ${week.length === 1 ? 'treino' : 'treinos'} · ${Fmt.time(wkTime)}</small></div>
+          <div class="goal-ring" style="--p:${gp}"><div><b class="num">${Math.round(gp)}%</b><small>de ${goal} km</small></div></div>
+        </div>
+        <div class="week-bars">${days.map((v, i) => `<div class="wb ${i === todayI ? 'today' : ''}"><i style="height:${Math.max(v ? 10 : 4, (v / maxD) * 100)}%" class="${v ? 'has' : ''}"></i><small>${WEEKDAYS[i]}</small></div>`).join('')}</div>
+      </section>
+
+      <section class="card start-card">
+        <div class="sc-top"><div class="grow"><b>Bora treinar?</b><small>${plan && plan.session ? `Hoje no plano: ${esc(plan.session.type)} · ${Fmt.num(plan.session.km)} km` : lastAct ? `Último: ${esc(CONFIG.sports[lastAct.sport] ? CONFIG.sports[lastAct.sport].name : '')} · ${Fmt.km(lastAct.distance)} km · ${this.agoDay(lastAct.start)}` : 'Escolha o esporte e comece com um toque'}</small></div>
+          <button class="sc-go" data-act="go" data-v="record" aria-label="Iniciar treino">${I('play')}</button></div>
+        <div class="sc-sports">${quick.map((k) => { const v = CONFIG.sports[k]; return `<button style="--c:${v.color}" data-act="quickStart" data-v="${k}"><span>${I(v.icon)}</span><small>${v.name}</small></button>`; }).join('')}</div>
+      </section>
 
       <div class="h2-tiles">
         <button class="h2-tile tap" style="--c:#1F6BFF" data-act="sub" data-v="progress:tree"><span class="h2-ti">${I('zap')}</span><small>Nível</small><b class="num">${lv.l}</b><span class="h2-ts">${Game.title(lv.l)}</span><i class="h2-tb"><i style="width:${lv.pct}%"></i></i></button>
