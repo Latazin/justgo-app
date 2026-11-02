@@ -157,6 +157,7 @@ const UI = {
   greeting() { const h = new Date().getHours(); return h < 5 ? 'Boa madrugada' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'; },
   today() { return new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }); },
   avatarOf(name, frame, bg, size = 'sm', photo) { return `<div class="avatar ${size}" style="${frame ? `--frame:${frame};` : '--frame:var(--line-2);'}${bg ? `--avatar-bg:${bg}` : ''}">${this.avaIn(name, photo)}</div>`; },
+  vb(id, username) { return Cloud.isCeo && Cloud.isCeo(id, username) ? `<span class="vb"><svg class="vb-ck" viewBox="0 0 24 24" aria-label="Verificado"><path fill="#1F9BFF" d="M12 1.6l2.5 1.9 3.1-.2 1 3 2.6 1.7-.9 3 .9 3-2.6 1.7-1 3-3.1-.2L12 22.4l-2.5-1.9-3.1.2-1-3-2.6-1.7.9-3-.9-3 2.6-1.7 1-3 3.1.2z"/><path d="M7.8 12.3l2.7 2.7 5.7-5.8" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="vb-ceo">CEO</span></span>` : ''; },
   iconBox(name, color) { return `<div class="ibox" ${color ? `style="--c:${color}"` : ''}>${I(name)}</div>`; },
   tabsBar(items, active, act) { return `<div class="subtabs">${items.map(([v, n]) => `<button class="${v === active ? 'on' : ''}" data-act="${act}" data-v="${v}">${n}</button>`).join('')}</div>`; },
   actTitle(a) {
@@ -1072,7 +1073,7 @@ const UI = {
   board(rows, fmt) {
     if (!rows.length) return '<p class="muted small">Ninguém pontuou ainda neste período. Seja o primeiro!</p>';
     const me = Cloud.user && Cloud.user.id;
-    return `<div class="list">${rows.map((r, i) => `<div class="row board ${r.user_id === me ? 'is-me' : ''}" data-act="userOpen" data-v="${r.user_id}"><span class="pos num ${i < 3 ? 'top' + (i + 1) : ''}">${i + 1}</span>${this.avatarOf(r.name, r.frame, r.avatar, 'sm', r.photo)}<div class="grow"><b>${esc(r.name)}</b><small>${r.username ? '@' + esc(r.username) : ''}${r.city ? ' · ' + esc(r.city) : ''}</small></div><b class="num">${fmt(Number(r.value))}</b></div>`).join('')}</div>`;
+    return `<div class="list">${rows.map((r, i) => `<div class="row board ${r.user_id === me ? 'is-me' : ''}" data-act="userOpen" data-v="${r.user_id}"><span class="pos num ${i < 3 ? 'top' + (i + 1) : ''}">${i + 1}</span>${this.avatarOf(r.name, r.frame, r.avatar, 'sm', r.photo)}<div class="grow"><b>${esc(r.name)}${UI.vb(r.user_id, r.username)}</b><small>${r.username ? '@' + esc(r.username) : ''}${r.city ? ' · ' + esc(r.city) : ''}</small></div><b class="num">${fmt(Number(r.value))}</b></div>`).join('')}</div>`;
   },
   shopView() {
     const D = Store.data, cats = [['line', 'Cor do traçado'], ['frame', 'Moldura do perfil'], ['avatar', 'Avatar'], ['theme', 'Tema do app'], ['finish', 'Efeito de chegada']];
@@ -1164,7 +1165,7 @@ const UI = {
       <div class="pf2-cover"><div class="pf2-top"><button class="pf2-ib" data-act="shareProfile" aria-label="Compartilhar perfil">${I('share')}</button><button class="pf2-ib" data-act="go" data-v="settings" aria-label="Configurações">${I('settings')}</button></div></div>
       <div class="pf2-main">
         <button class="pf2-ava" data-act="myPhoto" aria-label="Foto de perfil">${ring}${this.avatar('xl')}<span class="pf2-lv num">${lv.l}</span></button><input type="file" id="photoIn" accept="image/*" hidden>
-        <h1>${esc(P.name || 'Atleta')}</h1>
+        <h1>${esc(P.name || 'Atleta')}${UI.vb(Cloud.user && Cloud.user.id, Cloud.me && Cloud.me.username)}</h1>
         <p class="pf2-meta">${[handle, city ? `${I('mapPin', 'xs')} ${esc(city)}` : ''].filter(Boolean).join('<i>·</i>')}</p>
         ${Pref('bio') ? `<p class="pf2-bio">${esc(Pref('bio'))}</p>` : `<button class="pf2-addbio" data-act="editProfile">${I('plus', 'xs')} Adicionar bio</button>`}
         <div class="pf2-chips"><span class="pf2-chip" style="--c:${L0.color}">${I('crown', 'xs')} Liga ${L0.name}</span><span class="pf2-chip" style="--c:#1F6BFF">${I('zap', 'xs')} ${Game.title(lv.l)}</span>${Pro.on() ? '<span class="pro-badge">PRO</span>' : ''}</div>

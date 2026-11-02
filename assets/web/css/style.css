@@ -1730,3 +1730,13 @@ i.h1 { background: color-mix(in srgb, #1F6BFF 28%, var(--surface-2)); } i.h2 { b
 .h2-bars small { color: #fff; opacity: .85; }
 .h2-miss .list { border: 0; box-shadow: none; background: none; }
 .h2-ring small { color: #fff; }
+/* selo verificado + CEO */
+.vb { display: inline-flex; align-items: center; gap: 4px; margin-left: 5px; vertical-align: -2px; white-space: nowrap; }
+.vb-ck { width: 1.05em; height: 1.05em; min-width: 14px; min-height: 14px; flex: none; }
+.vb-ceo { display: inline-flex; align-items: center; height: 1.3em; min-height: 16px; padding: 0 6px; border-radius: 6px; background: linear-gradient(135deg, #111317, #2A2E34); color: #FFD34D; font-size: 10px; font-weight: 800; letter-spacing: .08em; line-height: 1; box-shadow: inset 0 0 0 1px rgba(255, 211, 77, .35); }
+h1 .vb { gap: 6px; margin-left: 7px; vertical-align: 1px; }
+h1 .vb-ceo { font-size: 12px; height: 22px; padding: 0 8px; }
+[data-theme="dark"] .vb-ceo { background: linear-gradient(135deg, #2A2E34, #3a3f47); }
+.vb { display: inline-flex !important; flex-direction: row !important; width: auto !important; }
+.vb > .vb-ceo { display: inline-flex !important; width: auto !important; margin: 0 !important; }
+.vb > svg { display: inline-block !important; margin: 0 !important; }

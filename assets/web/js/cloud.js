@@ -94,9 +94,19 @@ const Cloud = {
   },
   async logout() { await this.sb.auth.signOut(); this.user = null; this.me = null; },
 
+  CEO: ['samuel', 'rodrigoalves'],
+  ceoIds() { if (!this._ceo) { try { this._ceo = JSON.parse(localStorage.getItem('jg_ceo') || '[]'); } catch (e) { this._ceo = []; } } return this._ceo; },
+  async loadCeo() {
+    try {
+      const { data } = await this.sb.from('profiles').select('id,username').in('username', this.CEO);
+      if (data) { const ids = data.map((r) => r.id), old = this.ceoIds().join(); this._ceo = ids; try { localStorage.setItem('jg_ceo', JSON.stringify(ids)); } catch (e) {} if (ids.join() !== old && App.tab) App.go(App.tab); }
+    } catch (e) {}
+  },
+  isCeo(id, username) { return !!((id && this.ceoIds().includes(id)) || (username && this.CEO.includes(String(username).toLowerCase()))); },
   async afterLogin() {
     const { data } = await this.sb.from('profiles').select('*').eq('id', this.user.id).maybeSingle();
     this.me = data;
+    this.loadCeo();
     await this.pull();
     if (this.me) { if (this.me.photo && !Store.data.profile.photo) { Store.data.profile.photo = this.me.photo; Store.save(); } this.pushProfile(); }
     if (['social', 'profile', 'account', 'home'].includes(App.tab)) App.go(App.tab);
