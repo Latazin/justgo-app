@@ -910,6 +910,14 @@ const App = {
       if (on) FX.vibrate([20]);
       try { await Cloud.like(el.dataset.v, on); } catch (e) { FX.toast('Não deu para curtir agora.'); }
     },
+    shareProfile: async () => {
+      const u = Cloud.me && Cloud.me.username, n = Store.data.profile.name || 'Atleta';
+      const text = `Me segue no JustGo${u ? ': @' + u : ''}! Bora treinar e dominar a cidade 🏃‍♂️🚴`;
+      if (!Native.on && navigator.share) { try { await navigator.share({ title: 'JustGo · ' + n, text }); return; } catch (e) { return; } }
+      const v = await FX.modal(`<div class="m-ic">📣</div><h3>Compartilhar seu perfil</h3><p class="muted">Chame a galera para te seguir no JustGo.</p><div class="share-pv">${esc(text)}</div><div class="row2"><button class="btn ghost" data-m="copy">Copiar texto</button><button class="btn primary" data-m="wa">Enviar no WhatsApp</button></div>`);
+      if (v === 'wa') { const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(text); if (Native.on) Native.call('open', { url }); else window.open(url, '_blank'); }
+      else if (v === 'copy') { try { await navigator.clipboard.writeText(text); FX.toast('Texto copiado!'); } catch (e) { FX.toast(text); } }
+    },
     cpQuick: (el) => { const t = $('#' + el.dataset.t); if (!t) return; t.value = el.dataset.v; t.dispatchEvent(new Event('input', { bubbles: true })); t.focus(); },
     comments: async (el) => {
       const v = await UI.commentsSheet(el.dataset.v);

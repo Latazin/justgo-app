@@ -1135,6 +1135,90 @@ const UI = {
     const xs = [], ys = []; pace.forEach((v, i) => { if (isFinite(v)) { xs.push(i); ys.push(v); } });
     if ($('#cTrend') && xs.length > 1) FX.chart($('#cTrend'), xs, ys, { color: CONFIG.sports.run.color, invert: true, fmtY: (v) => Fmt.time(v), label: 'min/km', xEnd: 'esta semana', minRange: 30 });
   },
+  /* ---------- perfil: cabeçalho, destaques, constância ---------- */
+  pfHero(acts, lv, L0, handle, city, medals, zones) {
+    const P = Store.data.profile, km = Game.km(acts), streak = Game.streakDays();
+    const r = 54, C = 2 * Math.PI * r, pct = Math.max(0.02, Math.min(1, lv.pct / 100));
+    const ring = `<svg class="pf2-ring" viewBox="0 0 120 120"><circle cx="60" cy="60" r="${r}" class="bg"/><circle cx="60" cy="60" r="${r}" class="fg" stroke-dasharray="${(C * pct).toFixed(1)} ${C.toFixed(1)}"/></svg>`;
+    const now = new Date(), m0 = new Date(now.getFullYear(), now.getMonth(), 1).getTime(), month = acts.filter((a) => a.start >= m0);
+    const best5 = Object.values(Store.data.records || {}).find((x) => /5\s?k|5 km/i.test(x.label || ''));
+    const longest = acts.reduce((m, a) => (a.distance > (m ? m.distance : 0) ? a : m), null);
+    const hl = [
+      ['flame', '#FF7A1A', streak, streak === 1 ? 'dia seguido' : 'dias seguidos', 'Sequência', 'go', 'progress'],
+      ['calendar', '#1F6BFF', Fmt.num(Game.km(month), 1), `km em ${now.toLocaleDateString('pt-BR', { month: 'long' })}`, 'Este mês', 'profTab', 'stats'],
+      ['flag', '#8B5CF6', zones.length ? Zones.areaTxt(Zones.totalArea()) : '0', zones.length ? `${zones.length} área${zones.length > 1 ? 's' : ''} dominada${zones.length > 1 ? 's' : ''}` : 'feche um circuito', 'Território', 'go', 'mapa'],
+      best5 ? ['trophy', '#F5B301', Fmt.time(best5.value), 'melhor 5K', 'Recorde', 'profTab', 'achievements'] : longest ? ['trophy', '#F5B301', Fmt.km(longest.distance), 'km no maior treino', 'Recorde', 'profTab', 'achievements'] : null,
+      ['medal', '#12B886', medals, `de ${CONFIG.medals.length} medalhas`, 'Conquistas', 'profTab', 'achievements'],
+    ].filter(Boolean);
+    return `<section class="pf2">
+      <div class="pf2-cover"><div class="pf2-top"><button class="pf2-ib" data-act="shareProfile" aria-label="Compartilhar perfil">${I('share')}</button><button class="pf2-ib" data-act="go" data-v="settings" aria-label="Configurações">${I('settings')}</button></div></div>
+      <div class="pf2-main">
+        <button class="pf2-ava" data-act="myPhoto" aria-label="Foto de perfil">${ring}${this.avatar('xl')}<span class="pf2-lv num">${lv.l}</span></button><input type="file" id="photoIn" accept="image/*" hidden>
+        <h1>${esc(P.name || 'Atleta')}</h1>
+        <p class="pf2-meta">${[handle, city ? `${I('mapPin', 'xs')} ${esc(city)}` : ''].filter(Boolean).join('<i>·</i>')}</p>
+        ${Pref('bio') ? `<p class="pf2-bio">${esc(Pref('bio'))}</p>` : `<button class="pf2-addbio" data-act="editProfile">${I('plus', 'xs')} Adicionar bio</button>`}
+        <div class="pf2-chips"><span class="pf2-chip" style="--c:${L0.color}">${I('crown', 'xs')} Liga ${L0.name}</span><span class="pf2-chip" style="--c:#1F6BFF">${I('zap', 'xs')} ${Game.title(lv.l)}</span>${Pro.on() ? '<span class="pro-badge">PRO</span>' : ''}</div>
+        <div class="pf2-stats">
+          <button data-act="profTab" data-v="activities"><b class="num">${acts.length}</b><small>Treinos</small></button>
+          <button data-act="profTab" data-v="stats"><b class="num">${Fmt.num(km, km < 100 ? 1 : 0)}</b><small>Km totais</small></button>
+          ${Cloud.loggedIn() ? `<button data-act="followList" data-v="followers"><b class="num" id="pfFollowers">–</b><small>Seguidores</small></button><button data-act="followList" data-v="following"><b class="num" id="pfFollowing">–</b><small>Seguindo</small></button>` : `<div><b class="num">${zones.length}</b><small>Áreas</small></div><div><b class="num">${medals}</b><small>Medalhas</small></div>`}
+        </div>
+        <div class="pf2-xp"><div><b>Nível ${lv.l}</b><small class="num">${lv.txt}</small></div>${this.bar(lv.pct, 'brand')}</div>
+        <div class="pf2-btns"><button class="btn primary" data-act="editProfile">${I('edit', 'xs')} Editar perfil</button><button class="btn ghost" data-act="go" data-v="atleta">${I('user', 'xs')} Seu atleta</button></div>
+      </div>
+    </section>
+    <div class="pf2-hl">${hl.map(([ic, col, big, sub, lab, act, v]) => `<button class="hl-card" style="--c:${col}" data-act="${act}" data-v="${v}"><span class="hl-ic">${I(ic)}</span><small>${lab}</small><b class="num">${big}</b><span class="hl-sub">${sub}</span></button>`).join('')}</div>`;
+  },
+  pfMonthHead(m, list) {
+    const km = Game.km(list), t = list.reduce((s, a) => s + (a.duration || 0), 0);
+    return `<div class="pf-mh"><h4>${m}</h4><span>${list.length} treino${list.length > 1 ? 's' : ''} · ${Fmt.num(km, 1)} km · ${Fmt.time(t)}</span></div>`;
+  },
+  pfMonthCompare(acts) {
+    const now = new Date(), m0 = new Date(now.getFullYear(), now.getMonth(), 1).getTime(), p0 = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+    const day = now.getDate(), pEnd = p0 + (m0 - p0) * Math.min(1, day / new Date(now.getFullYear(), now.getMonth(), 0).getDate()); // mesmo ponto do mês passado
+    const cur = acts.filter((a) => a.start >= m0), prev = acts.filter((a) => a.start >= p0 && a.start < pEnd);
+    const E = (L) => L.reduce((s, a) => s + (Geo.elevation && a.points ? 0 : 0) + ((a.stats && a.stats.elev) || 0), 0);
+    const cells = [['Distância', Game.km(cur), Game.km(prev), (v) => Fmt.num(v, 1), 'km'], ['Tempo', cur.reduce((s, a) => s + a.duration, 0), prev.reduce((s, a) => s + a.duration, 0), (v) => Fmt.time(v), ''], ['Treinos', cur.length, prev.length, (v) => v, ''], ['Calorias', cur.reduce((s, a) => s + Game.calories(a), 0), prev.reduce((s, a) => s + Game.calories(a), 0), (v) => Fmt.num(v, 0), 'kcal']];
+    const mn = now.toLocaleDateString('pt-BR', { month: 'long' });
+    return `<section class="mc-card"><div class="mc-h"><div><span class="eyebrow">Este mês</span><b>${mn[0].toUpperCase() + mn.slice(1)}</b></div><small>comparado ao mesmo período do mês passado</small></div>
+      <div class="mc-grid">${cells.map(([l, c, p, f, u]) => { const d = p ? Math.round(((c - p) / p) * 100) : c ? 100 : 0; return `<div><span>${l}</span><b class="num">${f(c)}${u ? `<small> ${u}</small>` : ''}</b><em class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d > 0 ? '▲' : d < 0 ? '▼' : '•'} ${d === 0 && !c ? 'sem treinos' : Math.abs(d) + '%'}</em></div>`; }).join('')}</div></section>`;
+  },
+  pfHeat(acts) {
+    const W = 16, day = 864e5, today = new Date(); today.setHours(0, 0, 0, 0);
+    const start = new Date(today.getTime() - ((today.getDay() + 6) % 7) * day - (W - 1) * 7 * day); // segunda-feira, 16 semanas atrás
+    const km = {}; acts.forEach((a) => { const k = new Date(a.start); k.setHours(0, 0, 0, 0); km[k.getTime()] = (km[k.getTime()] || 0) + a.distance / 1000; });
+    let cols = '', active = 0, months = '';
+    for (let w = 0; w < W; w++) {
+      let col = '';
+      const d0 = new Date(start.getTime() + w * 7 * day);
+      if (d0.getDate() <= 7) months += `<span style="grid-column:${w + 1}">${d0.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</span>`;
+      for (let d = 0; d < 7; d++) {
+        const t = start.getTime() + (w * 7 + d) * day, v = km[t] || 0, fut = t > today.getTime();
+        if (v) active++;
+        const lvl = v === 0 ? 0 : v < 3 ? 1 : v < 6 ? 2 : v < 12 ? 3 : 4;
+        col += `<i class="h${lvl} ${fut ? 'fut' : ''} ${t === today.getTime() ? 'today' : ''}" title="${new Date(t).toLocaleDateString('pt-BR')}${v ? ' · ' + Fmt.num(v, 1) + ' km' : ''}"></i>`;
+      }
+      cols += `<div class="hm-col">${col}</div>`;
+    }
+    return `<section class="hm-card"><div class="hm-top"><b class="num">${active}</b><span>dias ativos</span><small>${Game.streakDays()} dias de sequência agora</small></div>
+      <div class="hm-wrap"><div class="hm-days"><span>S</span><span></span><span>Q</span><span></span><span>S</span><span></span><span>D</span></div><div class="hm"><div class="hm-months">${months}</div><div class="hm-grid">${cols}</div></div></div>
+      <div class="hm-leg"><span>Menos</span><i class="h0"></i><i class="h1"></i><i class="h2"></i><i class="h3"></i><i class="h4"></i><span>Mais</span></div></section>`;
+  },
+  pfBests(acts) {
+    const by = (sp) => acts.filter((a) => a.sport === sp);
+    const long = (L) => L.reduce((m, a) => (a.distance > (m ? m.distance : 0) ? a : m), null);
+    const fast = (L) => L.filter((a) => a.distance >= 1000 && a.duration).reduce((m, a) => (a.distance / a.duration > (m ? m.distance / m.duration : 0) ? a : m), null);
+    const items = [];
+    const r = long(by('run')), rf = fast(by('run')), b = long(by('ride')), bf = fast(by('ride'));
+    if (r) items.push(['run', 'Corrida mais longa', `${Fmt.km(r.distance)} km`, r]);
+    if (rf) items.push(['run', 'Ritmo mais rápido', `${Fmt.pace('run', rf.distance / rf.duration)} /km`, rf]);
+    if (b) items.push(['ride', 'Pedal mais longo', `${Fmt.km(b.distance)} km`, b]);
+    if (bf) items.push(['ride', 'Maior velocidade média', `${Fmt.pace('ride', bf.distance / bf.duration)} km/h`, bf]);
+    const top = acts.reduce((m, a) => (((a.stats && a.stats.elev) || 0) > ((m && m.stats && m.stats.elev) || 0) ? a : m), null);
+    if (top && top.stats && top.stats.elev >= 20) items.push([top.sport, 'Mais subida num treino', `${top.stats.elev} m`, top]);
+    if (!items.length) return `<p class="muted small">Suas melhores marcas aparecem aqui depois dos primeiros treinos.</p>`;
+    return `<div class="best-grid">${items.map(([sp, l, v, a]) => { const c = (CONFIG.sports[sp] || {}).color || '#1F6BFF'; return `<button class="best tap" data-act="detail" data-v="${a.id}" style="--c:${c}"><span class="best-ic">${I((CONFIG.sports[sp] || {}).icon || 'activity')}</span><small>${l}</small><b class="num">${v}</b><span class="best-d">${Fmt.date(a.start)}</span></button>`; }).join('')}</div>`;
+  },
   recordsHtml() {
     const recs = Object.values(Store.data.records);
     return `<section class="card kvl">${recs.length ? recs.map((r) => `<div><span>${esc(r.label)}</span><b class="num">${r.fmt === 'dist' ? Fmt.km(r.value) + ' km' : Fmt.time(r.value)}</b></div>`).join('') : '<p class="muted">Seus recordes aparecem aqui depois do primeiro treino.</p>'}</section>`;
@@ -1169,7 +1253,7 @@ const UI = {
     if (tab === 'activities') {
       const list = [...D.activities].sort((x, y) => y.start - x.start), name = esc(P.name);
       let lastM = '';
-      body = list.length ? list.slice(0, 20).map((x) => { const m = new Date(x.start).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }); const h = m !== lastM ? `<h4 class="pf-month">${m}</h4>` : ''; lastM = m; return h + this.postCard(x, name); }).join('') + (list.length > 20 ? `<button class="btn ghost" data-act="go" data-v="history">Ver todas as ${list.length} atividades</button>` : '')
+      body = list.length ? list.slice(0, 20).map((x) => { const m = new Date(x.start).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }); const h = m !== lastM ? this.pfMonthHead(m, list.filter((y) => new Date(y.start).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) === m)) : ''; lastM = m; return h + this.postCard(x, name); }).join('') + (list.length > 20 ? `<button class="btn ghost" data-act="go" data-v="history">Ver todas as ${list.length} atividades</button>` : '')
         : `<div class="empty">${I('activity')}<h3>Nenhuma atividade ainda</h3><p>Seus treinos aparecem aqui.</p><button class="btn primary" data-act="go" data-v="record">Começar um treino</button></div>`;
     } else if (tab === 'achievements') {
       const pred = Game.predictions();
@@ -1186,7 +1270,8 @@ const UI = {
       const avg = wk.reduce((x, y) => x + y, 0) / 8;
       const daily = Game.dailyMissions(Date.now()), dDone = daily.filter((m) => D.missionsDone[Game.mKey('d', m, Date.now())]).length;
       const un = CONFIG.unlocks.filter((u) => Game.has(u.id)).length;
-      body = `${this.sectionHead(`Este ano <em>${new Date().getFullYear()}</em>`)}
+      body = `${this.pfMonthCompare(acts)}${this.sectionHead('Constância <em>últimas 16 semanas</em>')}${this.pfHeat(acts)}${this.sectionHead('Melhores marcas')}${this.pfBests(acts)}
+        ${this.sectionHead(`Este ano <em>${new Date().getFullYear()}</em>`)}
         <div class="stat-grid"><div><span class="eyebrow">Distância</span><b class="num">${Fmt.num(Game.km(yr), 1)} <small>km</small></b></div><div><span class="eyebrow">Tempo</span><b class="num">${Fmt.time(yr.reduce((x, a) => x + a.duration, 0))}</b></div><div><span class="eyebrow">Treinos</span><b class="num">${yr.length}</b></div><div><span class="eyebrow">Elevação</span><b class="num">${yr.reduce((x, a) => x + Geo.elevationGain(a.points), 0)} <small>m</small></b></div></div>
         <section class="card tap" data-act="go" data-v="stats"><div class="row-t"><div><span class="eyebrow">Últimas 8 semanas</span><div class="week-n"><b class="num">${Fmt.num(wk.reduce((x, y) => x + y, 0))}</b><span>km</span></div></div><small class="num">média ${Fmt.num(avg)} km/sem</small></div>${this.bars(wk, wk.map((_, i) => (i === 7 ? 'atual' : '')), { hi: 7 })}</section>
         <div class="sport-cards">${Object.entries(CONFIG.sports).map(([k, sp]) => [k, sp, Game.km(acts.filter((x) => x.sport === k))]).sort((a, b) => b[2] - a[2] || ((P.sports || []).includes(b[0]) - (P.sports || []).includes(a[0]))).slice(0, 3).map(([k, sp]) => { const l = acts.filter((x) => x.sport === k), km = Game.km(l); return `<div class="sport-card" style="--c:${sp.color}"><div class="sc-ic">${I(SPORT_IC[k])}</div><b class="num">${Fmt.num(km, km >= 100 ? 0 : 1)}<span> km</span></b><small>${sp.name} · ${l.length} treino${l.length === 1 ? '' : 's'}</small></div>`; }).join('')}</div>
@@ -1221,18 +1306,10 @@ const UI = {
           ${row('go', 'account', 'cloud', 'Conta e sincronização', Cloud.loggedIn() ? 'Conectado' : 'Entrar ou criar conta')}
         </div>`;
     }
-    this.render(`${this.header('Perfil', `<button class="icon-btn" data-act="go" data-v="settings" aria-label="Configurações">${I('settings')}</button>`)}<main class="screen profile">
-      <section class="pf-head">
-        <div class="pf-cover"><button class="cover-edit" data-act="editProfile">${I('settings', 'xs')} Editar perfil</button></div>
-        <div class="pf-id"><button class="pf-photo" data-act="myPhoto" aria-label="Foto de perfil">${this.avatar('lg')}<span class="pf-cam">${I('camera')}</span></button><input type="file" id="photoIn" accept="image/*" hidden><div class="grow"><h2>${esc(P.name)}</h2><small class="prof-meta">${[handle, city ? `${I('mapPin', 'xs')} ${esc(city)}` : ''].filter(Boolean).join(' · ') || '<span class="link-like" data-act="editProfile">Adicionar cidade e bio</span>'}</small></div></div>
-        ${Pref('bio') ? `<p class="pf-bio">${esc(Pref('bio'))}</p>` : ''}
-        <div class="prof-tags"><span class="league-pill" style="--lc:${L0.color}">${I('crown', 'xs')} Liga ${L0.name}</span><span class="lvl-pill">${I('zap', 'xs')} Nível ${lv.l} · ${Game.title(lv.l)}</span>${Pro.on() ? '<span class="pro-badge">PRO</span>' : ''}</div>
-        ${Cloud.loggedIn() ? `<div class="pf-stats"><div><b class="num">${acts.length}</b><small>Atividades</small></div><button data-act="followList" data-v="friends"><b class="num" id="pfFriends">–</b><small>Amigos</small></button><button data-act="followList" data-v="followers"><b class="num" id="pfFollowers">–</b><small>Seguidores</small></button><button data-act="followList" data-v="following"><b class="num" id="pfFollowing">–</b><small>Seguindo</small></button></div>`
-          : `<div class="pf-stats"><div><b class="num">${acts.length}</b><small>Atividades</small></div><div><b class="num">${Fmt.num(Game.km(acts), 0)}</b><small>Km</small></div><div><b class="num">${zones.length}</b><small>Áreas</small></div><div><b class="num">${medals}</b><small>Medalhas</small></div></div>`}
-        <div class="pf-level"><div class="row-t"><small>Nível ${lv.l + 1}</small><small class="num">${lv.txt}</small></div>${this.bar(lv.pct, 'brand')}</div>
-      </section>
+    this.render(`<main class="screen profile pf2-screen">
+      ${this.pfHero(acts, lv, L0, handle, city, medals, zones)}
       ${Cloud.configured() && !Cloud.loggedIn() ? `<button class="cta login" data-act="go" data-v="account"><div class="cta-ic">${I('user')}</div><div class="grow"><b>Entrar ou criar conta</b><small>Salve na nuvem, siga amigos e dispute o mapa</small></div>${I('chevronRight', 'chev')}</button>` : ''}
-      ${this.tabsBar([['activities', 'Atividades'], ['stats', 'Estatísticas'], ['achievements', 'Conquistas'], ['more', 'Ajustes']], tab, 'profTab')}
+      ${this.tabsBar([['activities', 'Atividades'], ['stats', 'Visão geral'], ['achievements', 'Conquistas'], ['more', 'Ajustes']], tab, 'profTab')}
       ${body}
     </main>`);
     if (Cloud.loggedIn()) Cloud.followCounts(Cloud.user.id).then((c) => { const a = $('#pfFollowers'), b = $('#pfFollowing'); if (a) a.textContent = c.followers; if (b) b.textContent = c.following; const f = $('#pfFriends'); if (f) f.textContent = c.friends; }).catch(() => {});
