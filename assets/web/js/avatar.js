@@ -11,7 +11,9 @@
 const Avatar = {
   SKIN: ['#FDDCC4', '#F2C29B', '#D9A066', '#B9774A', '#8D5524', '#5C3A1E'],
   HAIRC: ['#1F1A17', '#4A2C1A', '#8B5A2B', '#D4A55A', '#B23A1F', '#9CA3AF'],
-  HAIR: [['curto', 'Curto'], ['raspado', 'Raspado'], ['cacheado', 'Cacheado'], ['rabo', 'Rabo de cavalo'], ['coque', 'Coque'], ['longo', 'Longo'], ['careca', 'Careca']],
+  // 6 masculinos e 6 femininos
+  HAIR: [['curto', 'Social', 'm'], ['topete', 'Topete', 'm'], ['degrade', 'Degradê', 'm'], ['raspado', 'Raspado', 'm'], ['cacheado', 'Black power', 'm'], ['careca', 'Careca', 'm'],
+    ['longo', 'Longo liso', 'f'], ['rabo', 'Rabo de cavalo', 'f'], ['coque', 'Coque', 'f'], ['cachos', 'Cacheado', 'f'], ['trancas', 'Tranças', 'f'], ['chanel', 'Chanel', 'f']],
   STAGES: [[1, 'Iniciante'], [5, 'Atleta de bairro'], [15, 'Veterano'], [30, 'Elite'], [50, 'Lenda']],
   ATTR: [
     ['vel', 'Velocidade', 'zap', '#1F6BFF', 'Sobe quando seu ritmo melhora (usamos o ritmo corrigido pelo relevo e calor).'],
@@ -186,8 +188,8 @@ const Avatar = {
     if (acc === 'cape' && pose !== 'sofa') g += `<path d="M${J.sL[0] - 4} ${J.sL[1] - 4} Q ${J.hp[0] - 26} ${J.hp[1] + 20} ${J.hp[0] - 34} ${J.hp[1] + 44} L ${J.hp[0] + 30} ${J.hp[1] + 40} Q ${J.hp[0] + 24} ${J.hp[1]} ${J.sR[0] + 4} ${J.sR[1] - 4} Z" fill="#DC2626" stroke="#991B1B" stroke-width="1.5"/>`;
     // cabelo longo atrás da cabeça
     const [hx, hy] = J.hd, hc = this.HAIRC[cfg.hairC] || this.HAIRC[0];
-    if (cfg.hair === 'longo') g += `<path d="M${hx - 27} ${hy - 4} Q ${hx - 32} ${hy + 40} ${hx - 18} ${hy + 46} L ${hx + 18} ${hy + 46} Q ${hx + 32} ${hy + 40} ${hx + 27} ${hy - 4} Z" fill="${hc}"/>`;
-    if (cfg.hair === 'rabo') g += `<path d="M${hx + 22} ${hy - 14} q 22 6 18 34 q -8 -12 -18 -14 z" fill="${hc}"/>`;
+    const hatOn = (cfg.eq || {}).hat && (cfg.eq || {}).hat !== 'hat_none';
+    g += this.hairBack(cfg.hair, hx, hy, hc, hatOn);
     // membros de trás
     g += leg(J['p' + backSide[0]], J['k' + backSide[0]], J['f' + backSide[0]], true);
     g += arm(J['s' + backSide[0]], J['e' + backSide[0]], J['h' + backSide[0]], true);
@@ -213,21 +215,65 @@ const Avatar = {
     g += L(J.nk, [hx, hy + 20], skin, 13);
     g += `<circle cx="${hx - 26}" cy="${hy + 4}" r="5" fill="${skin}"/><circle cx="${hx + 26}" cy="${hy + 4}" r="5" fill="${skin}"/>`;
     g += `<circle cx="${hx}" cy="${hy}" r="27" fill="${skin}"/>`;
-    g += this.hair(cfg.hair, hx, hy, hc);
+    g += this.hair(cfg.hair, hx, hy, hc, hatOn);
     if (cfg.beard) g += `<path d="M${hx - 22} ${hy + 6} Q ${hx - 20} ${hy + 30} ${hx} ${hy + 30} Q ${hx + 20} ${hy + 30} ${hx + 22} ${hy + 6} Q ${hx + 14} ${hy + 20} ${hx} ${hy + 20} Q ${hx - 14} ${hy + 20} ${hx - 22} ${hy + 6} Z" fill="${hc}" opacity=".92"/>`;
     g += this.face(mood, hx, hy, cfg.beard);
     g += this.hat((cfg.eq || {}).hat, this.v(cfg, 'hat'), hx, hy);
     g += this.glasses((cfg.eq || {}).glasses, this.v(cfg, 'glasses'), hx, hy);
     return g;
   },
-  hair(h, x, y, c) {
+  // calota de cabelo: cobre o alto da cabeça, desce nas laterais e marca a linha da testa
+  cap(x, y, c, top = -34, line = -12, side = 6, op = 1) {
+    return `<path d="M${x - 28} ${y + side} C ${x - 32} ${y - 18} ${x - 19} ${y + top} ${x} ${y + top} C ${x + 19} ${y + top} ${x + 32} ${y - 18} ${x + 28} ${y + side} L ${x + 24} ${y + side} C ${x + 24} ${y - 4} ${x + 15} ${y + line} ${x} ${y + line} C ${x - 15} ${y + line} ${x - 24} ${y - 4} ${x - 24} ${y + side} Z" fill="${c}" ${op < 1 ? `opacity="${op}"` : ''}/>`;
+  },
+  shine(x, y, c) { return `<path d="M${x - 14} ${y - 24} q 10 -7 22 -4" stroke="${this.shade(c, 0.35)}" stroke-width="3" fill="none" stroke-linecap="round" opacity=".55"/>`; },
+  curls(pts, c, r) { return `<g fill="${c}">${pts.map(([px, py, rr]) => `<circle cx="${px}" cy="${py}" r="${rr || r}"/>`).join('')}</g>`; },
+  // parte de trás (desenhada atrás da cabeça e do corpo)
+  hairBack(h, x, y, c, hat) {
+    const d = this.shade(c, -0.12);
     switch (h) {
-      case 'raspado': return `<path d="M${x - 26} ${y - 2} C ${x - 26} ${y - 28} ${x + 26} ${y - 30} ${x + 26} ${y - 2} C ${x + 18} ${y - 14} ${x - 18} ${y - 14} ${x - 26} ${y - 2} Z" fill="${c}" opacity=".55"/>`;
-      case 'cacheado': return `<g fill="${c}">${[[-22, -10], [-14, -20], [-3, -25], [9, -23], [19, -16], [24, -6], [-25, 0], [-8, -16], [6, -16]].map(([dx, dy]) => `<circle cx="${x + dx}" cy="${y + dy}" r="9"/>`).join('')}</g>`;
+      case 'longo': return `<path d="M${x - 30} ${y - 6} C ${x - 37} ${y + 26} ${x - 32} ${y + 50} ${x - 22} ${y + 58} L ${x + 22} ${y + 58} C ${x + 32} ${y + 50} ${x + 37} ${y + 26} ${x + 30} ${y - 6} Z" fill="${d}"/>`;
+      case 'chanel': return `<path d="M${x - 31} ${y - 6} C ${x - 35} ${y + 14} ${x - 32} ${y + 26} ${x - 25} ${y + 30} L ${x + 25} ${y + 30} C ${x + 32} ${y + 26} ${x + 35} ${y + 14} ${x + 31} ${y - 6} Z" fill="${d}"/>`;
+      case 'rabo': return `<path d="M${x + 18} ${y - 22} C ${x + 46} ${y - 22} ${x + 48} ${y + 18} ${x + 34} ${y + 46} C ${x + 33} ${y + 24} ${x + 28} ${y + 2} ${x + 14} ${y - 10} Z" fill="${d}"/><circle cx="${x + 24}" cy="${y - 17}" r="4.5" fill="#F472B6"/>`;
+      case 'trancas': {
+        let g = '';
+        [-1, 1].forEach((s) => { for (let i = 0; i < 6; i++) g += `<ellipse cx="${x + s * (25 + i * 0.6)}" cy="${y + 4 + i * 9}" rx="6" ry="6.5" fill="${i % 2 ? c : d}"/>`; g += `<circle cx="${x + s * 28}" cy="${y + 58}" r="3.5" fill="#F59E0B"/>`; });
+        return `<path d="M${x - 30} ${y - 4} C ${x - 32} ${y + 14} ${x + 32} ${y + 14} ${x + 30} ${y - 4} Z" fill="${d}"/>` + g;
+      }
+      case 'cachos': {
+        const pts = []; for (let a = 150; a <= 390; a += 20) { const r = a > 180 && a < 360 ? 31 : 29, rad = (a * Math.PI) / 180; pts.push([x + Math.cos(rad) * r, y - Math.sin(rad) * r * -1 * -1 + (a > 180 && a < 360 ? 0 : 0), 12]); }
+        const back = []; for (let i = -3; i <= 3; i++) back.push([x + i * 9.5, y + 26 + Math.abs(i) * -1.5, 11]);
+        for (let i = 0; i < 4; i++) { back.push([x - 33, y + 2 + i * 9, 11]); back.push([x + 33, y + 2 + i * 9, 11]); }
+        return this.curls(back, d, 11);
+      }
+      default: return '';
+    }
+  },
+  // frente (por cima da cabeça)
+  hair(h, x, y, c, hat) {
+    const d = this.shade(c, -0.2), l = this.shade(c, 0.18);
+    switch (h) {
       case 'careca': return `<path d="M${x - 12} ${y - 20} q 8 -4 14 -2" stroke="#fff" stroke-width="3" opacity=".35" fill="none" stroke-linecap="round"/>`;
-      case 'coque': return `<circle cx="${x}" cy="${y - 30}" r="10" fill="${c}"/>` + this.hair('curto', x, y, c);
-      case 'rabo': case 'longo': case 'curto': default:
-        return `<path d="M${x - 27} ${y + 2} C ${x - 30} ${y - 32} ${x + 30} ${y - 36} ${x + 27} ${y} C ${x + 22} ${y - 12} ${x + 6} ${y - 16} ${x - 4} ${y - 12} C ${x - 12} ${y - 8} ${x - 20} ${y - 10} ${x - 27} ${y + 2} Z" fill="${c}"/>`;
+      case 'raspado': return this.cap(x, y, l, -29, -9, 4, 0.9) + `<path d="M${x - 22} ${y - 8} C ${x - 16} ${y - 12} ${x + 16} ${y - 12} ${x + 22} ${y - 8}" stroke="${c}" stroke-width="2" fill="none" opacity=".6"/>`;
+      case 'degrade': return this.cap(x, y, l, -30, -10, 6, 0.55) + `<path d="M${x - 21} ${y - 12} C ${x - 23} ${y - 38} ${x + 23} ${y - 38} ${x + 21} ${y - 12} C ${x + 12} ${y - 17} ${x - 12} ${y - 17} ${x - 21} ${y - 12} Z" fill="${c}"/>` + this.shine(x, y - 4, c);
+      case 'topete': return this.cap(x, y, c, -34, -12, 6) + (hat ? '' : `<path d="M${x - 16} ${y - 22} C ${x - 16} ${y - 47} ${x + 22} ${y - 50} ${x + 25} ${y - 30} C ${x + 14} ${y - 37} ${x + 2} ${y - 33} ${x - 16} ${y - 22} Z" fill="${c}"/><path d="M${x - 6} ${y - 36} q 12 -8 24 -4" stroke="${l}" stroke-width="3" fill="none" stroke-linecap="round" opacity=".6"/>`);
+      case 'cacheado': {
+        const pts = []; for (let a = 165; a >= 15; a -= 15) { const rad = (a * Math.PI) / 180; pts.push([x + Math.cos(rad) * 26, y - Math.sin(rad) * 26 - 3, 10.5]); }
+        for (let a = 140; a >= 40; a -= 20) { const rad = (a * Math.PI) / 180; pts.push([x + Math.cos(rad) * 15, y - Math.sin(rad) * 15 - 12, 10]); }
+        return this.cap(x, y, c, -30, -11, 4) + this.curls(pts, c, 10);
+      }
+      case 'longo': return this.cap(x, y, c, -34, -10, 8) + `<path d="M${x - 28} ${y + 2} C ${x - 31} ${y + 22} ${x - 27} ${y + 34} ${x - 21} ${y + 40} L ${x - 17} ${y + 38} C ${x - 22} ${y + 26} ${x - 23} ${y + 10} ${x - 20} ${y - 6} Z" fill="${c}"/><path d="M${x + 28} ${y + 2} C ${x + 31} ${y + 22} ${x + 27} ${y + 34} ${x + 21} ${y + 40} L ${x + 17} ${y + 38} C ${x + 22} ${y + 26} ${x + 23} ${y + 10} ${x + 20} ${y - 6} Z" fill="${c}"/><path d="M${x + 2} ${y - 33} C ${x} ${y - 24} ${x - 1} ${y - 16} ${x + 3} ${y - 10}" stroke="${d}" stroke-width="2" fill="none" opacity=".7"/>` + this.shine(x, y, c);
+      case 'chanel': return this.cap(x, y, c, -34, -6, 8) + `<path d="M${x - 28} ${y + 2} C ${x - 30} ${y + 16} ${x - 27} ${y + 24} ${x - 22} ${y + 26} L ${x - 19} ${y + 22} C ${x - 22} ${y + 14} ${x - 23} ${y + 6} ${x - 21} ${y - 2} Z" fill="${c}"/><path d="M${x + 28} ${y + 2} C ${x + 30} ${y + 16} ${x + 27} ${y + 24} ${x + 22} ${y + 26} L ${x + 19} ${y + 22} C ${x + 22} ${y + 14} ${x + 23} ${y + 6} ${x + 21} ${y - 2} Z" fill="${c}"/>` + this.shine(x, y, c);
+      case 'rabo': return this.cap(x, y, c, -33, -13, 4) + `<path d="M${x - 18} ${y - 18} C ${x - 6} ${y - 26} ${x + 10} ${y - 26} ${x + 20} ${y - 18}" stroke="${d}" stroke-width="2" fill="none" opacity=".55"/>` + this.shine(x, y, c);
+      case 'coque': return this.cap(x, y, c, -32, -12, 4) + (hat ? '' : `<circle cx="${x}" cy="${y - 37}" r="12" fill="${c}"/><path d="M${x - 8} ${y - 40} q 8 -7 16 0" stroke="${l}" stroke-width="2.5" fill="none" stroke-linecap="round" opacity=".7"/><path d="M${x - 10} ${y - 27} h20" stroke="#F472B6" stroke-width="4" stroke-linecap="round"/>`);
+      case 'trancas': return this.cap(x, y, c, -33, -11, 6) + `<path d="M${x} ${y - 33} V ${y - 11}" stroke="${d}" stroke-width="2.2" opacity=".8"/><path d="M${x - 14} ${y - 28} L ${x - 20} ${y - 6} M${x + 14} ${y - 28} L ${x + 20} ${y - 6}" stroke="${d}" stroke-width="1.6" opacity=".5"/>`;
+      case 'cachos': {
+        const pts = []; for (let a = 170; a >= 10; a -= 14) { const rad = (a * Math.PI) / 180; pts.push([x + Math.cos(rad) * 28, y - Math.sin(rad) * 28 - 2, 10]); }
+        pts.push([x - 12, y - 16, 9], [x + 2, y - 19, 9], [x + 15, y - 15, 9]);
+        return this.cap(x, y, c, -32, -10, 8) + this.curls(pts, c, 10);
+      }
+      case 'curto': default:
+        return this.cap(x, y, c, -34, -12, 6) + `<path d="M${x - 14} ${y - 12} C ${x - 10} ${y - 22} ${x + 6} ${y - 26} ${x + 22} ${y - 14}" stroke="${d}" stroke-width="2" fill="none" opacity=".55"/>` + this.shine(x, y, c);
     }
   },
   face(m, x, y, beard) {

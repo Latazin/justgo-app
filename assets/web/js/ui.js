@@ -296,45 +296,52 @@ const UI = {
     const used = {}; D.activities.forEach((x) => (used[x.sport] = (used[x.sport] || 0) + 1));
     const quick = [...new Set([...(D.profile.sports || []), ...Object.keys(used).sort((x, y) => used[y] - used[x]), 'run', 'ride', 'walk', 'skate', 'swim', 'hike'])].filter((k) => CONFIG.sports[k]).slice(0, 5);
 
+    const wkCal = week.reduce((x, a) => x + Game.calories(a), 0), first = esc(D.profile.name.split(' ')[0]);
+    const R = 34, C = 2 * Math.PI * R, ring = `<svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="${R}" class="bg"/><circle cx="40" cy="40" r="${R}" class="fg" stroke-dasharray="${((C * gp) / 100).toFixed(1)} ${C.toFixed(1)}"/></svg>`;
+    const tips = [['cloudRain', 'Hidratação', 'Beba água ao longo do dia, não só no treino. Em dia quente, leve uma garrafinha.'], ['heart', 'Ritmo leve', 'A maior parte dos treinos deve ser num ritmo em que você consegue conversar.'], ['moon', 'Descanso', 'Dormir bem faz parte do treino: é no descanso que o corpo fica mais forte.'], ['zap', 'Aquecimento', '5 a 10 minutos de trote ou pedal leve antes de acelerar evitam lesão.'], ['trending', 'Evolução', 'Aumente no máximo 10% do volume por semana para evoluir sem se machucar.'], ['flag', 'Território', 'Feche voltas no seu bairro para conquistar áreas e defender do pessoal.'], ['users', 'Treine junto', 'Chame um amigo: quem treina acompanhado falta menos.']];
+    const tip = tips[Math.floor(now / 864e5) % tips.length];
     this.render(`${this.header('', '', { brand: true })}
-    <main class="screen home">
-      <section class="hello"><div class="grow"><span class="eyebrow">${this.today()}</span><h1>${this.greeting()}, ${esc(D.profile.name.split(' ')[0])}</h1></div><div id="hWx" class="wx-chip" hidden></div></section>
+    <main class="screen home home2">
+      <section class="h2-hero">
+        <div class="h2-top"><div><span class="h2-date">${this.today()}</span><h1>${this.greeting()}, ${first}</h1></div><div id="hWx" class="wx-chip h2-wx" hidden></div></div>
+        <button class="h2-week tap" data-act="go" data-v="stats">
+          <div class="h2-ring">${ring}<div><b class="num">${Math.round(gp)}%</b><small>da meta</small></div></div>
+          <div class="grow"><span class="h2-lab">Esta semana</span><div class="h2-km"><b class="num">${Fmt.num(wkKm)}</b><span>de ${goal} km</span></div>
+            <div class="h2-mini"><span>${I('activity', 'xs')} ${week.length} ${week.length === 1 ? 'treino' : 'treinos'}</span><span>${I('timer', 'xs')} ${Fmt.time(wkTime)}</span><span>${I('flame', 'xs')} ${Fmt.num(wkCal, 0)} kcal</span></div></div>
+        </button>
+        <div class="h2-bars">${days.map((v, i) => `<div class="${i === todayI ? 'today' : ''}"><i style="height:${Math.max(v ? 14 : 6, (v / maxD) * 100)}%" class="${v ? 'has' : ''}"></i><small>${WEEKDAYS[i]}</small></div>`).join('')}</div>
+        <button class="h2-go" data-act="go" data-v="record"><span class="h2-play">${I('play')}</span><div class="grow"><b>Iniciar treino</b><small>${plan && plan.session ? `Hoje no plano: ${esc(plan.session.type)} · ${Fmt.num(plan.session.km)} km` : lastAct ? `Último: ${Fmt.km(lastAct.distance)} km · ${this.agoDay(lastAct.start)}` : 'GPS pronto quando você estiver'}</small></div>${I('chevronRight')}</button>
+      </section>
+      <div class="h2-sports">${quick.map((k) => { const v = CONFIG.sports[k]; return `<button style="--c:${v.color}" data-act="quickStart" data-v="${k}"><span>${I(v.icon)}</span>${v.name}</button>`; }).join('')}</div>
       ${this.loginCard()}
       <div id="hTorch"></div>
       ${this.retroCard()}
+
+      <div class="h2-tiles">
+        <button class="h2-tile tap" style="--c:#1F6BFF" data-act="sub" data-v="progress:tree"><span class="h2-ti">${I('zap')}</span><small>Nível</small><b class="num">${lv.l}</b><span class="h2-ts">${Game.title(lv.l)}</span><i class="h2-tb"><i style="width:${lv.pct}%"></i></i></button>
+        <button class="h2-tile tap" style="--c:#FF7A1A" data-act="go" data-v="progress"><span class="h2-ti">${I('flame')}</span><small>Sequência</small><b class="num">${streak}</b><span class="h2-ts">${streak === 1 ? 'dia seguido' : 'dias seguidos'}</span></button>
+        <button class="h2-tile tap" style="--c:${L0.color}" data-act="sub" data-v="progress:season"><span class="h2-ti">${I('crown')}</span><small>Liga do mês</small><b>${L0.name}</b><span class="h2-ts num">${Game.monthXp()} XP</span></button>
+        <button class="h2-tile tap" style="--c:#8B5CF6" data-act="go" data-v="mapa"><span class="h2-ti">${I('flag')}</span><small>Território</small><b class="num">${zones.length ? Zones.areaTxt(Zones.totalArea(zones)) : '0'}</b><span class="h2-ts">${zones.length ? `${zones.length} área${zones.length > 1 ? 's' : ''}` : 'feche uma volta'}</span></button>
+      </div>
+
       ${this.avatarHome()}
 
-      <section class="card week tap" data-act="go" data-v="stats">
-        <div class="week-top">
-          <div><span class="eyebrow">Esta semana</span><div class="week-n"><b class="num">${Fmt.num(wkKm)}</b><span>km</span></div><small>${week.length} ${week.length === 1 ? 'treino' : 'treinos'} · ${Fmt.time(wkTime)}</small></div>
-          <div class="goal-ring" style="--p:${gp}"><div><b class="num">${Math.round(gp)}%</b><small>de ${goal} km</small></div></div>
-        </div>
-        <div class="week-bars">${days.map((v, i) => `<div class="wb ${i === todayI ? 'today' : ''}"><i style="height:${Math.max(v ? 10 : 4, (v / maxD) * 100)}%" class="${v ? 'has' : ''}"></i><small>${WEEKDAYS[i]}</small></div>`).join('')}</div>
+      <section class="h2-card h2-miss">
+        <div class="h2-ch"><div><span class="eyebrow">Missões de hoje</span><b>${dDone === daily.length ? 'Tudo feito! 🎉' : `${daily.length - dDone} para completar`}</b></div><div class="h2-mring" style="--p:${daily.length ? (dDone / daily.length) * 100 : 0}"><span class="num">${dDone}/${daily.length}</span></div></div>
+        <div class="list flat">${daily.map((m) => this.missionRow(m, 'd', 'day')).join('')}</div>
+        <button class="h2-more" data-act="sub" data-v="progress:missions">Ver todas as missões ${I('chevronRight', 'xs')}</button>
       </section>
 
-      <section class="card start-card">
-        <div class="sc-top"><div class="grow"><b>Bora treinar?</b><small>${plan && plan.session ? `Hoje no plano: ${esc(plan.session.type)} · ${Fmt.num(plan.session.km)} km` : lastAct ? `Último: ${esc(CONFIG.sports[lastAct.sport] ? CONFIG.sports[lastAct.sport].name : '')} · ${Fmt.km(lastAct.distance)} km · ${this.agoDay(lastAct.start)}` : 'Escolha o esporte e comece com um toque'}</small></div>
-          <button class="sc-go" data-act="go" data-v="record" aria-label="Iniciar treino">${I('play')}</button></div>
-        <div class="sc-sports">${quick.map((k) => { const v = CONFIG.sports[k]; return `<button style="--c:${v.color}" data-act="quickStart" data-v="${k}"><span>${I(v.icon)}</span><small>${v.name}</small></button>`; }).join('')}</div>
-      </section>
-
-      <section class="tiles3">
-        <button class="tile tap" data-act="sub" data-v="progress:tree"><span class="t-ic lv"><b class="num">${lv.l}</b></span><b>Nível ${lv.l}</b><small>${Game.title(lv.l)}</small><i class="t-bar"><i style="width:${lv.pct}%"></i></i></button>
-        <button class="tile tap" data-act="go" data-v="stats"><span class="t-ic" style="--c:#F97316">${I('flame')}</span><b class="num">${streak} ${streak === 1 ? 'dia' : 'dias'}</b><small>seguidos</small><small class="t-sub" style="--lc:${L0.color}">${I('crown', 'xs')} Liga ${L0.name}</small></button>
-        <button class="tile tap" data-act="go" data-v="mapa"><span class="t-ic" style="--c:#8B5CF6">${I('flag')}</span><b class="num">${zones.length} ${zones.length === 1 ? 'área' : 'áreas'}</b><small>${zones.length ? Zones.areaTxt(Zones.totalArea(zones)) : 'conquiste a 1ª'}</small><small class="t-sub">Ver mapa ${I('chevronRight', 'xs')}</small></button>
-      </section>
-
-      ${plan ? `${this.sectionHead('Plano de treino', ['Ver plano', 'plans'])}<div class="list"><div class="row tap" data-act="go" data-v="plans">${this.iconBox('clipboard', CONFIG.sports[plan.def.sport].color)}<div class="grow"><b>${plan.session ? `${esc(plan.session.type)} · ${Fmt.num(plan.session.km)} km` : plan.P.finished ? 'Plano concluído!' : 'Semana completa'}</b><small>${esc(plan.def.name)} · semana ${Math.min(plan.w + 1, plan.weeks.length)} de ${plan.weeks.length}</small></div>${I('chevronRight', 'chev')}</div></div>` : ''}
-
-      ${this.sectionHead(`Missões de hoje <em>${dDone}/${daily.length}</em>`, ['Ver todas', 'progress:missions', 'sub'])}
-      <div class="list">${daily.map((m) => this.missionRow(m, 'd', 'day')).join('')}</div>
+      ${plan ? `<section class="h2-card tap" data-act="go" data-v="plans"><div class="h2-ch"><div><span class="eyebrow">Plano de treino</span><b>${plan.session ? `${esc(plan.session.type)} · ${Fmt.num(plan.session.km)} km` : plan.P.finished ? 'Plano concluído!' : 'Semana completa'}</b><small class="muted">${esc(plan.def.name)}</small></div>${this.iconBox('clipboard', CONFIG.sports[plan.def.sport].color)}</div></section>` : ''}
 
       ${Cloud.loggedIn() ? `${this.sectionHead('Da comunidade', ['Ver mais', 'social'])}<div class="comm-strip" id="hComm"><div class="comm-card sk"></div><div class="comm-card sk"></div></div>` : ''}
 
+      <section class="h2-tip"><span class="h2-tip-ic">${I(tip[0])}</span><div class="grow"><span class="eyebrow">Dica do dia · ${tip[1]}</span><p>${tip[2]}</p></div></section>
+
       ${next ? `${this.sectionHead('Próximo desbloqueio', ['Ver árvore', 'progress:tree', 'sub'])}<div class="list">${this.unlockRow(next)}</div>` : ''}
 
-      ${this.sectionHead('Atividades recentes', recent.length ? ['Ver todas', 'history'] : null)}
-      ${recent.length ? recent.map((a) => this.postCard(a, esc(D.profile.name))).join('') : `<div class="empty compact">${I('activity')}<p>Seus treinos aparecem aqui.</p></div>`}
+      ${this.sectionHead('Seu último treino', recent.length ? ['Ver todos', 'history'] : null)}
+      ${recent.length ? this.postCard(recent[0], esc(D.profile.name)) : `<div class="h2-empty">${I('activity')}<b>Seu primeiro treino começa aqui</b><small>Toque em Iniciar treino e o GPS grava tudo.</small><button class="btn primary" data-act="go" data-v="record">Começar agora</button></div>`}
     </main>`);
     this.homeWx(); this.homeComm();
     if (Cloud.loggedIn()) Cloud.torchHolding().then((L) => { const el = $('#hTorch'); if (!el || !L.length || App.tab !== 'home') return; const t = L[0]; el.innerHTML = `<button class="card torch-hold tap" data-act="torchOpen" data-v="${t.id}"><div class="th-flame on">${I('flame')}</div><div class="grow"><b>A Tocha está com você! 🔥</b><small>${esc((t.creator && t.creator.name) || 'Um amigo')} começou · ${t.legs} pessoas · ${Fmt.num(t.total_m / 1000)} km. Faltam <b>${UI.hoursLeft(t.deadline)}</b> para treinar e passar.</small></div>${I('chevronRight', 'chev')}</button>`; }).catch(() => {});

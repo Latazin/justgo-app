@@ -67,7 +67,8 @@ Object.assign(UI, {
     let body = '';
     if (tab === 'body') {
       body = `<span class="eyebrow">Tom de pele</span>${sw('skin', Avatar.SKIN, c.skin, 'i')}
-        <span class="eyebrow">Cabelo</span>${sw('hair', Avatar.HAIR, c.hair)}
+        <span class="eyebrow">Cabelo</span>
+        <div class="av-hair">${[['m', 'Masculinos'], ['f', 'Femininos']].map(([gk, gn]) => `<small class="av-hg">${gn}</small><div class="av-hgrid">${Avatar.HAIR.filter((h) => h[2] === gk).map(([id, nm]) => `<button class="av-hb ${id === c.hair ? 'on' : ''}" data-act="avSet" data-k="hair" data-v="${id}"><span>${Avatar.svg({ ...c, hair: id, eq: { ...c.eq, hat: 'hat_none', glasses: 'gl_none' } }, { portrait: true, still: true, w: 56, mood: 'happy', stats: st })}</span><b>${esc(nm)}</b></button>`).join('')}</div>`).join('')}</div>
         <span class="eyebrow">Cor do cabelo</span>${sw('hairC', Avatar.HAIRC, c.hairC, 'i')}
         <span class="eyebrow">Barba</span>${sw('beard', [['0', 'Sem barba'], ['1', 'Com barba']], c.beard ? '1' : '0')}`;
     } else {
