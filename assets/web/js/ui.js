@@ -157,7 +157,7 @@ const UI = {
   greeting() { const h = new Date().getHours(); return h < 5 ? 'Boa madrugada' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'; },
   today() { return new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }); },
   avatarOf(name, frame, bg, size = 'sm', photo) { return `<div class="avatar ${size}" style="${frame ? `--frame:${frame};` : '--frame:var(--line-2);'}${bg ? `--avatar-bg:${bg}` : ''}">${this.avaIn(name, photo)}</div>`; },
-  vb(id, username) { return Cloud.isCeo && Cloud.isCeo(id, username) ? `<span class="vb"><svg class="vb-ck" viewBox="0 0 24 24" aria-label="Verificado"><path fill="#1F9BFF" d="M12 1.6l2.5 1.9 3.1-.2 1 3 2.6 1.7-.9 3 .9 3-2.6 1.7-1 3-3.1-.2L12 22.4l-2.5-1.9-3.1.2-1-3-2.6-1.7.9-3-.9-3 2.6-1.7 1-3 3.1.2z"/><path d="M7.8 12.3l2.7 2.7 5.7-5.8" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="vb-ceo">CEO</span></span>` : ''; },
+  vb(id, username) { return Cloud.isCeo && Cloud.isCeo(id, username) ? `<span class="vbadge"><svg class="vbadge-ck" viewBox="0 0 24 24" aria-label="Verificado"><path fill="#1F9BFF" d="M12 1.6l2.5 1.9 3.1-.2 1 3 2.6 1.7-.9 3 .9 3-2.6 1.7-1 3-3.1-.2L12 22.4l-2.5-1.9-3.1.2-1-3-2.6-1.7.9-3-.9-3 2.6-1.7 1-3 3.1.2z"/><path d="M7.8 12.3l2.7 2.7 5.7-5.8" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="vbadge-ceo">CEO</span></span>` : ''; },
   iconBox(name, color) { return `<div class="ibox" ${color ? `style="--c:${color}"` : ''}>${I(name)}</div>`; },
   tabsBar(items, active, act) { return `<div class="subtabs">${items.map(([v, n]) => `<button class="${v === active ? 'on' : ''}" data-act="${act}" data-v="${v}">${n}</button>`).join('')}</div>`; },
   actTitle(a) {
@@ -393,6 +393,7 @@ const UI = {
       <div class="rec-top">
         <button class="round-btn" data-act="go" data-v="home" aria-label="Fechar">${I('x')}</button>
         <span class="grow"></span>
+        <button class="round-btn" data-act="go" data-v="settings" aria-label="Ajustes">${I('settings')}</button>
         ${pool ? '<span class="round-btn ghost"></span>' : `<button class="round-btn" data-act="recenter" aria-label="Centralizar">${I('nav')}</button>`}
       </div>
       ${pool ? '' : '<div class="rec-gps" id="recGps"><i></i><span>Procurando sua localização…</span></div>'}
@@ -401,7 +402,7 @@ const UI = {
         ${s === 'swim' ? `<div class="seg">${[['pool', 'Piscina'], ['open', 'Águas abertas']].map(([m, n]) => `<button class="${App.swimMode === m ? 'on' : ''}" data-act="swimMode" data-v="${m}">${n}</button>`).join('')}</div>` : ''}
         ${this.modeChips()}${this.modeInfo()}
         <div class="rec-start">
-          <button class="side" data-act="go" data-v="settings"><i>${I('settings')}</i><small>Ajustes</small></button>
+          <button class="side voice-tg ${Pref('voice') ? 'on' : ''}" data-act="voiceToggle"><i>${I(Pref('voice') ? 'mic' : 'micOff')}</i><small>Voz ${Pref('voice') ? 'ligada' : 'desligada'}</small></button>
           <button class="start" data-act="start" aria-label="${startLbl}">${pool ? I(App.mode === 'set' ? 'repeat' : 'clipboard') : I('play')}<span>${startLbl}</span></button>
           <button class="side" data-act="go" data-v="safety"><i>${I('shield')}</i><small>Segurança</small></button>
         </div>
@@ -651,7 +652,7 @@ const UI = {
       ${this.photoBlock(act)}
       ${this.visRow(act)}
       ${hasMap ? `<div class="s-map-wrap"><div id="sMap" class="s-map"></div><button class="map3d-btn" data-act="view3d" data-v="${act.id}">${I('box3d')}Ver em 3D</button></div>` : act.pool ? `<div class="pool-art">${I('swim')}<b class="num">${Fmt.km(act.distance)} km</b><small>${act.pool.laps} voltas</small></div>` : ''}
-      <div class="actions wrap">${acts.join('')}</div>
+      <div class="actions act-row">${acts.join('')}</div>
       ${rewards}
       ${this.terrCard(act)}
       ${this.proSection(act)}
@@ -866,7 +867,8 @@ const UI = {
 
     else {
       const list = [...Store.data.activities].sort((a, b) => b.start - a.start), name = esc(Store.data.profile.name);
-      body = `<div class="actions">
+      const m0 = new Date(); m0.setDate(1); m0.setHours(0, 0, 0, 0); const ml = list.filter((a) => a.start >= m0.getTime());
+      body = `${list.length ? `<section class="hist-sum"><span class="hs-t">Este mês</span><div><span>Treinos</span><b class="num">${ml.length}</b></div><div><span>Km</span><b class="num">${Fmt.num(Game.km(ml))}<small>km</small></b></div><div><span>Tempo</span><b class="num">${Fmt.time(ml.reduce((x, a) => x + (a.duration || 0), 0))}</b></div><div><span>Desde início</span><b class="num">${list.length}</b></div></section>` : ''}<div class="actions">
         ${Game.has('heatmap') ? `<button class="chip-btn" data-act="heatmap">${I('flame')}Mapa de calor</button>` : this.lockChip('heatmap', 'Mapa de calor')}
         <label class="chip-btn">${I('upload')}Importar GPX<input type="file" id="gpxIn" accept=".gpx,application/gpx+xml" hidden></label>
         <button class="chip-btn" data-act="go" data-v="stats">${I('barChart')}Estatísticas</button></div>
@@ -1089,7 +1091,8 @@ const UI = {
      PLANOS DE TREINO
      ========================================================= */
   plans() {
-    if (!Game.has('plans')) return this.render(`${this.back('home', 'Planos de treino')}<main class="screen">${this.lockedBox('plans')}</main>`);
+    if (!Game.has('plans')) return this.render(`${this.back('home', 'Planos de treino')}<main class="screen"><p class="muted lead">Planos de várias semanas que montam seus treinos, acompanham tudo sozinhos e avisam o dia do longão.</p>${this.lockedBox('plans', `<div class="list">${CONFIG.plans.slice(0, 4).map((p) => `<div class="row">${this.iconBox('trophy', CONFIG.sports[p.sport].color)}<div class="grow"><b>${esc(p.name)}</b><small>${p.weeks} semanas</small></div></div>`).join('')}</div>`)}
+      <div class="sec"><h2>O que vem nos planos</h2></div><div class="list">${[['calendar', 'Semana montada', 'Treinos certos para cada dia, do leve ao longão.'], ['check', 'Marca sozinho', 'Treinou 80% da distância do dia? Já conta.'], ['trending', 'Evolução segura', 'Volume sobe aos poucos para você não se machucar.']].map(([i, t, d]) => `<div class="row">${this.iconBox(i)}<div class="grow"><b>${t}</b><small>${d}</small></div></div>`).join('')}</div></main>`);
     const a = Plans.today();
     let body = '';
     if (a) {
@@ -1136,9 +1139,9 @@ const UI = {
     this.render(`${this.back('home', 'Estatísticas')}<main class="screen">
       ${this.tabsBar([['week', 'Semana'], ['month', 'Mês'], ['year', 'Ano']], per, 'statsP')}
       <div class="choice sport-filter">${[['all', 'Todos'], ...Object.entries(CONFIG.sports).map(([k, s]) => [k, s.name])].map(([k, n]) => `<button class="pill-btn ${spf === k ? 'on' : ''}" data-act="statsS" data-v="${k}">${n}</button>`).join('')}</div>
-      <section class="card"><div class="week-n"><b class="num">${Fmt.num(tot.km)}</b><span>km</span></div>${this.bars(buckets, labels, { hi, color, fmt: (v) => (v >= 10 ? Math.round(v) : Fmt.num(v)) })}</section>
-      <div class="stat-grid"><div><span class="eyebrow">Atividades</span><b class="num">${tot.n}</b></div><div><span class="eyebrow">Tempo</span><b class="num">${Fmt.time(tot.time)}</b></div><div><span class="eyebrow">Elevação</span><b class="num">${tot.elev} m</b></div><div><span class="eyebrow">Calorias</span><b class="num">${tot.kcal.toLocaleString('pt-BR')}</b></div></div>
-      ${spf === 'all' ? `${this.sectionHead('Por esporte')}<div class="list">${bySport.map(([k, s, km, n]) => `<div class="row">${this.iconBox(SPORT_IC[k], s.color)}<div class="grow"><b>${s.name}</b><small>${n} atividade${n === 1 ? '' : 's'}</small></div><b class="num">${Fmt.num(km)} km</b></div>`).join('')}</div>` : ''}
+      <section class="card st-hero"><div class="st-hero-h"><div class="week-n"><b class="num">${Fmt.num(tot.km)}</b><span>km</span></div><span class="st-per">${per === 'week' ? 'nesta semana' : per === 'month' ? 'neste mês' : 'neste ano'}</span></div>${this.bars(buckets, labels, { hi, color, fmt: (v) => (v >= 10 ? Math.round(v) : Fmt.num(v)) })}</section>
+      <div class="stat-grid st3"><div style="--c:#1F6BFF"><span class="st-ic">${I('activity')}</span><span class="eyebrow">Atividades</span><b class="num">${tot.n}</b></div><div style="--c:#8B5CF6"><span class="st-ic">${I('timer')}</span><span class="eyebrow">Tempo</span><b class="num">${Fmt.time(tot.time)}</b></div><div style="--c:#12B886"><span class="st-ic">${I('mountain')}</span><span class="eyebrow">Elevação</span><b class="num">${tot.elev} m</b></div><div style="--c:#FF7A1A"><span class="st-ic">${I('flame')}</span><span class="eyebrow">Calorias</span><b class="num">${tot.kcal.toLocaleString('pt-BR')}</b></div></div>
+      ${spf === 'all' ? `${this.sectionHead('Por esporte')}<div class="list">${(bySport.filter((x) => x[3]).length ? bySport.filter((x) => x[3]) : bySport.slice(0, 2)).map(([k, s, km, n]) => `<div class="row">${this.iconBox(SPORT_IC[k], s.color)}<div class="grow"><b>${s.name}</b><small>${n} atividade${n === 1 ? '' : 's'}</small></div><b class="num">${Fmt.num(km)} km</b></div>`).join('')}</div>` : ''}
       ${this.sectionHead('Evolução · 12 semanas')}<section class="card">${this.bars(wk, wk.map((_, i) => (i === 11 ? 'atual' : i % 3 === 2 ? `-${11 - i}` : '')), { hi: 11, color })}</section>
       ${pd.some((x) => x) && (spf === 'all' || spf === 'run') ? `${this.sectionHead('Ritmo médio de corrida')}<section class="card"><canvas class="chart" id="cTrend"></canvas><small class="muted">Quanto mais alto, mais rápido.</small></section>` : ''}
       ${this.sectionHead('Recordes pessoais')}${this.recordsHtml()}
@@ -1349,7 +1352,7 @@ const UI = {
       <h3 class="group">Treino</h3>
       <div class="list cfg-list">
         ${sw('autoPause', 'Pausa automática', 'Pausa o cronômetro quando você para', 'autopause')}
-        ${sw('voice', 'Treinador por voz', 'Avisos falados a cada km', 'voice')}
+        ${sw('voice', 'Assistente de voz', 'Fala distância, tempo e ritmo a cada km. Vem desligado.')}
         ${sw('countdown', 'Contagem regressiva', '3, 2, 1 antes de começar a gravar')}
         ${sw('keepAwake', 'Manter tela acesa', 'Durante o treino')}
         <div class="cfg-row col-row"><div class="grow"><b>Esporte ao abrir o Gravar</b></div>${seg('defaultSport', [['', 'Último'], ...Object.entries(CONFIG.sports).map(([k, s]) => [k, s.name])])}</div>

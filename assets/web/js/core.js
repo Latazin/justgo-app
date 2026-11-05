@@ -41,6 +41,8 @@ const Store = {
     try { this.data = JSON.parse(localStorage.getItem(this.key)); } catch (e) { this.data = null; }
     const d = this.defaults();
     this.data = this.data ? { ...d, ...this.data, profile: { ...d.profile, ...(this.data.profile || {}) }, equipped: { ...d.equipped, ...(this.data.equipped || {}) }, privacy: { ...d.privacy, ...(this.data.privacy || {}) } } : d;
+    // 2.20: a voz passa a vir desligada; quem quiser liga em Configurações ou na tela de gravar
+    try { if (!localStorage.getItem('jg_voice2')) { this.data.profile.voice = false; this.data.voice2 = 1; localStorage.setItem('jg_voice2', '1'); localStorage.setItem(this.key, JSON.stringify(this.data)); } } catch (e) {}
     return this.data;
   },
   save() {
@@ -55,7 +57,7 @@ const Store = {
 };
 
 /* ---------- Preferências (tela Configurações) ---------- */
-const PREF_DEFAULTS = { spotsOn: true, autoPause: true, voice: true, countdown: true, sounds: true, haptics: true, mapStyle: 'color', keepAwake: true, defaultSport: '', bio: '', city: '' };
+const PREF_DEFAULTS = { spotsOn: true, autoPause: true, voice: false, countdown: true, sounds: true, haptics: true, mapStyle: 'color', keepAwake: true, defaultSport: '', bio: '', city: '' };
 const Pref = (k) => { const P = Store.data && Store.data.profile; return P && P[k] !== undefined ? P[k] : PREF_DEFAULTS[k]; };
 
 /* ---------- Formatação pt-BR ---------- */
@@ -200,7 +202,7 @@ class Tracker {
 
   tick() {
     if (this.sim) { this.simNow += 1000 * this.mult; if (this.state === 'running') this.simStep(); }
-    const n = this.now(), dt = n - this.last; this.last = n;
+    const n = this.now(), dt = Math.max(0, n - this.last); this.last = Math.max(this.last, n);
     // site ficou minimizado (o navegador congelou o app): o tempo do intervalo conta como treino
     if (!this.sim && this.state === 'running' && dt > 15000) {
       if (!this.autoPaused) this.moving += dt;
@@ -220,6 +222,10 @@ class Tracker {
     if (p.acc != null && p.acc > CONFIG.gps.maxAccuracy) { this.gpsStatus = 'precisão ruim (' + Math.round(p.acc) + ' m)'; return this.emit(); }
     this.gpsStatus = this.sim ? 'simulado' : 'GPS ok · ±' + Math.round(p.acc || 0) + ' m';
     if (this.state !== 'running') return this.emit();
+    // pontos que chegam em lote (app voltando do segundo plano): o relógio do treino anda junto com o
+    // horário de cada ponto. Sem isso a distância subia e o tempo não, e a voz falava 120 km/h de bike.
+    if (!this.sim && p.t > this.last && p.t <= Date.now() + 1000) { if (!this.autoPaused) this.moving += p.t - this.last; this.last = p.t; }
+    this.stale = !this.sim && Date.now() - p.t > 30000;
 
     const pt = [+p.lat.toFixed(6), +p.lng.toFixed(6), p.t, p.alt != null ? +p.alt.toFixed(1) : null];
     const last = this.points[this.points.length - 1];

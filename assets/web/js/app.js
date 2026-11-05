@@ -167,7 +167,7 @@ const App = {
       setTimeout(() => FX.modal(`<div class="m-ic" style="background:var(--brand-soft);color:var(--brand)">${I('signal')}</div><h3>Pode minimizar</h3><p class="muted">O tempo continua contando com o JustGo em segundo plano, e os controles aparecem na tela de bloqueio. Ao voltar, somamos a distância que você percorreu.</p>${ios ? '<p class="muted small" style="margin-top:10px">No iPhone, o GPS de sites pausa quando o app sai da tela. Para o trajeto sair desenhado certinho no mapa, deixe o JustGo aberto (a tela não apaga sozinha).</p>' : '<p class="muted small" style="margin-top:10px">Dica: para o trajeto sair perfeito no mapa, deixe o JustGo aberto. A tela não apaga sozinha durante o treino.</p>'}<button class="btn primary" data-m="ok" style="margin-top:18px">Entendi</button>`), 600);
     }
     FX.beep([440, 660]);
-    if (Game.has('voice') && !this.coach) {
+    if (Pref('voice') && !this.coach) {
       const t = this.mode === 'plan' && Plans.today();
       FX.say(t && t.session ? `Treino do plano: ${t.session.type}, ${String(t.session.km).replace('.', ',')} quilômetros. Bom treino!` : 'Treino iniciado. Bom treino!');
     }
@@ -182,8 +182,9 @@ const App = {
   onSplit(n, t) {
     const tr = this.tracker;
     FX.vibrate([100]);
-    if (Game.has('voice') && !(this.coach && !this.coach.done)) {
-      const pace = Fmt.isSpeed(tr.sport) ? `velocidade média de ${Math.round((tr.distance / (tr.moving / 1000)) * 3.6)} quilômetros por hora` : `ritmo do último quilômetro: ${FX.spokenTime(t)}`;
+    if (Pref('voice') && !tr.stale && !(this.coach && !this.coach.done)) {
+      const kmh = Math.min((tr.distance / Math.max(1, tr.moving / 1000)) * 3.6, (CONFIG.sports[tr.sport] || {}).maxKmh || 60);
+      const pace = Fmt.isSpeed(tr.sport) ? `velocidade média de ${Math.round(kmh)} quilômetros por hora` : `ritmo do último quilômetro: ${FX.spokenTime(t)}`;
       FX.say(`Quilômetro ${n}. Tempo total: ${FX.spokenTime(tr.moving / 1000)}. ${pace}.`);
     }
     if (Game.has('splits')) FX.toast(`Km ${n}: ${Fmt.time(t)}`);
@@ -582,6 +583,12 @@ const App = {
     },
     sport: (el) => { App.sport = el.dataset.v; App.mode = App.sport === 'swim' && App.swimMode === 'pool' ? 'manual' : 'free'; App.route = null; App.go('record'); },
     swimMode: (el) => { App.swimMode = el.dataset.v; App.mode = el.dataset.v === 'pool' ? 'manual' : 'free'; App.go('record'); },
+    voiceToggle: () => {
+      const on = !Pref('voice'); Store.data.profile.voice = on; Store.save(); FX.vibrate([30]);
+      const b = $('.voice-tg'); if (b) { b.classList.toggle('on', on); b.innerHTML = `<i>${I(on ? 'mic' : 'micOff')}</i><small>Voz ${on ? 'ligada' : 'desligada'}</small>`; }
+      FX.toast(on ? 'Assistente de voz ligado: ele fala a cada km' : 'Assistente de voz desligado');
+      if (on) FX.say('Assistente de voz ligado.');
+    },
     recenter: () => { const m = UI.recMap, d = UI.recDot; if (m && d) m.setView(d.getLatLng(), 16); else Geo.locate(true).then((p) => { if (p && UI.recMap) UI.recMap.setView([p[0], p[1]], 16); }); },
     simToggle: async () => {
       const v = await FX.modal(`<h3>Modo teste</h3><p class="muted">Simula o GPS para testar o app no computador, sem sair de casa.</p><div class="col">${[['off', 'Desligado (GPS real)'], ['1', '1× velocidade real'], ['5', '5× mais rápido'], ['20', '20× mais rápido']].map(([k, n]) => `<button class="btn ghost ${(k === 'off' && !App.sim) || (App.sim && +k === App.simMult) ? 'is-on' : ''}" data-m="${k}">${n}</button>`).join('')}</div>`);
@@ -781,8 +788,8 @@ const App = {
       App.mode = v; if (v !== 'route') App.route = null; App.go('record');
     },
     start: () => App.startTraining(),
-    pause: () => { App.tracker.pause(); Background.pause(); UI.trainButtons(); UI.updateTraining(); if (Game.has('voice')) FX.say('Treino pausado'); },
-    resume: () => { App.tracker.resume(); Background.resume(); UI.trainButtons(); if (Game.has('voice')) FX.say('Retomando'); },
+    pause: () => { App.tracker.pause(); Background.pause(); UI.trainButtons(); UI.updateTraining(); if (Pref('voice')) FX.say('Treino pausado'); },
+    resume: () => { App.tracker.resume(); Background.resume(); UI.trainButtons(); if (Pref('voice')) FX.say('Retomando'); },
     finish: () => App.finishTraining(),
     live: () => App.shareLive(),
     sos: () => FX.modal(`<div class="m-ic bad">${I('phone')}</div><h3>Emergência</h3><p class="muted">Ligar agora para:</p><div class="col"><a class="btn danger" href="tel:192">192 · SAMU</a><a class="btn danger ghost" href="tel:193">193 · Bombeiros</a><a class="btn danger ghost" href="tel:190">190 · Polícia</a>${Store.data.trusted.phone ? `<button class="btn ghost" data-m="trust">${I('signal')} Avisar ${esc(Store.data.trusted.name || 'contato de confiança')}</button>` : ''}<button class="btn ghost" data-m="no">Cancelar</button></div>`).then((v) => { if (v === 'trust') App.shareLive(); }),

@@ -148,7 +148,7 @@ const Routes = {
     const gap = myD < 20 ? 0 : atDist(Math.min(myD, g[g.length - 1][0])) - myT; // + = você está na frente
     const pos = atTime(myT);
     const km = Math.floor(myD / 1000);
-    if (Game.has('voice') && km > 0 && km !== this._ghostKm) { this._ghostKm = km; FX.say(gap >= 0 ? `Você está ${Math.round(gap)} segundos à frente do fantasma.` : `O fantasma está ${Math.round(-gap)} segundos na sua frente.`); }
+    if (Pref('voice') && km > 0 && km !== this._ghostKm) { this._ghostKm = km; FX.say(gap >= 0 ? `Você está ${Math.round(gap)} segundos à frente do fantasma.` : `O fantasma está ${Math.round(-gap)} segundos na sua frente.`); }
     return { gap, pos: [pos[2], pos[3]], best: b.time };
   },
 };
