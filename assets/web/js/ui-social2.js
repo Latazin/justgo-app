@@ -69,7 +69,7 @@ Object.assign(UI, {
     if (elev >= 10) cells.push(['Subida', `${elev}<small> m</small>`]);
     const fol = opts.follow && a.user_id !== (Cloud.user && Cloud.user.id) ? `<button class="sp-follow" data-act="followHere" data-v="${a.user_id}">Seguir</button>` : '';
     const counts = (a.likes || a.comments) ? `<div class="sp-counts">${a.likes ? `<span>${I('heart', 'xs')} ${a.likes} ${a.likes === 1 ? 'curtida' : 'curtidas'}</span>` : ''}${a.comments ? `<span>${a.comments} ${a.comments === 1 ? 'comentário' : 'comentários'}</span>` : ''}</div>` : '';
-    return `<article class="sp-post">
+    return `<article class="sp-post" style="--c:${sp.color}">
       <header class="sp-h"><button class="sp-av" data-act="userOpen" data-v="${a.user_id}">${this.avatarOf(p.name, p.frame, p.avatar, 'sm', p.photo)}</button>
         <div class="grow"><b data-act="userOpen" data-v="${a.user_id}">${esc(p.name || 'Atleta')}${UI.vb(a.user_id, p.username)}</b><small><span class="sp-sport" style="--c:${sp.color}">${I(sp.icon, 'xs')}</span>${sp.name} · ${this.rel(t)}${p.city ? ` · ${esc(p.city)}` : ''}</small></div>${fol}</header>
       <div class="sp-body tap" data-act="raOpen" data-v="${a.id}"><h3>${esc(this.actTitle(a))}</h3>

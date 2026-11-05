@@ -158,7 +158,8 @@ const UI = {
   today() { return new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }); },
   avatarOf(name, frame, bg, size = 'sm', photo) { return `<div class="avatar ${size}" style="${frame ? `--frame:${frame};` : '--frame:var(--line-2);'}${bg ? `--avatar-bg:${bg}` : ''}">${this.avaIn(name, photo)}</div>`; },
   vb(id, username) { return Cloud.isCeo && Cloud.isCeo(id, username) ? `<span class="vbadge"><svg class="vbadge-ck" viewBox="0 0 24 24" aria-label="Verificado"><path fill="#1F9BFF" d="M12 1.6l2.5 1.9 3.1-.2 1 3 2.6 1.7-.9 3 .9 3-2.6 1.7-1 3-3.1-.2L12 22.4l-2.5-1.9-3.1.2-1-3-2.6-1.7.9-3-.9-3 2.6-1.7 1-3 3.1.2z"/><path d="M7.8 12.3l2.7 2.7 5.7-5.8" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="vbadge-ceo">CEO</span></span>` : ''; },
-  iconBox(name, color) { return `<div class="ibox" ${color ? `style="--c:${color}"` : ''}>${I(name)}</div>`; },
+  IC_COL: { cloud: '#0EA5E9', camera: '#EC4899', settings: '#64748B', shield: '#10B981', bell: '#F59E0B', download: '#0EA5E9', upload: '#6366F1', trash: '#EF4444', refresh: '#14B8A6', palette: '#A855F7', bag: '#A855F7', shop: '#A855F7', lock: '#64748B', globe: '#1F6BFF', users: '#6366F1', user: '#1F6BFF', trophy: '#F59E0B', crown: '#F59E0B', medal: '#F59E0B', star: '#F59E0B', flame: '#FF6A1A', zap: '#1F6BFF', target: '#E11D48', flag: '#8B5CF6', map: '#10B981', route: '#10B981', mapPin: '#EF4444', calendar: '#F97316', clock: '#8B5CF6', timer: '#8B5CF6', heart: '#EF4444', activity: '#1F6BFF', check: '#12A150', trending: '#12A150', mountain: '#0D9488', sunrise: '#F59E0B', moon: '#6366F1', mic: '#1F6BFF', radio: '#EF4444', clipboard: '#0EA5E9', gift: '#EC4899', share: '#1F6BFF', scissors: '#F97316', barChart: '#6366F1', swim: '#0EA5B7', bike: '#12B886', run: '#1F6BFF' },
+  iconBox(name, color) { const c = color || this.IC_COL[name]; return `<div class="ibox" ${c ? `style="--c:${c}"` : ''}>${I(name)}</div>`; },
   tabsBar(items, active, act) { return `<div class="subtabs">${items.map(([v, n]) => `<button class="${v === active ? 'on' : ''}" data-act="${act}" data-v="${v}">${n}</button>`).join('')}</div>`; },
   actTitle(a) {
     if (a.title) return a.title;
@@ -202,7 +203,7 @@ const UI = {
     const done = Store.data.missionsDone[Game.mKey(pre, m, now)];
     const ic = m.icon || (m.sport && m.sport !== 'all' ? SPORT_IC[m.sport] : m.type === 'before' ? 'sunrise' : 'target');
     const col = m.sport && m.sport !== 'all' ? CONFIG.sports[m.sport].color : '';
-    return `<div class="row ${done ? 'done' : ''}">${done ? `<div class="ibox ok">${I('check')}</div>` : this.iconBox(ic, col)}
+    return `<div class="row ${done ? 'done' : ''}" ${col ? `style="--sport:${col}"` : ''}>${done ? `<div class="ibox ok">${I('check')}</div>` : this.iconBox(ic, col)}
       <div class="grow"><div class="row-t"><b>${esc(m.text)}</b><span class="xp">+${m.xp} XP</span></div>${this.bar(done ? 100 : p.pct, done ? 'ok' : '')}<div class="row-t"><small>${done ? 'Concluída' : p.txt}</small>${swap && !done ? `<button class="swap-btn" data-act="swapDaily" data-v="${m.id}">${I('shuffle', 'xs')} Trocar</button>` : ''}</div></div></div>`;
   },
   unlockRow(u) {
@@ -312,7 +313,7 @@ const UI = {
           <div><span class="eyebrow">Esta semana</span><div class="week-n"><b class="num">${Fmt.num(wkKm)}</b><span>km</span></div><small>${week.length} ${week.length === 1 ? 'treino' : 'treinos'} · ${Fmt.time(wkTime)}</small></div>
           <div class="goal-ring" style="--p:${gp}"><div><b class="num">${Math.round(gp)}%</b><small>de ${goal} km</small></div></div>
         </div>
-        <div class="week-bars">${days.map((v, i) => `<div class="wb ${i === todayI ? 'today' : ''}"><i style="height:${Math.max(v ? 10 : 4, (v / maxD) * 100)}%" class="${v ? 'has' : ''}"></i><small>${WEEKDAYS[i]}</small></div>`).join('')}</div>
+        <div class="week-bars">${days.map((v, i) => { const d = new Date(ws); d.setDate(d.getDate() + i); const k = Game.dayKey(d), byS = {}; week.forEach((a) => { if (Game.dayKey(a.start) === k) byS[a.sport] = (byS[a.sport] || 0) + a.distance; }); const top = Object.keys(byS).sort((x, y) => byS[y] - byS[x])[0], col = top ? CONFIG.sports[top].color : ''; return `<div class="wb ${i === todayI ? 'today' : ''}"><i style="height:${Math.max(v ? 10 : 4, (v / maxD) * 100)}%;${col ? `--c:${col}` : ''}" class="${v ? 'has' : ''}"></i><small>${WEEKDAYS[i]}</small></div>`; }).join('')}</div>
       </section>
 
       <section class="card start-card">
@@ -880,10 +881,11 @@ const UI = {
   postCard(a, name, opts = {}) {
     const color = opts.color || Shop.lineColor(a.sport);
     const pts = opts.route || a.points;
-    return `<article class="post" ${opts.noTap ? '' : `data-act="${opts.tap || 'detail'}" data-v="${a.id}"`}>
-      <div class="post-h">${opts.avatar || this.avatar('sm')}<div class="grow"><b>${name}</b><small>${I(SPORT_IC[a.sport], 'xs')} ${Fmt.date(typeof a.start === 'string' ? Date.parse(a.start) : a.start)}</small></div>${a.flagged ? '<span class="badge bad">Não conta</span>' : a.private ? `<span class="badge">${I('lock', 'xs')} Privado</span>` : a.xp ? `<span class="badge">+${a.xp} XP</span>` : ''}</div>
+    const spc = (CONFIG.sports[a.sport] || CONFIG.sports.run);
+    return `<article class="post" style="--sc:${spc.color}" ${opts.noTap ? '' : `data-act="${opts.tap || 'detail'}" data-v="${a.id}"`}>
+      <div class="post-h">${opts.avatar || this.avatar('sm')}<div class="grow"><b>${name}</b><small>${Fmt.date(typeof a.start === 'string' ? Date.parse(a.start) : a.start)}</small></div><span class="post-sp">${I(SPORT_IC[a.sport], 'xs')}${spc.name}</span>${a.flagged ? '<span class="badge bad">Não conta</span>' : a.private ? `<span class="badge">${I('lock', 'xs')} Privado</span>` : a.xp ? `<span class="badge">+${a.xp} XP</span>` : ''}</div>
       <h3>${esc(this.actTitle(a))}</h3>
-      <div class="post-stats"><div><span>Distância</span><b class="num">${Fmt.km(a.distance)} km</b></div><div><span>${Fmt.isSpeed(a.sport) ? 'Vel. média' : 'Ritmo'}</span><b class="num">${Fmt.pace(a.sport, a.duration ? a.distance / a.duration : 0)}${Fmt.isSpeed(a.sport) ? ' km/h' : a.sport === 'swim' ? ' /100m' : ' /km'}</b></div><div><span>Tempo</span><b class="num">${Fmt.time(a.duration)}</b></div></div>
+      <div class="post-stats"><div><span>Distância</span><b class="num">${Fmt.km(a.distance)}<u>km</u></b></div><div><span>${Fmt.isSpeed(a.sport) ? 'Vel. média' : 'Ritmo'}</span><b class="num">${Fmt.pace(a.sport, a.duration ? a.distance / a.duration : 0)}<u>${Fmt.isSpeed(a.sport) ? 'km/h' : a.sport === 'swim' ? '/100m' : '/km'}</u></b></div><div><span>Tempo</span><b class="num">${Fmt.time(a.duration)}</b></div></div>
       ${this.mediaHtml(pts && pts.length > 1 ? `<div class="post-map" data-color="${color}" data-route='${JSON.stringify(this.thinRoute(pts))}'>${this.routeSVG(pts, color)}</div>` : a.pool || (a.stats && a.stats.pool) ? `<div class="post-map pool">${I('swim')}<span>Natação na piscina</span></div>` : '', this.photosOf(a))}
       ${opts.footer || ''}
     </article>`;
@@ -1334,9 +1336,11 @@ const UI = {
      ========================================================= */
   settings() {
     const D = Store.data, P = D.profile;
+    const SWI = { autoPause: ['pause', '#F59E0B'], voice: ['mic', '#1F6BFF'], countdown: ['timer', '#8B5CF6'], keepAwake: ['sun', '#F97316'], sounds: ['bell', '#EC4899'], spotsOn: ['mapPin', '#EF4444'], haptics: ['zap', '#14B8A6'] };
+    const swi = (k) => SWI[k] ? this.iconBox(SWI[k][0], SWI[k][1]) : '';
     const sw = (k, t, sub, lock) => {
-      if (lock && !Game.has(lock)) return `<div class="cfg-row is-locked" data-act="sub" data-v="progress:tree"><div class="grow"><b>${t}</b><small>${I('lock', 'xs')} Desbloqueie: ${esc(Game.reqText(Game.unlock(lock).req))}</small></div></div>`;
-      return `<label class="cfg-row"><div class="grow"><b>${t}</b>${sub ? `<small>${sub}</small>` : ''}</div><span class="switch"><input type="checkbox" data-pref="${k}" ${Pref(k) ? 'checked' : ''}><i></i></span></label>`;
+      if (lock && !Game.has(lock)) return `<div class="cfg-row is-locked" data-act="sub" data-v="progress:tree">${swi(k)}<div class="grow"><b>${t}</b><small>${I('lock', 'xs')} Desbloqueie: ${esc(Game.reqText(Game.unlock(lock).req))}</small></div></div>`;
+      return `<label class="cfg-row">${swi(k)}<div class="grow"><b>${t}</b>${sub ? `<small>${sub}</small>` : ''}</div><span class="switch"><input type="checkbox" data-pref="${k}" ${Pref(k) ? 'checked' : ''}><i></i></span></label>`;
     };
     const link = (v, ic, t, sub, act = 'go') => `<button class="cfg-row tap" data-act="${act}" data-v="${v}">${this.iconBox(ic)}<div class="grow"><b>${t}</b>${sub ? `<small>${sub}</small>` : ''}</div>${I('chevronRight', 'chev')}</button>`;
     const seg = (k, opts) => `<div class="seg pref-seg">${opts.map(([v, n]) => `<button class="${(Pref(k) || '') === v ? 'on' : ''}" data-act="setPref" data-v="${k}:${v}">${n}</button>`).join('')}</div>`;

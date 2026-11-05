@@ -1854,3 +1854,55 @@ body { background: radial-gradient(1200px 380px at 50% -120px, color-mix(in srgb
 .hist-sum { position: relative; padding-top: 30px; }
 .hs-t { position: absolute; top: 10px; left: 14px; font-size: 12px; font-weight: 800; color: var(--brand-ink); text-transform: capitalize; }
 .sc-sports small { color: #fff; opacity: .95; }
+
+/* =========================================================
+   v7 "Cores" — estilo colorido: cada esporte com sua cor,
+   ícones cheios, cartões de treino com identidade
+   ========================================================= */
+/* ícones cheios e coloridos em todo o app */
+.ibox { background: linear-gradient(145deg, color-mix(in srgb, var(--c, var(--brand)) 78%, #fff), var(--c, var(--brand))); color: #fff; box-shadow: 0 6px 14px -8px var(--c, var(--brand)), inset 0 1px 0 rgba(255, 255, 255, .25); }
+.ibox .ic { stroke-width: 2.1; }
+.ibox.ok { --c: #12A150; }
+.ibox.locked-ic { background: var(--surface-2); color: var(--text-3); box-shadow: none; }
+.cfg-row .ibox { border-radius: 9px; }
+.row.done .ibox, .ibox.ok { color: #fff; }
+
+/* cartão de treino (Atividades, Perfil, Início) */
+.post { position: relative; border-radius: var(--r-xl); padding: 14px 16px 0; box-shadow: var(--shadow-md); }
+.post::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: linear-gradient(90deg, var(--sc, var(--brand)), color-mix(in srgb, var(--sc, var(--brand)) 45%, #fff)); }
+.post-sp { display: inline-flex; align-items: center; gap: 5px; flex: none; height: 26px; padding: 0 10px 0 8px; border-radius: 99px; background: color-mix(in srgb, var(--sc) 13%, transparent); color: var(--sc); font-size: 12px; font-weight: 800; }
+.post-sp .ic { width: 14px; height: 14px; stroke-width: 2.4; }
+.post .badge { display: none; }
+.post h3 { font-size: 19px; font-weight: 800; margin: 10px 0 10px; }
+.post-stats b { font-size: 21px; font-weight: 800; letter-spacing: -.03em; }
+.post-stats b u { text-decoration: none; font-size: 12.5px; font-weight: 700; color: var(--text-3); margin-left: 2px; }
+.post-stats span { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.post-map { height: 210px; }
+.post .avatar { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--sc, var(--brand)); }
+
+/* feed do Social */
+.sp-post { position: relative; border-radius: var(--r-xl); }
+.sp-post::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; z-index: 1; background: linear-gradient(90deg, var(--c, var(--brand)), color-mix(in srgb, var(--c, var(--brand)) 45%, #fff)); }
+.sp-sport { width: 20px; height: 20px; background: var(--c); color: #fff; }
+.sp-stats span { text-transform: uppercase; letter-spacing: .04em; font-size: 10.5px; font-weight: 700; }
+.sp-stats b { font-size: 20px; }
+
+/* barras da semana com a cor do esporte do dia */
+.wb i.has { background: linear-gradient(180deg, color-mix(in srgb, var(--c, var(--brand)) 70%, #fff), var(--c, var(--brand))); box-shadow: 0 6px 12px -8px var(--c, var(--brand)); }
+.wb.today small { color: var(--bg); background: var(--text); padding: 1px 6px; border-radius: 99px; }
+
+/* missões: barras na cor da missão */
+.row .bar span { background: linear-gradient(90deg, color-mix(in srgb, var(--sport) 70%, #fff), var(--sport)); }
+.row.done .bar span, .bar.ok span { background: var(--ok); }
+
+/* blocos do Início e do Perfil com faixa colorida */
+.h2-tile, .hl-card, .stat-grid.st3 > div { border-top: 3px solid var(--c); }
+.h2-ti, .st-ic, .hl-card .hl-ic { background: linear-gradient(145deg, color-mix(in srgb, var(--c) 75%, #fff), var(--c)) !important; color: #fff !important; box-shadow: 0 6px 14px -8px var(--c); }
+
+/* números de destaque mais fortes */
+.week-n b, .h2-km b { letter-spacing: -.04em; }
+.sec h2 { font-size: 19px; }
+
+/* cabeçalho principal com faixa de cores dos esportes */
+.top:not(.sub)::after { content: ""; position: absolute; left: 16px; right: 16px; bottom: -1px; height: 3px; border-radius: 3px; background: linear-gradient(90deg, #1F6BFF, #12B886, #F59E0B, #FF6A1A, #EC4899, #8B5CF6); opacity: .9; }
+.top { position: sticky; }
