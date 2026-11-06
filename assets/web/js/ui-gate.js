@@ -1,24 +1,49 @@
 /* =========================================================
    JustGo — ENTRADA DO APP
-   Boas-vindas com vídeo, login/criar conta e configuração do perfil.
+   Boas-vindas com mapa animado, login/criar conta e configuração do perfil.
    Sem conta não entra: o app sempre abre aqui até a pessoa logar.
    ========================================================= */
 Object.assign(UI, {
   GOOGLE_G: '<svg viewBox="0 0 24 24" class="ic"><path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2.1-1.9 3.3-4.8 3.3-8z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.8c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.1c-.2-.7-.4-1.4-.4-2.1s.1-1.4.4-2.1V7.1H2.1a11 11 0 0 0 0 9.8l3.7-2.8z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.1 7.1l3.7 2.8C6.7 7.3 9.1 5.4 12 5.4z"/></svg>',
 
-  // vídeo de fundo: carregado como blob (o servidor do app Android não manda o tipo do mp4)
-  async gateVideo() {
-    const v = $('#gateVid'); if (!v) return;
-    try {
-      if (!this._welBlob) { const r = await fetch('img/welcome.mp4'); if (!r.ok) return; this._welBlob = URL.createObjectURL(new Blob([await r.arrayBuffer()], { type: 'video/mp4' })); }
-      if (!document.body.contains(v)) return;
-      v.src = this._welBlob; v.muted = true; v.loop = true; v.playsInline = true;
-      v.addEventListener('playing', () => v.classList.add('on'), { once: true });
-      await v.play();
-    } catch (e) {}
+  // fundo da entrada: mapa de cidade escuro com um percurso se desenhando (SVG leve, sem vídeo)
+  gateVideo() {},
+  gateMap() {
+    if (this._gmap) return this._gmap;
+    let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const S = 44, W = 900, H = 1300; // quadras no grid girado
+    let blocks = '', parks = '';
+    for (let x = -S; x < W; x += S) for (let y = -S; y < H; y += S) {
+      const r = rnd(), w = S - 10, h = S - 10;
+      if (r < 0.07) parks += `<rect x="${x + 5}" y="${y + 5}" width="${w}" height="${h}" rx="6"/>`;
+      else if (r < 0.9) { // quadra com 1 a 4 prédios
+        if (rnd() < 0.5) blocks += `<rect x="${x + 5}" y="${y + 5}" width="${w}" height="${h}" rx="4"/>`;
+        else { const hw = w / 2 - 2; blocks += `<rect x="${x + 5}" y="${y + 5}" width="${hw}" height="${h}" rx="3"/><rect x="${x + 9 + hw}" y="${y + 5}" width="${hw}" height="${h}" rx="3"/>`; }
+      }
+    }
+    // percurso pelas ruas (coordenadas no grid)
+    const g = (cx, cy) => `${cx * S} ${cy * S}`;
+    const route = `M${g(4, 14)} L${g(4, 11)} L${g(7, 11)} L${g(7, 8)} Q${g(7, 7)} ${g(8, 7)} L${g(11, 7)} L${g(11, 5)} L${g(13, 5)} L${g(13, 3)} L${g(10, 3)}`;
+    const zone = (pts, c, d) => `<polygon class="gz" style="--d:${d}s" points="${pts.map(([a, b]) => `${a * S},${b * S}`).join(' ')}" fill="${c}" fill-opacity=".16" stroke="${c}" stroke-opacity=".7" stroke-width="3" stroke-linejoin="round"/>`;
+    this._gmap = `<svg class="gmap-svg" viewBox="40 150 600 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <rect x="-400" y="-400" width="1600" height="2000" fill="#0A0F1C"/>
+      <g transform="rotate(-14 380 620)">
+        <path d="M-200 900 C 160 820, 420 1080, 1100 960" fill="none" stroke="#0E2342" stroke-width="60"/>
+        <g fill="#121A2C">${blocks}</g><g fill="#0F2B22">${parks}</g>
+        <path d="M-200 ${9 * S} H1200 M${8 * S} -200 V1500 M-200 ${16 * S} H1200" stroke="#1C2742" stroke-width="9"/>
+        ${zone([[3, 4], [6, 4], [6, 7], [3, 7]], '#12B886', 0)}${zone([[9, 8], [12, 8], [12, 11], [9, 11]], '#F97316', 1.2)}${zone([[12, 1], [15, 1], [15, 3], [12, 3]], '#A78BFA', 2.4)}${zone([[1, 11], [3, 11], [3, 14], [1, 14]], '#2F6BFF', 3.2)}
+        <path d="${route}" fill="none" stroke="#2F6BFF" stroke-opacity=".22" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+        <path class="groute" d="${route}" pathLength="1000" fill="none" stroke="url(#grt)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="${4 * S}" cy="${14 * S}" r="10" fill="#fff"/><circle cx="${4 * S}" cy="${14 * S}" r="4.5" fill="#2F6BFF"/>
+        <g><circle r="20" fill="#3DE0FF" opacity=".25"><animate attributeName="r" values="10;24;10" dur="1.6s" repeatCount="indefinite"/></circle><circle r="8.5" fill="#fff" stroke="#3DE0FF" stroke-width="4"/>
+          <animateMotion dur="9s" repeatCount="indefinite" keyPoints="0;1;1" keyTimes="0;.78;1" calcMode="linear" path="${route}"/></g>
+      </g>
+      <defs><linearGradient id="grt" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#2F6BFF"/><stop offset="1" stop-color="#3DE0FF"/></linearGradient></defs>
+    </svg>`;
+    return this._gmap;
   },
   gateBg(extra = '') {
-    return `<div class="gate-bg ${extra}"><img src="img/welcome.jpg" alt=""><video id="gateVid" muted playsinline loop preload="none"></video></div><div class="gate-shade"></div>`;
+    return `<div class="gate-bg gmap ${extra}"><div class="gmap-pan">${this.gateMap()}</div></div><div class="gate-shade"></div>`;
   },
 
   /* ---------- 1. boas-vindas ---------- */

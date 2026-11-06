@@ -2590,3 +2590,17 @@ body, [data-theme="dark"] body, [data-theme="midnight"] body, [data-theme="graph
 .adl h3 { font-size: 20px; font-weight: 850; margin: 0 0 6px; }
 .adl p { margin: 0 auto 18px; max-width: 300px; line-height: 1.5; }
 .adl .btn { width: 100%; }
+
+/* ===== ENTRADA: mapa animado no lugar do vídeo ===== */
+.gate-bg.gmap { background: #0A0F1C; }
+.gmap-pan { position: absolute; inset: -6%; will-change: transform; animation: gmPan 26s ease-in-out infinite alternate; }
+.gmap-svg { width: 100%; height: 100%; display: block; }
+@keyframes gmPan { from { transform: translate3d(0, 0, 0) scale(1.04); } to { transform: translate3d(-3%, -4%, 0) scale(1.12); } }
+.groute { stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: gmDraw 9s linear infinite; }
+@keyframes gmDraw { 0% { stroke-dashoffset: 1000; opacity: 1; } 78% { stroke-dashoffset: 0; opacity: 1; } 92% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+.gz { animation: gmZone 4.5s ease-in-out var(--d) infinite; }
+@keyframes gmZone { 0%, 100% { fill-opacity: .1; } 50% { fill-opacity: .3; } }
+.gate-bg.gmap.blur .gmap-pan { filter: none; opacity: .75; }
+.wel .gate-shade { background: linear-gradient(180deg, rgba(5, 8, 14, .55) 0%, rgba(5, 8, 14, 0) 22%, rgba(5, 8, 14, .1) 45%, rgba(5, 8, 14, .88) 70%, #05080E 100%); }
+@media (prefers-reduced-motion: reduce) { .gmap-pan, .groute, .gz { animation: none; } .groute { stroke-dashoffset: 0; } }
+.wel-link { align-self: center; }
