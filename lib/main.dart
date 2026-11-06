@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -32,10 +33,13 @@ const kPort = 47621; // porta fixa: mantém os dados salvos entre aberturas
 // version.json direto do GitHub (sempre fresco) e os arquivos pela CDN jsDelivr
 const kRaw = 'https://raw.githubusercontent.com/Latazin/justgo-app/main/assets/web';
 const kCdn = 'https://cdn.jsdelivr.net/gh/Latazin/justgo-app@main/assets/web';
-const kNativeBuild = 27; // sobe quando o APK ganha recursos novos
+const kNativeBuild = 28; // sobe quando o APK ganha recursos novos
+// AdMob: anúncio premiado. IDs de TESTE do Google (trocar pelos reais do seu AdMob)
+const kAdRewarded = 'ca-app-pub-3940256099942544/5224354917';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  unawaited(MobileAds.instance.initialize().then((_) => Ads.load()).catchError((_) {}));
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: kBrand,
     statusBarIconBrightness: Brightness.light,
@@ -399,6 +403,9 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         _updateReady = null;
         await _web.reload();
         break;
+      case 'adReward': // anúncio premiado: responde se a pessoa assistiu até o fim
+        _reply(id, await Ads.show());
+        break;
       case 'version':
         _reply(id, {'native': kNativeBuild, 'web': WebFiles.current, 'remote': WebFiles.remoteBuild, 'status': WebFiles.lastStatus, 'ready': _updateReady});
         break;
@@ -606,5 +613,45 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         body: SafeArea(child: WebViewWidget(controller: _web)),
       ),
     );
+  }
+}
+
+
+/* ---------------- anúncio premiado (AdMob) ---------------- */
+class Ads {
+  static RewardedAd? _ad;
+  static bool _loading = false;
+  static void load() {
+    if (_loading || _ad != null) return;
+    _loading = true;
+    RewardedAd.load(
+      adUnitId: kAdRewarded,
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (ad) { _ad = ad; _loading = false; },
+        onAdFailedToLoad: (e) { _ad = null; _loading = false; },
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> show() async {
+    if (_ad == null) {
+      load();
+      for (var i = 0; i < 20 && _ad == null; i++) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!_loading && _ad == null) load();
+      }
+      if (_ad == null) return {'ok': false, 'rewarded': false, 'error': 'noFill'};
+    }
+    final ad = _ad!;
+    _ad = null;
+    final done = Completer<Map<String, dynamic>>();
+    var earned = false;
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (a) { a.dispose(); if (!done.isCompleted) done.complete({'ok': true, 'rewarded': earned}); load(); },
+      onAdFailedToShowFullScreenContent: (a, e) { a.dispose(); if (!done.isCompleted) done.complete({'ok': false, 'rewarded': false, 'error': 'show'}); load(); },
+    );
+    ad.show(onUserEarnedReward: (a, r) { earned = true; });
+    return done.future;
   }
 }

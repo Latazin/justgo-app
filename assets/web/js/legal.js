@@ -2,7 +2,7 @@
    Usados no app (modal) e nas páginas públicas privacidade.html / termos.html
    (os links dessas páginas vão na ficha da Play Store). */
 const Legal = {
-  UPDATED: '6 de novembro de 2026',
+  UPDATED: '6 de novembro de 2026 (v2)',
   SITE: 'https://tejustgo.netlify.app',
   // e-mail público de contato (opcional). Se vazio, o contato é pelo próprio app.
   EMAIL: '',
@@ -24,6 +24,7 @@ const Legal = {
 <li><b>Localização precisa (GPS):</b> usada <b>somente durante a gravação de um treino</b> (com o app aberto ou com a notificação de treino ativa) para traçar o percurso, calcular distância, ritmo e velocidade, e conquistar territórios. O JustGo não rastreia você fora de um treino.</li>
 <li><b>Dados de treino:</b> percursos, tempos, distâncias, ritmo, esporte, calorias estimadas, metas, missões, XP, moedas e conquistas.</li>
 <li><b>Conteúdo social:</b> publicações, comentários, curtidas, quem você segue, clubes e desafios dos quais participa.</li>
+<li><b>Identificador de publicidade (só no app Android):</b> usado pelo Google AdMob quando você <b>escolhe</b> assistir a um anúncio para ganhar uma recompensa.</li>
 <li><b>Dados do aparelho no app:</b> preferências (tema, voz, unidades) e cópia local dos treinos, guardadas no próprio aparelho.</li>
 </ul>
 
@@ -48,6 +49,7 @@ const Legal = {
 <li><b>OpenFreeMap / OpenStreetMap</b>: imagens de mapa (recebem o seu endereço IP e a região exibida no mapa).</li>
 <li><b>Open-Meteo</b>: previsão do tempo (recebe a localização aproximada).</li>
 <li><b>Netlify</b>: hospedagem das páginas do app.</li>
+<li><b>Google AdMob</b>: exibe os anúncios opcionais com recompensa. Pode usar o identificador de publicidade do aparelho, endereço IP e informações do dispositivo, conforme a <a href="https://policies.google.com/technologies/ads?hl=pt-BR" target="_blank" rel="noopener">política do Google</a>.</li>
 </ul>
 <p>Esses serviços podem armazenar dados em servidores fora do Brasil. Também podemos divulgar dados se houver obrigação legal.</p>
 
@@ -66,7 +68,7 @@ const Legal = {
 <p>O JustGo é destinado a pessoas com 13 anos ou mais. Menores de 18 anos devem usar o app com conhecimento e autorização de um responsável. Se soubermos que uma criança menor de 13 anos criou uma conta, vamos excluí-la.</p>
 
 <h2>9. Anúncios</h2>
-<p>Hoje o JustGo não exibe anúncios. Se isso mudar, esta política será atualizada antes e você será avisado.</p>
+<p>No app Android, o JustGo oferece anúncios <b>opcionais</b>: você só vê um anúncio quando toca para ganhar uma recompensa (por exemplo, salvar a ofensiva, proteger seu território, dobrar o XP de um treino ou testar uma função por 24 h). Não há anúncios durante o treino. Você pode redefinir ou desativar o identificador de publicidade nas configurações do Android (Google &gt; Anúncios).</p>
 
 <h2>10. Mudanças nesta política</h2>
 <p>Podemos atualizar este texto. Mudanças importantes serão avisadas no app. A data no topo mostra a versão atual.</p>

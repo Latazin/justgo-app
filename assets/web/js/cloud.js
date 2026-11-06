@@ -538,7 +538,9 @@ const Cloud = {
     if (error) { console.error(error); this.zoneErr = error.message || String(error); return null; }
     this.zoneErr = null; return data;
   },
-  async stealZone(id, name) { const { error } = await this.sb.rpc('steal_zone', { zid: id, uname: name }); if (error) console.error(error); },
+  // devolve false quando a área está protegida por escudo (SQL 2.25); null nas versões antigas
+  async stealZone(id, name) { const { data, error } = await this.sb.rpc('steal_zone', { zid: id, uname: name }); if (error) console.error(error); return error ? null : data; },
+  async activateShield() { const { data, error } = await this.sb.rpc('activate_shield'); if (error) throw error; return data; },
   async territoryOwners(hexes) {
     const out = {};
     for (let i = 0; i < hexes.length; i += 300) {

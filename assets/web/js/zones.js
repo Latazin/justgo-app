@@ -237,7 +237,7 @@ const Zones = {
       for (const z of near) {
         if (z.owner === me || z._taken) continue;
         if (this.overlap(z.poly, l.poly) >= this.STEAL) {
-          await Cloud.stealZone(z.id, name); z._taken = true; z.owner = me; stolen.push(z);
+          const ok = await Cloud.stealZone(z.id, name); if (ok === false) { z._shield = true; continue; } z._taken = true; z.owner = me; stolen.push(z);
         }
       }
       const minePolys = near.filter((z) => z.owner === me).map((z) => z.poly);

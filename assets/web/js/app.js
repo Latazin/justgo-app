@@ -1037,6 +1037,9 @@ const App = {
       if (!f || !f.cCode) return;
       try { const id = await Cloud.joinClub(f.cCode); FX.toast('Você entrou no clube!'); App.tab = 'club'; UI.club(id); } catch (e) { FX.toast('Código não encontrado.'); }
     },
+    adStreak: () => Ads.saveStreak(),
+    adShield: () => Ads.shield(),
+    adXp: (el) => Ads.doubleXp(el.dataset.v),
     notifF: (el) => { App.notifF = el.dataset.v; UI.notifsDraw(); },
     flTab: (el) => { if (App.flState) { App.flState.which = el.dataset.v; UI.followDraw(); } },
     torchChoose: async (el) => { let L = []; try { L = await Cloud.torchHolding(true); } catch (e) {} const t = L.find((x) => x.id === el.dataset.v); if (!t) return FX.toast('A Tocha não está mais com você.'); const ok = await UI.torchPassSheet(t, false); if (ok) { if (App.tab === 'torch') UI.torch(t.id); else if (App.tab === 'social') UI.social(); } },

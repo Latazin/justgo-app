@@ -96,6 +96,7 @@ Object.assign(UI, {
     const rows = (items) => items.map((n) => {
       const K = this.NOTIF_K[n.k] || ['bell', '#64748B', () => ''], isNew = n.t > seen;
       const right = n.k === 'follow' ? (fol.has(n.u.id) ? `<span class="nt-badge">${I('users', 'xs')}Amigos</span>` : `<button class="nt-btn" data-act="followHere" data-v="${n.u.id}">Seguir de volta</button>`)
+        : n.k === 'zone' && (typeof Ads !== 'undefined') && Ads.visible() && !Ads.shieldOn() && Date.now() - n.t < 48 * 3600e3 ? `<button class="nt-btn grn" data-act="adShield">${I('shield', 'xs')}Proteger</button>`
         : n.k === 'chal' ? `<span class="nt-badge vio">Responder</span>` : n.k === 'torch' || n.k === 'torchBack' ? `<span class="nt-badge fire">${I('flame', 'xs')}Sua vez</span>` : '';
       return `<div class="nt-row tap ${isNew ? 'new' : ''}" ${act(n)}><div class="nt-av">${this.avatarOf(n.u.name, n.u.frame, n.u.avatar, 'md', n.u.photo)}<i class="nt-ic" style="--c:${K[1]}">${I(K[0], 'xs')}</i></div>
         <div class="nt-txt"><p><b>${esc(n.u.name || 'Atleta')}</b>${UI.vb(n.u.id, n.u.username)} ${K[2](n, fol.has(n.u.id))}</p><small>${V8.ago(n.t)}</small></div>${right}</div>`;
@@ -298,7 +299,7 @@ Object.assign(UI, {
   /* =================== DESBLOQUEIOS =================== */
   treeView() {
     Game.syncUnlocks && Game.syncUnlocks();
-    const U = CONFIG.unlocks, total = U.length, done = U.filter((u) => Game.has(u.id)).length;
+    const U = CONFIG.unlocks, total = U.length, done = U.filter((u) => Store.data.unlocked[u.id]).length;
     const tierOf = (t) => U.filter((u) => u.tier === t.id), tierDone = (t) => tierOf(t).every((u) => Game.has(u.id));
     const cur = CONFIG.tiers.find((t) => !tierDone(t)) || CONFIG.tiers[CONFIG.tiers.length - 1];
     const sel = CONFIG.tiers.find((t) => t.id === App.treeTier) || cur;
@@ -308,22 +309,25 @@ Object.assign(UI, {
       : `<section class="tr8-next all"><div class="tr8-nic">${I('trophy')}</div><div class="grow"><span class="th8-k">Parabéns</span><b>Você liberou tudo!</b><small>Todas as ${total} funções estão ativas.</small></div></section>`;
     const stepper = `<div class="tr8-tiers">${CONFIG.tiers.map((t) => { const us = tierOf(t), dn = us.filter((u) => Game.has(u.id)).length, st = dn === us.length ? 'ok' : t.id === cur.id ? 'cur' : t.id < cur.id ? 'ok' : 'lock'; return `<button class="tr8-t ${st} ${t.id === sel.id ? 'sel' : ''}" data-act="treeTier" data-v="${t.id}"><i>${st === 'ok' ? I('check', 'xs') : st === 'lock' ? I('lock', 'xs') : t.id}</i><b>${t.name}</b><small class="num">${dn}/${us.length}</small></button>`; }).join('')}</div>`;
     const us = tierOf(sel), sdn = us.filter((u) => Game.has(u.id)).length;
-    const tile = (u) => { const on = Game.has(u.id), p = Game.reqProgress(u.req); return `<button class="tr8-tile ${on ? 'on' : p.pct >= 50 ? 'near' : ''}" data-act="unlockInfo" data-v="${u.id}"><span class="tr8-ti">${I(u.icon)}${on ? `<i class="ok">${I('check', 'xs')}</i>` : `<i>${I('lock', 'xs')}</i>`}</span><b>${esc(u.name)}</b>${on ? '<small class="tr8-ok">Liberada</small>' : `<div class="tr8-bar sm"><i style="width:${p.pct}%"></i></div><small class="num">${Math.floor(p.pct)}%</small>`}</button>`; };
+    const tile = (u) => { const on = Game.has(u.id), tr = on && !Store.data.unlocked[u.id], p = Game.reqProgress(u.req); return `<button class="tr8-tile ${on ? 'on' : p.pct >= 50 ? 'near' : ''}" data-act="unlockInfo" data-v="${u.id}"><span class="tr8-ti">${I(u.icon)}${on ? `<i class="ok">${I(tr ? 'clock' : 'check', 'xs')}</i>` : `<i>${I('lock', 'xs')}</i>`}</span><b>${esc(u.name)}</b>${tr ? '<small class="tr8-ok trial">Teste de 24 h</small>' : on ? '<small class="tr8-ok">Liberada</small>' : `<div class="tr8-bar sm"><i style="width:${p.pct}%"></i></div><small class="num">${Math.floor(p.pct)}%</small>`}</button>`; };
     return `<section class="tr8-sum"><div><b class="num">${done}<span>/${total}</span></b><small>funções liberadas</small></div><div class="tr8-prog"><i style="width:${(done / total) * 100}%"></i></div></section>
       ${hero}${stepper}
       <div class="v8-sec"><h2>Etapa ${sel.id} · ${sel.name}</h2><small>${sdn} de ${us.length}</small></div>
       <div class="tr8-grid">${us.map(tile).join('')}</div>
       <p class="tr8-tip">${I('zap', 'xs')} Toque numa função para ver o que ela faz e quanto falta.</p>`;
   },
-  unlockInfo(id) {
+  async unlockInfo(id) {
     const u = Game.unlock(id); if (!u) return;
-    const on = Game.has(u.id), p = Game.reqProgress(u.req), tier = CONFIG.tiers.find((t) => t.id === u.tier) || { name: '' };
+    const trial = !Store.data.unlocked[u.id] && (typeof Ads !== 'undefined') && Ads.trialOn(u.id);
+    const on = !!Store.data.unlocked[u.id], p = Game.reqProgress(u.req), tier = CONFIG.tiers.find((t) => t.id === u.tier) || { name: '' };
     const where = { autopause: 'Ajustes', splits: 'Resumo do treino', paceChart: 'Resumo do treino', rideChart: 'Resumo do treino', swimTools: 'Natação', voice: 'Tela de gravar', goals: 'Progresso', routes: 'Treino', swimSets: 'Natação', intervals: 'Tela de gravar', ghost: 'Rotas', heatmap: 'Mapa', segments: 'Rotas', plans: 'Início', racePredict: 'Estatísticas', swolf: 'Natação', weekCompare: 'Estatísticas', sportMix: 'Estatísticas', calendar: 'Estatísticas', bestHours: 'Estatísticas', trainLoad: 'Estatísticas', yearGoal: 'Estatísticas', paceTrend: 'Estatísticas' }[u.id];
     FX.modal(`<div class="ui8"><span class="ui8-ic ${on ? 'on' : ''}">${I(u.icon)}</span><span class="th8-k">Etapa ${u.tier} · ${tier.name}</span><h3>${esc(u.name)}</h3><p class="muted">${esc(u.desc)}</p>
+      ${trial ? `<div class="ui8-ok trial">${I('clock')}<div><b>Teste ativo · ${UI.hoursLeft(new Date(Store.data.trials[u.id]).toISOString())}</b><small>${where ? `Use em: ${where}` : 'Já está ativa no app'}</small></div></div>` : ''}
       ${on ? `<div class="ui8-ok">${I('check')}<div><b>Liberada</b><small>${where ? `Use em: ${where}` : 'Já está ativa no app'}</small></div></div>`
         : `<div class="ui8-req"><div class="ui8-rh"><b>${esc(Game.reqText(u.req))}</b><span class="num">${Math.floor(p.pct)}%</span></div><div class="tr8-bar"><i style="width:${p.pct}%"></i></div><small class="num">${p.curTxt}</small></div>
           <div class="ui8-rw"><span>${I('zap', 'xs')}+${u.reward.xp} XP</span><span>${I('coin', 'xs')}+${u.reward.coins} moedas</span></div>`}
-      <button class="btn primary" data-m="ok">${on ? 'Fechar' : 'Bora treinar'}</button></div>`);
+      ${!on && !trial && (typeof Ads !== 'undefined') && Ads.visible() ? `<button class="btn ad8-btn" data-m="trial">${I('play')}Testar grátis por 24 h</button><small class="ad8-note">Assistindo a um anúncio curto · 1 teste por dia</small>` : ''}
+      <button class="btn ${!on && !trial && (typeof Ads !== 'undefined') && Ads.visible() ? 'ghost' : 'primary'}" data-m="ok">${on || trial ? 'Fechar' : 'Bora treinar'}</button></div>`).then((v) => { if (v === 'trial') Ads.trial(u.id); });
   },
 
   /* =================== ANÁLISES (novas funções liberáveis) =================== */

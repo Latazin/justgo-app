@@ -10,3 +10,4 @@ flutter_tts
 file_picker:^10.3.3
 crypto
 webview_flutter_wkwebview
+google_mobile_ads
