@@ -41,6 +41,8 @@ const kAdUnits = {
   'xp': 'ca-app-pub-4705801610677571/1594294361',     // dobrar XP
   'trial': 'ca-app-pub-4705801610677571/9263920886',  // testar função 24 h
 };
+// iPhone (AltStore): por enquanto anúncio de TESTE do Google (trocar quando criar o app iOS no AdMob)
+const kAdUnitIOS = 'ca-app-pub-3940256099942544/1712485313';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -626,7 +628,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 class Ads {
   static final Map<String, RewardedAd> _ads = {};
   static final Set<String> _loading = {};
-  static String _unit(String k) => kAdUnits[k] ?? kAdUnits['xp']!;
+  static String _unit(String k) => Platform.isIOS ? kAdUnitIOS : (kAdUnits[k] ?? kAdUnits['xp']!);
   static void load(String k) {
     if (_loading.contains(k) || _ads[k] != null) return;
     _loading.add(k);

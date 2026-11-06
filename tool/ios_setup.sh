@@ -29,6 +29,11 @@ pb "Add :LSApplicationQueriesSchemes:1 string tel"
 pb "Add :UIFileSharingEnabled bool true"
 pb "Add :LSSupportsOpeningDocumentsInPlace bool true"
 pb "Add :ITSAppUsesNonExemptEncryption bool false"
+# AdMob (anúncio premiado): ID de TESTE do Google para iOS (trocar pelo app iOS do seu AdMob)
+pb "Add :GADApplicationIdentifier string ca-app-pub-3940256099942544~1458002511"
+pb "Add :SKAdNetworkItems array"
+pb "Add :SKAdNetworkItems:0 dict"
+pb "Add :SKAdNetworkItems:0:SKAdNetworkIdentifier string cstr6suwn9.skadnetwork"
 # só retrato (como no Android)
 pb "Delete :UISupportedInterfaceOrientations"
 pb "Add :UISupportedInterfaceOrientations array"
