@@ -130,10 +130,10 @@ jobs:
           disable-animations: true
           script: |
             adb install -r app-release.apk
-            adb shell monkey -p com.justgo.justgo -c android.intent.category.LAUNCHER 1
+            adb shell monkey -p br.com.justgo.app -c android.intent.category.LAUNCHER 1
             sleep 25
             adb logcat -d > logcat.txt || true
-            adb shell pidof com.justgo.justgo > pid.txt || true
+            adb shell pidof br.com.justgo.app > pid.txt || true
       - name: Resultado
         if: always()
         env:
