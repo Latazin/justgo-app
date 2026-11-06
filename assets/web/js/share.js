@@ -30,9 +30,9 @@ const ShareCard = {
   logo(x, X, Y, s, light) {
     const tg = x.createLinearGradient(X, Y, X + s, Y + s); tg.addColorStop(0, '#5B9BFF'); tg.addColorStop(0.52, '#1F6BFF'); tg.addColorStop(1, '#0F47D6');
     x.fillStyle = tg; x.beginPath(); x.roundRect(X, Y, s, s, s * 0.24); x.fill();
-    x.save(); x.translate(X, Y); x.scale(s / 64, s / 64); x.translate(32, 32); x.transform(1, 0, Math.tan((-14 * Math.PI) / 180), 1, 0, 0); x.translate(-30, -32); x.fillStyle = '#fff';
-    x.fill(new Path2D('M29 15.5h11.5L56 32 40.5 48.5H29L44.5 32z'));
-    [[11, 21.5, 15, 0.7], [5, 29.2, 21, 1], [13, 36.9, 13, 0.7]].forEach(([rx, ry, rw, o]) => { x.globalAlpha = o; x.beginPath(); x.roundRect(rx, ry, rw, 5.6, 2.8); x.fill(); });
+    x.save(); x.translate(X, Y); x.scale(s / 64, s / 64);
+    x.strokeStyle = '#fff'; x.lineWidth = 7.75; x.lineCap = 'round'; x.lineJoin = 'round'; x.beginPath(); x.moveTo(34.4, 18.5); x.lineTo(47.25, 32); x.lineTo(34.4, 45.5); x.stroke();
+    [[17.9, 23.2, 11, '#fff', 0.72], [12.5, 30.2, 16.4, '#FFC72E', 1], [21.25, 37.2, 7.6, '#fff', 0.72]].forEach(([rx, ry, rw, col, o]) => { x.globalAlpha = o; x.fillStyle = col; x.beginPath(); x.roundRect(rx, ry, rw, 3.6, 1.8); x.fill(); });
     x.globalAlpha = 1; x.restore();
     x.font = 'italic ' + this.F(900, s * 0.75); x.textBaseline = 'middle'; x.fillStyle = light ? '#fff' : '#0B1220';
     x.fillText('Just', X + s * 1.25, Y + s / 2 + 2); const jw = x.measureText('Just').width; x.fillStyle = light ? '#7DB0FF' : '#1F6BFF'; x.fillText('Go', X + s * 1.25 + jw, Y + s / 2 + 2);

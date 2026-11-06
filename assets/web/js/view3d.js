@@ -339,10 +339,9 @@ const View3D = {
     g.save(); g.translate(x, y); g.scale(sz / 64, sz / 64);
     const gr = g.createLinearGradient(0, 0, 64, 64); gr.addColorStop(0, '#4A8CFF'); gr.addColorStop(0.55, '#1F6BFF'); gr.addColorStop(1, '#0F47D6');
     g.beginPath(); g.roundRect ? g.roundRect(0, 0, 64, 64, 15) : g.rect(0, 0, 64, 64); g.fillStyle = gr; g.fill();
-    g.translate(32, 32); g.scale(1.075, 1.075); g.transform(1, 0, Math.tan((-14 * Math.PI) / 180), 1, 0, 0); g.translate(-30, -32);
-    g.fillStyle = '#fff'; g.fill(new Path2D('M29 15.5h11.5L56 32 40.5 48.5H29L44.5 32z'));
-    const bar = (bx, by, w, o) => { g.globalAlpha = o; g.beginPath(); g.roundRect ? g.roundRect(bx, by, w, 5.6, 2.8) : g.rect(bx, by, w, 5.6); g.fill(); };
-    const A = g.globalAlpha; bar(11, 21.5, 15, 0.7 * A); bar(5, 29.2, 21, A); bar(13, 36.9, 13, 0.7 * A); g.globalAlpha = A;
+    g.strokeStyle = '#fff'; g.lineWidth = 7.75; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(34.4, 18.5); g.lineTo(47.25, 32); g.lineTo(34.4, 45.5); g.stroke();
+    const A = g.globalAlpha, bar = (bx, by, w, col, o) => { g.globalAlpha = o * A; g.fillStyle = col; g.beginPath(); g.roundRect ? g.roundRect(bx, by, w, 3.6, 1.8) : g.rect(bx, by, w, 3.6); g.fill(); };
+    bar(17.9, 23.2, 11, '#fff', 0.72); bar(12.5, 30.2, 16.4, '#FFC72E', 1); bar(21.25, 37.2, 7.6, '#fff', 0.72); g.globalAlpha = A;
     g.restore();
   },
 
