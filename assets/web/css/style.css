@@ -2103,3 +2103,29 @@ body { background: radial-gradient(1200px 380px at 50% -120px, color-mix(in srgb
 .pg-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .pg-chips span { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 9px; border-radius: 99px; font-size: 12px; font-weight: 750; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); }
 .pg-chips span b { font-weight: 900; }
+
+/* =========================================================
+   DESEMPENHO — app mais leve no celular e no tablet
+   (efeitos de vidro e fundos fixos pesam muito no Android)
+   ========================================================= */
+body, [data-theme="dark"] body, [data-theme="midnight"] body, [data-theme="graphite"] body { background: var(--bg); background-attachment: scroll; }
+#app > :not(.gate), #app > :not(.gate) *, #nav, .top, .top.sub, #modal, #modal * { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+.top, .top.sub { background: var(--bg); }
+:root { --shadow-md: 0 6px 16px -10px rgba(16, 24, 40, .22), 0 1px 3px rgba(16, 24, 40, .06); }
+[data-theme="dark"] { --shadow-md: 0 6px 16px -10px rgba(0, 0, 0, .7); }
+/* barra de baixo presa na borda (no tablet ela ficava "voando") */
+#nav { left: 0; right: 0; bottom: 0; height: calc(var(--nav-h) + env(safe-area-inset-bottom)); padding: 0 max(6px, calc((100vw - 640px) / 2)) env(safe-area-inset-bottom); border-radius: 0; border: 0; border-top: 1px solid var(--line); background: var(--surface); box-shadow: 0 -4px 16px -12px rgba(16, 24, 40, .25); }
+.screen { padding-bottom: calc(var(--nav-h) + 34px + env(safe-area-inset-bottom)); }
+.rec-sheet { padding-bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom)); }
+.maptab { height: calc(100vh - var(--nav-h) - env(safe-area-inset-bottom)); height: calc(100dvh - var(--nav-h) - env(safe-area-inset-bottom)); }
+#toast { bottom: calc(var(--nav-h) + 18px + env(safe-area-inset-bottom)); }
+/* troca de aba: só um fade curto, sem animar cada bloco */
+.screen > *, .home2 > * { animation: none !important; }
+.screen { animation: scrIn .16s ease-out both; }
+@keyframes scrIn { from { opacity: .4; } }
+.h2-play::after, .pill.ok i { animation: none; }
+/* listas longas: o navegador só desenha o que aparece na tela */
+.post, .sp-post, .hist-sum ~ .post { content-visibility: auto; contain-intrinsic-size: auto 430px; }
+.list > .row { content-visibility: auto; contain-intrinsic-size: auto 64px; }
+.thumb-attr { position: absolute; right: 4px; bottom: 2px; z-index: 500; font-size: 8px; color: rgba(0, 0, 0, .45); pointer-events: none; }
+[data-theme="dark"] .thumb-attr { color: rgba(255, 255, 255, .4); }

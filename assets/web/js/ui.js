@@ -106,10 +106,13 @@ const UI = {
     if (!pts || !pts.length) return;
     if (!Array.isArray(pts[0][0])) pts = [pts]; // formato antigo: uma linha só
     pts = pts.filter((sg) => sg.length > 1); if (!pts.length) return;
-    while (this.thumbs.length >= 6) this.dropThumb(this.thumbs[0].el);
+    while (this.thumbs.length >= 5) this.dropThumb(this.thumbs[0].el);
     const box = document.createElement('div'); box.className = 'thumb-map'; el.appendChild(box);
-    const m = L.map(box, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, tap: false });
-    this.baseLayer(m, false);
+    const m = L.map(box, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, tap: false, fadeAnimation: false, zoomAnimation: false, markerZoomAnimation: false });
+    // miniaturas usam imagens prontas (leve); o mapa 3D/vetorial fica só nas telas grandes
+    const dk = document.documentElement.dataset.theme === 'dark' || ['midnight', 'graphite'].includes(document.documentElement.dataset.theme);
+    L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/${dk ? 'dark_all' : 'voyager'}/{z}/{x}/{y}{r}.png`, { subdomains: 'abcd', maxZoom: 19, updateWhenIdle: true, keepBuffer: 0 }).addTo(m);
+    box.insertAdjacentHTML('beforeend', '<span class="thumb-attr">© OpenStreetMap © CARTO</span>');
     const r = this.routeLine(m, pts, el.dataset.color || '#1F6BFF', 4);
     const lastSeg = pts[pts.length - 1];
     this.endpoints(m, pts[0][0], lastSeg[lastSeg.length - 1]);

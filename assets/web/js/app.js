@@ -32,7 +32,7 @@ const App = {
     $('#nav').innerHTML = [['home', 'home', 'Início'], ['mapa', 'map', 'Mapa'], ['record', 'play', 'Gravar'], ['social', 'users', 'Social'], ['profile', 'user', 'Perfil']]
       .map(([v, ic, n]) => v === 'record' ? `<button class="nav-rec" data-act="go" data-v="${v}" aria-label="${n}"><span class="rec-btn">${I(ic)}</span><span>${n}</span></button>` : `<button data-act="${v === 'profile' ? 'navProfile' : 'go'}" data-v="${v}">${I(ic)}<span>${n}</span></button>`).join('');
     // título pequeno no topo aparece ao rolar
-    window.addEventListener('scroll', () => { const t = document.querySelector('.top'); if (t) t.classList.toggle('scrolled', window.scrollY > 36); }, { passive: true });
+    let scT = false; window.addEventListener('scroll', () => { if (scT) return; scT = true; requestAnimationFrame(() => { scT = false; const s = window.scrollY > 36; const t = document.querySelector('.top'); if (t && t.classList.contains('scrolled') !== s) t.classList.toggle('scrolled', s); }); }, { passive: true });
 
     document.addEventListener('click', (e) => {
       const el = e.target.closest('[data-act]');
