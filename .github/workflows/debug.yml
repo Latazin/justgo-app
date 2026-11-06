@@ -17,8 +17,8 @@ jobs:
       - name: Baixar APK
         run: |
           git fetch -q origin build-output
-          git show origin/build-output:JustGo.apk > app.apk
-          git show origin/build-output:COMMIT > apk_commit.txt
+          git show FETCH_HEAD:JustGo.apk > app.apk
+          git show FETCH_HEAD:COMMIT > apk_commit.txt
           ls -la app.apk
       - uses: reactivecircus/android-emulator-runner@v2
         with:
