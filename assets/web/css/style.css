@@ -2132,3 +2132,6 @@ body, [data-theme="dark"] body, [data-theme="midnight"] body, [data-theme="graph
 .thumb-img { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; animation: thIn .25s ease-out; }
 @keyframes thIn { from { opacity: 0; } }
 .post-map .thumb-attr { z-index: 2; }
+.post-map .thumb-img { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; animation: thIn .25s ease-out; }
+.post-map.snap .route { opacity: 0; }
+@keyframes thIn { from { opacity: 0; } }
