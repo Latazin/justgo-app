@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK e AAB
 
 on:
   push:
@@ -58,12 +58,27 @@ jobs:
           dart run flutter_launcher_icons
           dart run flutter_native_splash:create
 
-      - name: Compilar APK
+      - name: Compilar APK e AAB
         id: build
+        env:
+          KS_B64: ${{ secrets.KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           exec > >(tee -a build.log) 2>&1
           set -x
-          flutter build apk --release
+          VER=$(grep -oP "version:\s*'\K[0-9.]+" assets/web/js/config.js | head -1)
+          CODE=$((1000 + GITHUB_RUN_NUMBER))
+          # APK de instalação direta: mesma assinatura de sempre (atualiza por cima)
+          flutter build apk --release --build-name="$VER" --build-number="$CODE"
+          # AAB da Play Store: assinado com a chave de envio (secrets)
+          if [ -n "$KS_B64" ] && [ -n "$KS_PASS" ]; then
+            echo "$KS_B64" | base64 -d > android/app/upload.jks
+            printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=upload\nstoreFile=upload.jks\n' "$KS_PASS" "$KS_PASS" > android/key.properties
+            python3 tool/sign_gradle.py
+            flutter build appbundle --release --build-name="$VER" --build-number="$CODE"
+          else
+            echo "sem chave: AAB nao gerado"
+          fi
 
       - name: Publicar resultado na branch build-output
         if: always()
@@ -78,6 +93,9 @@ jobs:
             echo "success" > STATUS
           else
             echo "failed" > STATUS
+          fi
+          if [ -f "$GITHUB_WORKSPACE/build/app/outputs/bundle/release/app-release.aab" ]; then
+            cp "$GITHUB_WORKSPACE/build/app/outputs/bundle/release/app-release.aab" JustGo.aab
           fi
           echo "${GITHUB_SHA}" > COMMIT
           git add -A

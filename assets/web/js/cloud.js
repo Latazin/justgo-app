@@ -92,6 +92,12 @@ const Cloud = {
     if (/failed to fetch|network/i.test(m)) return 'Sem conexão. Verifique a internet.';
     return m || 'Algo deu errado. Tente de novo.';
   },
+  async deleteAccount() {
+    const { error } = await this.sb.rpc('delete_my_account');
+    if (error) throw error;
+    try { await this.sb.auth.signOut(); } catch (e) {}
+    this.user = null; this.me = null;
+  },
   async logout() { await this.sb.auth.signOut(); this.user = null; this.me = null; },
 
   CEO: ['samuel', 'rodrigoalves'],

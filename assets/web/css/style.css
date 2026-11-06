@@ -2135,3 +2135,21 @@ body, [data-theme="dark"] body, [data-theme="midnight"] body, [data-theme="graph
 .post-map .thumb-img { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; animation: thIn .25s ease-out; }
 .post-map.snap .route { opacity: 0; }
 @keyframes thIn { from { opacity: 0; } }
+
+/* ===== TERMOS E PRIVACIDADE ===== */
+.ax-terms { display: flex; gap: 10px; align-items: flex-start; margin: 4px 0 12px; font-size: 13px; line-height: 1.45; color: var(--text-2); cursor: pointer; }
+.ax-terms input { position: absolute; opacity: 0; pointer-events: none; }
+.ax-terms .ax-box { flex: none; width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--line-2); display: grid; place-items: center; color: transparent; background: var(--surface); transition: background .15s, border-color .15s; margin-top: 1px; }
+.ax-terms .ax-box .ic { width: 14px; height: 14px; }
+.ax-terms input:checked + .ax-box { background: var(--brand); border-color: var(--brand); color: #fff; }
+.ax-terms button, .ax-note button, .wel-legal button { display: inline; padding: 0; font: inherit; font-weight: 750; color: var(--brand-ink); text-decoration: underline; text-underline-offset: 2px; }
+.wel-legal { margin: 14px 0 0; text-align: center; font-size: 12px; line-height: 1.5; color: rgba(255,255,255,.78); }
+.wel-legal button { color: #fff; }
+.lg-modal { max-height: 78vh; display: flex; flex-direction: column; }
+.lg-modal h3 { margin-bottom: 8px; }
+.lg-body { overflow-y: auto; -webkit-overflow-scrolling: touch; text-align: left; font-size: 14px; line-height: 1.6; color: var(--text-2); padding-right: 4px; margin-bottom: 14px; }
+.lg-body h2 { font-size: 15px; margin: 18px 0 4px; color: var(--text); }
+.lg-body ul { padding-left: 20px; margin: 6px 0; }
+.lg-body li { margin-bottom: 4px; }
+.lg-body a { color: var(--brand-ink); }
+.lg-date { font-size: 12px; color: var(--text-3); }

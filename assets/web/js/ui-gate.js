@@ -38,6 +38,7 @@ Object.assign(UI, {
           <button class="btn wel-main" data-act="gateAuth" data-v="signup">Criar conta grátis ${I('chevronRight')}</button>
           ${st.google !== false ? `<button class="btn wel-glass" data-act="loginGoogle">${this.GOOGLE_G}Continuar com Google</button>` : ''}
           <button class="wel-link" data-act="gateAuth" data-v="signin">Já tem conta? <b>Entrar</b></button>
+          <p class="wel-legal">Ao continuar, você aceita os <button data-act="legal" data-v="terms">Termos de Uso</button> e a <button data-act="legal" data-v="privacy">Política de Privacidade</button>.</p>
         </div>
       </div>
     </main>`, false);
@@ -54,6 +55,7 @@ Object.assign(UI, {
       <div class="ax-head"><span class="ax-kick">${up ? 'Comece grátis' : 'Bom te ver de novo'}</span><h1>${up ? 'Crie sua conta' : 'Entre no JustGo'}</h1><p>${up ? 'Seus treinos ficam salvos na nuvem e você já entra no ranking da sua cidade.' : 'Seus treinos, ligas e amigos estão te esperando.'}</p></div>
       <section class="ax-sheet">
         <div class="ax-seg"><button class="${up ? '' : 'on'}" data-act="gateAuth" data-v="signin">Entrar</button><button class="${up ? 'on' : ''}" data-act="gateAuth" data-v="signup">Criar conta</button><i style="transform:translateX(${up ? 100 : 0}%)"></i></div>
+        ${up ? `<label class="ax-terms"><input type="checkbox" id="authTerms"><span class="ax-box">${I('check')}</span><span>Li e concordo com os <button type="button" data-act="legal" data-v="terms">Termos de Uso</button> e a <button type="button" data-act="legal" data-v="privacy">Política de Privacidade</button>, e tenho 13 anos ou mais.</span></label>` : ''}
         ${st.google !== false ? `<button class="btn ax-google" data-act="loginGoogle">${this.GOOGLE_G}Continuar com Google</button><div class="ax-or"><span>ou com e-mail</span></div>` : ''}
         <form id="authForm" class="ax-form" autocomplete="on" novalidate>
           <label class="ax-field"><span class="ax-ic">${I('mail')}</span><input id="authEmail" type="email" inputmode="email" autocomplete="email" placeholder="Seu e-mail" required></label>
@@ -62,7 +64,7 @@ Object.assign(UI, {
           <div class="auth-err" id="authErr" hidden></div>
           <button type="submit" class="btn ax-submit" id="authBtn">${up ? 'Criar conta' : 'Entrar'}</button>
         </form>
-        ${up ? '<p class="ax-note">Ao criar a conta você concorda em usar o JustGo com respeito à comunidade.</p>' : '<button class="ax-forgot" data-act="forgot">Esqueci minha senha</button>'}
+        ${up ? '<p class="ax-note">Seu treino e sua localização só são usados para o app funcionar. Veja a Política de Privacidade.</p>' : '<button class="ax-forgot" data-act="forgot">Esqueci minha senha</button><p class="ax-note">Ao entrar, você aceita os <button data-act="legal" data-v="terms">Termos de Uso</button> e a <button data-act="legal" data-v="privacy">Política de Privacidade</button>.</p>'}
         <p class="ax-switch">${up ? 'Já tem conta?' : 'Ainda não tem conta?'} <button data-act="gateAuth" data-v="${up ? 'signin' : 'signup'}">${up ? 'Entrar' : 'Criar agora'}</button></p>
       </section>
     </main>`, false);

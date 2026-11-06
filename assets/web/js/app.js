@@ -112,6 +112,7 @@ const App = {
     err.hidden = true;
     if (!/^\S+@\S+\.\S+$/.test(email)) return show('Digite um e-mail válido.');
     if (pass.length < 6) return show('A senha precisa ter pelo menos 6 caracteres.');
+    if (mode === 'signup' && $('#authTerms') && !$('#authTerms').checked) return show('Para criar a conta, marque que leu e concorda com os Termos e a Política de Privacidade.');
     btn.disabled = true; btn.textContent = mode === 'signup' ? 'Criando conta…' : 'Entrando…';
     try {
       if (mode === 'signup') {
@@ -909,10 +910,23 @@ const App = {
     },
     // conta
     loginGoogle: async () => {
+      const tc = $('#authTerms'); if (tc && !tc.checked) { const e = $('#authErr'); if (e) { e.textContent = 'Marque que você concorda com os Termos e a Política de Privacidade para continuar.'; e.hidden = false; } return; }
       // confere de novo na hora (o Google pode ter sido ativado depois que o app abriu)
       const st = await Cloud.loadSettings(true);
       if (st && st.loaded && !st.google) return FX.modal(`<div class="unlock"><div class="lock-anim">${I('lock')}</div><h3>Google ainda desligado</h3><p class="muted">O Supabase está respondendo que o login com Google não está ativo. Confira em Authentication → Sign In / Providers → Google se a chave está ligada e salva. Enquanto isso, entre com e-mail e senha.</p><button class="btn primary" data-m="ok">Usar e-mail</button></div>`);
       try { await Cloud.loginGoogle(); } catch (e) { FX.toast(Cloud.msg(e)); }
+    },
+    legal: (el) => Legal.show(el.dataset.v === 'terms' ? 'terms' : 'privacy'),
+    deleteAccount: async () => {
+      if (!(await FX.confirm('Excluir conta?', 'Isso apaga sua conta e TODOS os seus dados (treinos, amigos, ranking, territórios e foto) de forma definitiva. Não dá para desfazer.', 'Continuar', true))) return;
+      const r = await FX.modal(`<h3>Confirme a exclusão</h3><p class="muted">Digite <b>EXCLUIR</b> para apagar sua conta para sempre.</p><label class="field"><input id="delConf" autocomplete="off" autocapitalize="characters" placeholder="EXCLUIR"></label><div class="row2"><button class="btn ghost" data-m="no">Cancelar</button><button class="btn danger" data-m="yes">Excluir tudo</button></div>`);
+      if (r !== 'yes' || String((FX.form && FX.form.delConf) || '').trim().toUpperCase() !== 'EXCLUIR') return r === 'yes' ? FX.toast('Digite EXCLUIR para confirmar.') : null;
+      try {
+        await Cloud.deleteAccount();
+        try { localStorage.removeItem('jg_authed'); } catch (e) {}
+        App.setupData = null; App.setupStep = 0;
+        FX.toast('Conta excluída.'); UI.welcome();
+      } catch (e) { FX.toast(/function|schema cache|not found/i.test(String(e && e.message)) ? 'Exclusão ainda não ativada no servidor. Fale com o suporte.' : Cloud.msg(e)); }
     },
     authMode: (el) => { App.authMode = el.dataset.v; UI.account(); },
     pwToggle: (el) => { const i = $('#authPass'); if (!i) return; const show = i.type === 'password'; i.type = show ? 'text' : 'password'; el.innerHTML = I(show ? 'eye' : 'eyeOff'); },
