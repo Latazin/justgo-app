@@ -17,8 +17,9 @@ const Ads = {
   busy: false,
   // mostra o anúncio; true = assistiu até o fim
   async show(kind = 'xp') {
+    if (Native.on && this.native < 28) await this.init(); // confere de novo na hora
     if (!this.ok()) {
-      if (Native.on) FX.modal(`<div class="ui8"><span class="ui8-ic">${I('download')}</span><h3>Atualize o app</h3><p class="muted">As recompensas precisam da versão nova do JustGo. Instale o APK mais recente ou atualize pela Play Store.</p><button class="btn primary" data-m="ok">Entendi</button></div>`);
+      if (Native.on) FX.modal(`<div class="ui8"><span class="ui8-ic">${I('download')}</span><h3>Instale o APK novo</h3><p class="muted">O visual do app atualiza sozinho, mas os anúncios precisam do <b>APK 2.25.1</b> (ou mais novo) instalado por cima do atual.</p><p class="muted small">Instalado agora: versão nativa ${this.native || '?'} · precisa da 28</p><button class="btn primary" data-m="ok">Entendi</button></div>`);
       else FX.toast('Recompensas com anúncio estão disponíveis no app Android.');
       return false;
     }
