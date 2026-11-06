@@ -34,12 +34,17 @@ const kPort = 47621; // porta fixa: mantém os dados salvos entre aberturas
 const kRaw = 'https://raw.githubusercontent.com/Latazin/justgo-app/main/assets/web';
 const kCdn = 'https://cdn.jsdelivr.net/gh/Latazin/justgo-app@main/assets/web';
 const kNativeBuild = 28; // sobe quando o APK ganha recursos novos
-// AdMob: anúncio premiado. IDs de TESTE do Google (trocar pelos reais do seu AdMob)
-const kAdRewarded = 'ca-app-pub-3940256099942544/5224354917';
+// AdMob: um bloco de anúncio premiado para cada recompensa
+const kAdUnits = {
+  'streak': 'ca-app-pub-4705801610677571/6887992804', // salvar ofensiva
+  'shield': 'ca-app-pub-4705801610677571/5380516198', // escudo de território
+  'xp': 'ca-app-pub-4705801610677571/1594294361',     // dobrar XP
+  'trial': 'ca-app-pub-4705801610677571/9263920886',  // testar função 24 h
+};
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  unawaited(MobileAds.instance.initialize().then((_) => Ads.load()).catchError((_) {}));
+  unawaited(MobileAds.instance.initialize().then((_) => Ads.load('xp')).catchError((_) {}));
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: kBrand,
     statusBarIconBrightness: Brightness.light,
@@ -404,7 +409,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         await _web.reload();
         break;
       case 'adReward': // anúncio premiado: responde se a pessoa assistiu até o fim
-        _reply(id, await Ads.show());
+        _reply(id, await Ads.show('${m['kind'] ?? 'xp'}'));
         break;
       case 'version':
         _reply(id, {'native': kNativeBuild, 'web': WebFiles.current, 'remote': WebFiles.remoteBuild, 'status': WebFiles.lastStatus, 'ready': _updateReady});
@@ -619,37 +624,38 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
 /* ---------------- anúncio premiado (AdMob) ---------------- */
 class Ads {
-  static RewardedAd? _ad;
-  static bool _loading = false;
-  static void load() {
-    if (_loading || _ad != null) return;
-    _loading = true;
+  static final Map<String, RewardedAd> _ads = {};
+  static final Set<String> _loading = {};
+  static String _unit(String k) => kAdUnits[k] ?? kAdUnits['xp']!;
+  static void load(String k) {
+    if (_loading.contains(k) || _ads[k] != null) return;
+    _loading.add(k);
     RewardedAd.load(
-      adUnitId: kAdRewarded,
+      adUnitId: _unit(k),
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
-        onAdLoaded: (ad) { _ad = ad; _loading = false; },
-        onAdFailedToLoad: (e) { _ad = null; _loading = false; },
+        onAdLoaded: (ad) { _ads[k] = ad; _loading.remove(k); },
+        onAdFailedToLoad: (e) { _ads.remove(k); _loading.remove(k); },
       ),
     );
   }
 
-  static Future<Map<String, dynamic>> show() async {
-    if (_ad == null) {
-      load();
-      for (var i = 0; i < 20 && _ad == null; i++) {
+  static Future<Map<String, dynamic>> show(String k) async {
+    if (!kAdUnits.containsKey(k)) k = 'xp';
+    if (_ads[k] == null) {
+      load(k);
+      for (var i = 0; i < 20 && _ads[k] == null; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
-        if (!_loading && _ad == null) load();
+        if (!_loading.contains(k) && _ads[k] == null) load(k);
       }
-      if (_ad == null) return {'ok': false, 'rewarded': false, 'error': 'noFill'};
+      if (_ads[k] == null) return {'ok': false, 'rewarded': false, 'error': 'noFill'};
     }
-    final ad = _ad!;
-    _ad = null;
+    final ad = _ads.remove(k)!;
     final done = Completer<Map<String, dynamic>>();
     var earned = false;
     ad.fullScreenContentCallback = FullScreenContentCallback(
-      onAdDismissedFullScreenContent: (a) { a.dispose(); if (!done.isCompleted) done.complete({'ok': true, 'rewarded': earned}); load(); },
-      onAdFailedToShowFullScreenContent: (a, e) { a.dispose(); if (!done.isCompleted) done.complete({'ok': false, 'rewarded': false, 'error': 'show'}); load(); },
+      onAdDismissedFullScreenContent: (a) { a.dispose(); if (!done.isCompleted) done.complete({'ok': true, 'rewarded': earned}); load(k); },
+      onAdFailedToShowFullScreenContent: (a, e) { a.dispose(); if (!done.isCompleted) done.complete({'ok': false, 'rewarded': false, 'error': 'show'}); load(k); },
     );
     ad.show(onUserEarnedReward: (a, r) { earned = true; });
     return done.future;

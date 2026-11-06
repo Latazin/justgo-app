@@ -16,7 +16,7 @@ const Ads = {
   mark(k) { const D = Store.data; D.adUse = D.adUse || {}; const d = Game.dayKey(Date.now()), u = D.adUse[k]; D.adUse[k] = { d, n: u && u.d === d ? u.n + 1 : 1 }; Store.save(); },
   busy: false,
   // mostra o anúncio; true = assistiu até o fim
-  async show() {
+  async show(kind = 'xp') {
     if (!this.ok()) {
       if (Native.on) FX.modal(`<div class="ui8"><span class="ui8-ic">${I('download')}</span><h3>Atualize o app</h3><p class="muted">As recompensas precisam da versão nova do JustGo. Instale o APK mais recente ou atualize pela Play Store.</p><button class="btn primary" data-m="ok">Entendi</button></div>`);
       else FX.toast('Recompensas com anúncio estão disponíveis no app Android.');
@@ -24,7 +24,7 @@ const Ads = {
     }
     if (this.busy) return false; this.busy = true;
     FX.toast('Carregando o anúncio…');
-    let r = null; try { r = await Native.call('adReward'); } catch (e) {} finally { this.busy = false; }
+    let r = null; try { r = await Native.call('adReward', { kind }); } catch (e) {} finally { this.busy = false; }
     if (r && r.rewarded) return true;
     FX.toast(r && r.error === 'noFill' ? 'Nenhum anúncio disponível agora. Tente de novo em alguns minutos.' : 'Assista até o fim para ganhar a recompensa.');
     return false;
@@ -43,7 +43,7 @@ const Ads = {
   },
   async saveStreak() {
     const o = this.streakOffer(); if (!o) return;
-    if (!(await this.show())) return;
+    if (!(await this.show('streak'))) return;
     const D = Store.data; D.streakSaves = (D.streakSaves || []).concat([this.yKey()]).slice(-30); D.lastStreakSave = Date.now(); Store.save();
     FX.beep([523, 659, 784, 1047]); FX.vibrate([30, 40, 30]);
     FX.modal(`<div class="ui8"><span class="ui8-ic on" style="background:linear-gradient(135deg,#FB923C,#EA580C)">${I('flame')}</span><h3>Ofensiva salva!</h3><p class="muted">Seus <b>${o.would} dias</b> seguidos continuam valendo. Treine hoje para somar mais um.</p><button class="btn primary" data-m="ok">Bora!</button></div>`);
@@ -60,7 +60,7 @@ const Ads = {
   async shield() {
     if (this.shieldOn()) return FX.toast('O escudo já está ativo.');
     if (!this.left('shield')) return FX.toast('Você já usou o escudo hoje. Volte amanhã!');
-    if (!(await this.show())) return;
+    if (!(await this.show('shield'))) return;
     try {
       const u = await Cloud.activateShield(); this.mark('shield');
       Store.data.shieldUntil = Date.parse(u) || Date.now() + 24 * 3600e3; Store.save();
@@ -74,7 +74,7 @@ const Ads = {
   async doubleXp(id) {
     const a = App.find(id); if (!a || a.xpDoubled || !(a.xp > 0)) return;
     if (!this.left('xp')) return FX.toast('Você já dobrou 3 treinos hoje. Volte amanhã!');
-    if (!(await this.show())) return;
+    if (!(await this.show('xp'))) return;
     const D = Store.data, add = a.xp, lv0 = Game.level(D.xp);
     D.xp += add; D.xpLog = D.xpLog || []; D.xpLog.push([Date.now(), add]); a.xpDoubled = 1; a.xp += add; this.mark('xp'); Store.save();
     FX.beep([659, 784, 988, 1319]); FX.vibrate([30, 40, 30]);
@@ -86,7 +86,7 @@ const Ads = {
   trialOn(id) { return ((Store.data.trials || {})[id] || 0) > Date.now(); },
   async trial(id) {
     if (!this.left('trial')) return FX.toast('Você já testou uma função hoje. Volte amanhã!');
-    if (!(await this.show())) return;
+    if (!(await this.show('trial'))) return;
     const D = Store.data; D.trials = D.trials || {}; D.trials[id] = Date.now() + 24 * 3600e3; this.mark('trial'); Store.save();
     const u = Game.unlock(id); FX.beep([523, 784]);
     FX.modal(`<div class="ui8"><span class="ui8-ic on">${I(u.icon)}</span><h3>${esc(u.name)} liberada por 24 h</h3><p class="muted">Aproveite! Para ficar com ela para sempre: ${esc(Game.reqText(u.req).toLowerCase())}.</p><button class="btn primary" data-m="ok">Usar agora</button></div>`);
