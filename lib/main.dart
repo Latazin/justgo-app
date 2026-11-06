@@ -46,7 +46,7 @@ const kAdUnitIOS = 'ca-app-pub-3940256099942544/1712485313';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  unawaited(MobileAds.instance.initialize().then((_) => Ads.load('xp')).catchError((_) {}));
+  unawaited(MobileAds.instance.initialize().then((_) => Ads.preloadAll()).catchError((_) {}));
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: kBrand,
     statusBarIconBrightness: Brightness.light,
@@ -643,34 +643,48 @@ class Ads {
       adUnitId: _unit(k),
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
-        onAdLoaded: (ad) { _ads[k] = ad; _loading.remove(k); _err = ''; _code = -1; },
-        onAdFailedToLoad: (e) { _ads.remove(k); _loading.remove(k); _code = e.code; _err = e.message; },
+        onAdLoaded: (ad) { _ads[k] = ad; _loading.remove(k); _err = ''; _code = -1; _fails[k] = 0; },
+        onAdFailedToLoad: (e) { _ads.remove(k); _loading.remove(k); _code = e.code; _err = e.message; _retry(k); },
       ),
     );
   }
 
   static void cancel() { _cancel = true; }
 
+  // deixa os 4 anúncios carregados desde que o app abre (na hora do toque já estão prontos)
+  static void preloadAll() { for (final k in kAdUnits.keys) { load(k); } }
+  static final Map<String, int> _fails = {};
+  static void _retry(String k) {
+    final n = (_fails[k] = (_fails[k] ?? 0) + 1);
+    final wait = Duration(seconds: n < 3 ? 30 : n < 6 ? 120 : 600); // tenta de novo com calma
+    Future.delayed(wait, () => load(k));
+  }
+  // qualquer anúncio que já esteja pronto (de outra recompensa) serve
+  static String? _ready(String k) { if (_ads[k] != null) return k; for (final x in _ads.keys) { return x; } return null; }
+
   static Future<Map<String, dynamic>> show(String k) async {
     if (!kAdUnits.containsKey(k)) k = 'xp';
     _cancel = false;
-    if (_ads[k] == null) {
+    var key = _ready(k);
+    if (key == null) {
+      // nenhum pronto: espera no máximo ~5 s (a pessoa não fica olhando para um carregando)
       _code = -1; _err = '';
       load(k);
-      for (var i = 0; i < 30 && _ads[k] == null && !_cancel; i++) {
+      for (var i = 0; i < 10 && key == null && !_cancel; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
-        if (_code >= 0 && !_loading.contains(k)) break; // falhou: não adianta esperar
+        key = _ready(k);
       }
       if (_cancel) return {'ok': false, 'rewarded': false, 'error': 'cancel'};
-      if (_ads[k] == null) return {'ok': false, 'rewarded': false, 'error': _code == 3 ? 'noFill' : 'load', 'code': _code, 'msg': _err};
+      if (key == null) return {'ok': false, 'rewarded': false, 'error': 'noFill', 'code': _code, 'msg': _err};
     }
     if (_cancel) return {'ok': false, 'rewarded': false, 'error': 'cancel'};
-    final ad = _ads.remove(k)!;
+    final String used = key!;
+    final ad = _ads.remove(used)!;
     final done = Completer<Map<String, dynamic>>();
     var earned = false;
     ad.fullScreenContentCallback = FullScreenContentCallback(
-      onAdDismissedFullScreenContent: (a) { a.dispose(); if (!done.isCompleted) done.complete({'ok': true, 'rewarded': earned}); load(k); },
-      onAdFailedToShowFullScreenContent: (a, e) { a.dispose(); if (!done.isCompleted) done.complete({'ok': false, 'rewarded': false, 'error': 'show', 'code': e.code, 'msg': e.message}); load(k); },
+      onAdDismissedFullScreenContent: (a) { a.dispose(); if (!done.isCompleted) done.complete({'ok': true, 'rewarded': earned}); load(used); },
+      onAdFailedToShowFullScreenContent: (a, e) { a.dispose(); if (!done.isCompleted) done.complete({'ok': false, 'rewarded': false, 'error': 'show', 'code': e.code, 'msg': e.message}); load(used); },
     );
     ad.show(onUserEarnedReward: (a, r) { earned = true; });
     return done.future;
