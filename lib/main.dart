@@ -33,7 +33,7 @@ const kPort = 47621; // porta fixa: mantém os dados salvos entre aberturas
 // version.json direto do GitHub (sempre fresco) e os arquivos pela CDN jsDelivr
 const kRaw = 'https://raw.githubusercontent.com/Latazin/justgo-app/main/assets/web';
 const kCdn = 'https://cdn.jsdelivr.net/gh/Latazin/justgo-app@main/assets/web';
-const kNativeBuild = 28; // sobe quando o APK ganha recursos novos
+const kNativeBuild = 29; // sobe quando o APK ganha recursos novos
 // AdMob: um bloco de anúncio premiado para cada recompensa
 const kAdUnits = {
   'streak': 'ca-app-pub-4705801610677571/6887992804', // salvar ofensiva
@@ -410,6 +410,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         _updateReady = null;
         await _web.reload();
         break;
+      case 'adCancel':
+        Ads.cancel();
+        _reply(id, {'ok': true});
+        break;
       case 'adReward': // anúncio premiado: responde se a pessoa assistiu até o fim
         _reply(id, await Ads.show('${m['kind'] ?? 'xp'}'));
         break;
@@ -628,6 +632,9 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 class Ads {
   static final Map<String, RewardedAd> _ads = {};
   static final Set<String> _loading = {};
+  static String _err = '';
+  static int _code = -1;
+  static bool _cancel = false;
   static String _unit(String k) => Platform.isIOS ? kAdUnitIOS : (kAdUnits[k] ?? kAdUnits['xp']!);
   static void load(String k) {
     if (_loading.contains(k) || _ads[k] != null) return;
@@ -636,28 +643,34 @@ class Ads {
       adUnitId: _unit(k),
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
-        onAdLoaded: (ad) { _ads[k] = ad; _loading.remove(k); },
-        onAdFailedToLoad: (e) { _ads.remove(k); _loading.remove(k); },
+        onAdLoaded: (ad) { _ads[k] = ad; _loading.remove(k); _err = ''; _code = -1; },
+        onAdFailedToLoad: (e) { _ads.remove(k); _loading.remove(k); _code = e.code; _err = e.message; },
       ),
     );
   }
 
+  static void cancel() { _cancel = true; }
+
   static Future<Map<String, dynamic>> show(String k) async {
     if (!kAdUnits.containsKey(k)) k = 'xp';
+    _cancel = false;
     if (_ads[k] == null) {
+      _code = -1; _err = '';
       load(k);
-      for (var i = 0; i < 20 && _ads[k] == null; i++) {
+      for (var i = 0; i < 30 && _ads[k] == null && !_cancel; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
-        if (!_loading.contains(k) && _ads[k] == null) load(k);
+        if (_code >= 0 && !_loading.contains(k)) break; // falhou: não adianta esperar
       }
-      if (_ads[k] == null) return {'ok': false, 'rewarded': false, 'error': 'noFill'};
+      if (_cancel) return {'ok': false, 'rewarded': false, 'error': 'cancel'};
+      if (_ads[k] == null) return {'ok': false, 'rewarded': false, 'error': _code == 3 ? 'noFill' : 'load', 'code': _code, 'msg': _err};
     }
+    if (_cancel) return {'ok': false, 'rewarded': false, 'error': 'cancel'};
     final ad = _ads.remove(k)!;
     final done = Completer<Map<String, dynamic>>();
     var earned = false;
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (a) { a.dispose(); if (!done.isCompleted) done.complete({'ok': true, 'rewarded': earned}); load(k); },
-      onAdFailedToShowFullScreenContent: (a, e) { a.dispose(); if (!done.isCompleted) done.complete({'ok': false, 'rewarded': false, 'error': 'show'}); load(k); },
+      onAdFailedToShowFullScreenContent: (a, e) { a.dispose(); if (!done.isCompleted) done.complete({'ok': false, 'rewarded': false, 'error': 'show', 'code': e.code, 'msg': e.message}); load(k); },
     );
     ad.show(onUserEarnedReward: (a, r) { earned = true; });
     return done.future;

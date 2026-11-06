@@ -108,3 +108,40 @@ jobs:
         with:
           name: JustGo-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
+  # testa se o APK abre num celular Android virtual (pega erros que fecham o app)
+  smoke:
+    needs: apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: JustGo-apk
+      - name: KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: |
+            adb install -r app-release.apk
+            adb shell monkey -p com.justgo.justgo -c android.intent.category.LAUNCHER 1
+            sleep 25
+            adb logcat -d > logcat.txt || true
+            adb shell pidof com.justgo.justgo > pid.txt || true
+      - name: Resultado
+        if: always()
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -s pid.txt ] && ! grep -q "FATAL EXCEPTION" logcat.txt; then R=ok; else R=crash; fi
+          echo "SMOKE=$R"
+          git clone -q --depth 1 -b build-output "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" out && cd out
+          echo "$R" > SMOKE
+          grep -A40 "FATAL EXCEPTION" ../logcat.txt > crash.txt || true
+          git add -A && git -c user.name="JustGo CI" -c user.email="ci@justgo.app" commit -qm "smoke: $R" && git push -q

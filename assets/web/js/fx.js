@@ -75,14 +75,15 @@ const FX = {
   },
   // formulário rápido em modal: fields = [[id, rótulo, tipo, valor, placeholder]]
   async prompt(title, fields, ok = 'Salvar', text = '') {
-    const html = `<h3>${title}</h3>${text ? `<p class="muted">${text}</p>` : ''}<div class="form">${fields.map(([id, l, t = 'text', v = '', ph = '', extra = '']) =>
+    const html = `<div class="m-hero">${I(/clube|convite/i.test(title) ? 'users' : /senha/i.test(title) ? 'lock' : /meta/i.test(title) ? 'target' : 'edit')}</div><h3>${title}</h3>${text ? `<p class="muted">${text}</p>` : ''}<div class="form">${fields.map(([id, l, t = 'text', v = '', ph = '', extra = '']) =>
       t === 'select' ? `<label class="field"><span>${l}</span><select id="${id}">${v}</select></label>` : `<label class="field"><span>${l}</span><input id="${id}" type="${t}" value="${esc(v)}" placeholder="${esc(ph)}" ${extra}></label>`).join('')}</div>
       <div class="row2"><button class="btn ghost" data-m="no">Cancelar</button><button class="btn primary" data-m="ok">${ok}</button></div>`;
     const r = await this.modal(html);
     return r === 'ok' ? this.form : null;
   },
-  confirm(title, text, ok = 'Confirmar', danger = false) {
-    return this.modal(`<h3>${title}</h3><p class="muted">${text}</p><div class="row2"><button class="btn ghost" data-m="no">Cancelar</button><button class="btn ${danger ? 'danger' : 'primary'}" data-m="yes">${ok}</button></div>`).then((v) => v === 'yes');
+  confirm(title, text, ok = 'Confirmar', danger = false, icon) {
+    const ic = icon || (danger ? (/exclu|apag|remov/i.test(title) ? 'trash' : 'alert') : /sair/i.test(title) ? 'logout' : 'info');
+    return this.modal(`<div class="m-hero ${danger ? 'bad' : ''}">${I(ic)}</div><h3>${title}</h3><p class="muted">${text}</p><div class="row2"><button class="btn ghost" data-m="no">Cancelar</button><button class="btn ${danger ? 'danger' : 'primary'}" data-m="yes">${ok}</button></div>`).then((v) => v === 'yes');
   },
 
   /* ---------- confete ---------- */

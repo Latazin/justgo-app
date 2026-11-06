@@ -8,13 +8,13 @@ const Native = {
   seq: 0, pend: {}, watchers: {}, errs: {}, wseq: 0, last: null,
 
   // chama o lado Flutter e espera a resposta
-  call(cmd, args = {}) {
+  call(cmd, args = {}, wait = 45000) {
     if (!this.on) return Promise.resolve(null);
     const id = ++this.seq;
     return new Promise((res) => {
       this.pend[id] = res;
       try { window.JustGoNative.postMessage(JSON.stringify({ id, cmd, ...args })); } catch (e) { delete this.pend[id]; return res(null); }
-      setTimeout(() => { if (this.pend[id]) { delete this.pend[id]; res(null); } }, 45000);
+      setTimeout(() => { if (this.pend[id]) { delete this.pend[id]; res(null); } }, wait);
     });
   },
   _resolve(id, data) { const f = this.pend[id]; if (f) { delete this.pend[id]; f(data); } },

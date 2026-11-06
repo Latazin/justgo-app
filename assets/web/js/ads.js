@@ -17,17 +17,31 @@ const Ads = {
   busy: false,
   // mostra o anúncio; true = assistiu até o fim
   async show(kind = 'xp') {
-    if (Native.on && this.native < 28) await this.init(); // confere de novo na hora
+    if (Native.on && this.native < 29) await this.init(); // confere de novo na hora
     if (!this.ok()) {
       if (Native.on) FX.modal(`<div class="ui8"><span class="ui8-ic">${I('download')}</span><h3>Instale o APK novo</h3><p class="muted">O visual do app atualiza sozinho, mas os anúncios precisam do <b>APK 2.25.1</b> (ou mais novo) instalado por cima do atual.</p><p class="muted small">Instalado agora: versão nativa ${this.native || '?'} · precisa da 28</p><button class="btn primary" data-m="ok">Entendi</button></div>`);
       else FX.toast('Recompensas com anúncio estão disponíveis no app Android.');
       return false;
     }
     if (this.busy) return false; this.busy = true;
-    FX.toast('Carregando o anúncio…');
-    let r = null; try { r = await Native.call('adReward', { kind }); } catch (e) {} finally { this.busy = false; }
+    // janela de carregamento (com cancelar)
+    let cancelled = false;
+    const wait = FX.modal(`<div class="adl"><div class="adl-ring"><i></i>${I('play')}</div><h3>Preparando o anúncio</h3><p class="muted">Leva só alguns segundos. Assista até o fim para ganhar a recompensa.</p><button class="btn ghost" data-m="no">Cancelar</button></div>`);
+    wait.then((v) => { if (v === 'no') { cancelled = true; Native.call('adCancel'); } });
+    const closeWait = () => { const b = $('#modal .adl [data-m=no]'); if (b) { b.dataset.m = 'auto'; b.click(); } };
+    let r = null; try { r = await Native.call('adReward', { kind }, 6 * 60000); } catch (e) {} finally { this.busy = false; }
+    if (cancelled) return false;
+    closeWait();
     if (r && r.rewarded) return true;
-    FX.toast(r && r.error === 'noFill' ? 'Nenhum anúncio disponível agora. Tente de novo em alguns minutos.' : 'Assista até o fim para ganhar a recompensa.');
+    if (r && r.ok && !r.rewarded) { FX.toast('O anúncio foi fechado antes do fim. Sem recompensa desta vez.'); return false; }
+    // conta nova do AdMob ainda sem anúncios para mostrar: libera a recompensa mesmo assim
+    if (r && r.error === 'noFill') {
+      await FX.modal(`<div class="ui8"><span class="ui8-ic on">${I('gift')}</span><h3>Recompensa liberada!</h3><p class="muted">Não tinha anúncio disponível agora, então esta é por nossa conta.</p><button class="btn primary" data-m="ok">Pegar recompensa</button></div>`);
+      return true;
+    }
+    const code = r && r.code != null && r.code >= 0 ? ` (código ${r.code})` : '';
+    const why = !r ? 'O app demorou para responder.' : r.error === 'show' ? 'O anúncio não conseguiu abrir.' : r.code === 2 ? 'Sem conexão com a internet.' : 'O anúncio não carregou.';
+    FX.modal(`<div class="ui8"><span class="ui8-ic bad">${I('alert')}</span><h3>Não deu certo agora</h3><p class="muted">${why} Tente de novo em alguns minutos.${code}</p>${r && r.msg ? `<p class="muted small m-code">${esc(String(r.msg).slice(0, 140))}</p>` : ''}<button class="btn primary" data-m="ok">Entendi</button></div>`);
     return false;
   },
 
