@@ -40,7 +40,7 @@
         </activity>
         <meta-data android:name="flutterEmbedding" android:value="2" />
         <!-- AdMob: ID do app JustGo -->
-        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-4705801610677571~8692029065" />
+        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-4705801610677571~5262910785" />
     </application>
 
     <queries>

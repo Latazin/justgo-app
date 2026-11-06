@@ -36,10 +36,10 @@ const kCdn = 'https://cdn.jsdelivr.net/gh/Latazin/justgo-app@main/assets/web';
 const kNativeBuild = 29; // sobe quando o APK ganha recursos novos
 // AdMob: um bloco de anúncio premiado para cada recompensa
 const kAdUnits = {
-  'streak': 'ca-app-pub-4705801610677571/6887992804', // salvar ofensiva
-  'shield': 'ca-app-pub-4705801610677571/5380516198', // escudo de território
-  'xp': 'ca-app-pub-4705801610677571/1594294361',     // dobrar XP
-  'trial': 'ca-app-pub-4705801610677571/9263920886',  // testar função 24 h
+  'streak': 'ca-app-pub-4705801610677571/3371244610', // salvar ofensiva
+  'shield': 'ca-app-pub-4705801610677571/9745081274', // escudo de território
+  'xp': 'ca-app-pub-4705801610677571/5781785537',     // dobrar XP
+  'trial': 'ca-app-pub-4705801610677571/2346946717',  // testar função 24 h
 };
 // iPhone (AltStore): por enquanto anúncio de TESTE do Google (trocar quando criar o app iOS no AdMob)
 const kAdUnitIOS = 'ca-app-pub-3940256099942544/1712485313';

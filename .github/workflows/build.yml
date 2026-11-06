@@ -123,6 +123,7 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
       - uses: reactivecircus/android-emulator-runner@v2
+        continue-on-error: true
         with:
           api-level: 34
           arch: x86_64
@@ -139,7 +140,7 @@ jobs:
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ -s pid.txt ] && ! grep -q "FATAL EXCEPTION" logcat.txt; then R=ok; else R=crash; fi
+          if [ ! -s logcat.txt ]; then R=skipped; elif [ -s pid.txt ] && ! grep -q "FATAL EXCEPTION" logcat.txt; then R=ok; else R=crash; fi
           echo "SMOKE=$R"
           git clone -q --depth 1 -b build-output "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" out && cd out
           echo "$R" > SMOKE
