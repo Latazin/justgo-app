@@ -107,6 +107,6 @@ function I(name, cls = '') {
   return `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ICONS.sparkles}</svg>`;
 }
 // logo: seta veloz (avanço + linhas de velocidade)
-const LOGO_PATH = '<path d="M34.4 18.5 47.25 32 34.4 45.5" fill="none" stroke="currentColor" stroke-width="7.75" stroke-linecap="round" stroke-linejoin="round"/><rect x="17.9" y="23.2" width="11" height="3.6" rx="1.8" fill="currentColor" opacity=".72"/><rect x="12.5" y="30.2" width="16.4" height="3.6" rx="1.8" fill="#FFC72E"/><rect x="21.25" y="37.2" width="7.6" height="3.6" rx="1.8" fill="currentColor" opacity=".72"/>';
+const LOGO_PATH = '<g transform="translate(32 32) skewX(-14) translate(-30 -32)"><path d="M29 15.5h11.5L56 32 40.5 48.5H29L44.5 32z" fill="currentColor"/><rect x="11" y="21.5" width="15" height="5.6" rx="2.8" fill="currentColor" opacity=".7"/><rect x="5" y="29.2" width="21" height="5.6" rx="2.8" fill="currentColor"/><rect x="13" y="36.9" width="13" height="5.6" rx="2.8" fill="currentColor" opacity=".7"/></g>';
 const GLYPH = (cls = '') => `<svg class="glyph ${cls}" viewBox="0 0 64 64" aria-hidden="true">${LOGO_PATH}</svg>`;
 const MARK = (cls = '') => `<span class="logo-tile ${cls}" aria-hidden="true">${GLYPH()}</span>`;
