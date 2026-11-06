@@ -40,6 +40,7 @@ jobs:
           # Android 7+ (minSdk 24)
           sed -i -E 's/minSdk *= *flutter\.minSdkVersion/minSdk = 24/; s/minSdkVersion +flutter\.minSdkVersion/minSdkVersion 24/' android/app/build.gradle* || true
           grep -n "minSdk" android/app/build.gradle* || true
+          python3 tool/gradle_fix.py && grep -n "proguard" android/app/build.gradle.kts
           ls android/app/src/main/res/xml
 
       - name: Dependências
