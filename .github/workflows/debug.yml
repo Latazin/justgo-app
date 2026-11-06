@@ -1,0 +1,46 @@
+name: Debug crash (emulador)
+on:
+  push:
+    branches: [debug]
+permissions:
+  contents: write
+jobs:
+  emu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Baixar APK
+        run: |
+          git fetch -q origin build-output
+          git show origin/build-output:JustGo.apk > app.apk
+          git show origin/build-output:COMMIT > apk_commit.txt
+          ls -la app.apk
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: |
+            adb install -r app.apk > install.txt 2>&1 || true
+            adb logcat -c || true
+            adb shell monkey -p com.justgo.justgo -c android.intent.category.LAUNCHER 1 || true
+            sleep 30
+            adb logcat -d > logcat.txt 2>&1 || true
+            adb shell pidof com.justgo.justgo > pid.txt 2>&1 || true
+            adb exec-out screencap -p > screen.png || true
+      - name: Publicar
+        if: always()
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/o" && cd "$RUNNER_TEMP/o" && git init -q
+          for f in logcat.txt pid.txt install.txt screen.png apk_commit.txt; do cp "$GITHUB_WORKSPACE/$f" . 2>/dev/null || true; done
+          grep -E "FATAL|AndroidRuntime|Exception|Error|flutter|justgo" logcat.txt > crash.txt 2>/dev/null || true
+          git add -A && git -c user.name=ci -c user.email=ci@x commit -qm debug
+          git push -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/debug-output
