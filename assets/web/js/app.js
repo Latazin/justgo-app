@@ -53,12 +53,41 @@ const App = {
     window.addEventListener('pagehide', () => { if (this.tracker && this.tracker.state !== 'done') Store.saveLive(this.tracker.snapshot()); });
     window.addEventListener('beforeunload', (e) => { if (this.tracker && this.tracker.state !== 'done') { e.preventDefault(); e.returnValue = ''; } });
 
-    Cloud.init().then(() => this.onCloudReady());
+    this._cloudP = Cloud.init().then(() => this.onCloudReady());
     try { const lv = localStorage.getItem('justgo_ver'); if (lv && lv !== CONFIG.version) setTimeout(() => FX.toast(`JustGo atualizado para a versão ${CONFIG.version}`), 1500); localStorage.setItem('justgo_ver', CONFIG.version); } catch (e) {}
-    setTimeout(() => { const sp = $('#splash'); if (sp) { sp.classList.add('out'); setTimeout(() => sp.remove(), 500); } }, 650);
     Geo.locate(false); // se a localização já foi permitida, atualiza a cidade
-    if (!Store.data.profile.onboarded) return UI.onboarding(0);
+    this.boot();
+  },
+  // abre o app: espera a nuvem dizer se tem alguém logado; sem conta, vai para a entrada
+  async boot() {
+    const t0 = Date.now();
+    if (Cloud.configured()) await Promise.race([this._cloudP, new Promise((r) => setTimeout(r, 8000))]);
+    setTimeout(() => { const sp = $('#splash'); if (sp) { sp.classList.add('out'); setTimeout(() => sp.remove(), 500); } }, Math.max(0, 650 - (Date.now() - t0)));
+    if (this.gate()) return;
+    this.enterApp(true);
+  },
+  gateNeed() {
+    if (!Cloud.configured()) return Store.data.profile.onboarded ? null : 'local';
+    if (!Cloud.sb) { let f = null; try { f = localStorage.getItem('jg_authed'); } catch (e) {} return f && Store.data.profile.onboarded ? null : 'welcome'; }
+    if (!Cloud.user) return 'welcome';
+    if (!Cloud.me || !Cloud.me.username) return 'setup';
+    return null;
+  },
+  gate() {
+    const n = this.gateNeed(); if (!n) return false;
+    if (n === 'local') UI.onboarding(0); else if (n === 'setup') UI.setup(App.setupStep || 0); else UI.welcome();
+    return true;
+  },
+  // logou (e-mail ou Google): completa o perfil ou entra direto
+  afterAuth() {
+    const n = this.gateNeed();
+    if (n === 'setup') return UI.setup(0);
+    if (!n) { FX.toast(`Bem-vindo, ${(Cloud.me && Cloud.me.name ? Cloud.me.name : 'atleta').split(' ')[0]}!`); this.enterApp(); }
+  },
+  enterApp(first) {
+    if (Cloud.user) { const P = Store.data.profile; if (!P.onboarded || P.name === 'Atleta') { P.onboarded = true; if (Cloud.me && Cloud.me.name && P.name === 'Atleta') P.name = Cloud.me.name; Store.save(); } }
     this.go('home');
+    if (!first) return;
     this.checkLive();
     const season = Game.checkSeason();
     if (season) FX.modal(`<div class="unlock"><div class="lock-anim open" style="background:${season.league.color}">${I('crown')}</div><span class="eyebrow">Temporada encerrada</span><h3>Liga ${season.league.name}</h3><p class="muted">Você fez ${season.xp} XP no mês passado.</p><div class="reward"><span>+${season.league.reward} moedas</span></div><button class="btn primary" data-m="ok">Começar nova temporada</button></div>`);
@@ -89,7 +118,7 @@ const App = {
         const r = await Cloud.signUp(email, pass);
         if (!r.session) {
           btn.disabled = false; btn.textContent = 'Criar conta';
-          return FX.modal(`<div class="unlock"><div class="lock-anim open">${I('mail')}</div><h3>Confirme seu e-mail</h3><p class="muted">Enviamos um link para <b>${esc(email)}</b>. Depois de confirmar, é só entrar com sua senha.</p><button class="btn primary" data-m="ok">Ok</button></div>`).then(() => { this.authMode = 'signin'; UI.account(); });
+          return FX.modal(`<div class="unlock"><div class="lock-anim open">${I('mail')}</div><h3>Confirme seu e-mail</h3><p class="muted">Enviamos um link para <b>${esc(email)}</b>. Depois de confirmar, é só entrar com sua senha.</p><button class="btn primary" data-m="ok">Ok</button></div>`).then(() => { this.authMode = 'signin'; if (this.tab === 'gate') UI.authx('signin'); else UI.account(); });
         }
         FX.toast('Conta criada!');
       } else { await Cloud.signIn(email, pass); FX.toast('Bem-vindo de volta!'); }
@@ -115,7 +144,7 @@ const App = {
   },
   stopRecWatch() { if (this.recWatch != null) { try { navigator.geolocation.clearWatch(this.recWatch); } catch (e) {} this.recWatch = null; } },
   // nuvem conectada: atualiza a tela atual (mostra/esconde o "Entrar")
-  onCloudReady() { setTimeout(() => Cloud.backfill().catch(() => {}), 3000); setTimeout(() => Zones.cleanup().catch(() => {}).then(() => Zones.recheck()).catch(() => {}), 6000); if (!Store.data.profile.onboarded) return; if (['home', 'progress', 'social', 'profile', 'history', 'account', 'mapa'].includes(this.tab) && !this.tracker) this.go(this.tab); },
+  onCloudReady() { if (Cloud.configured() && Cloud.ready && !Cloud.user && !this.tracker) { if (this.tab !== 'gate' && this.tab) UI.welcome(); return; } setTimeout(() => Cloud.backfill().catch(() => {}), 3000); setTimeout(() => Zones.cleanup().catch(() => {}).then(() => Zones.recheck()).catch(() => {}), 6000); if (!Store.data.profile.onboarded) return; if (['home', 'progress', 'social', 'profile', 'history', 'account', 'mapa'].includes(this.tab) && !this.tracker) this.go(this.tab); },
   async firstLocate() { const p = await Geo.locate(false); if (p && this.tab === 'home') {} },
 
   /* ---------- tela ativa durante o treino ---------- */
@@ -893,7 +922,7 @@ const App = {
       try { await Cloud.resetPassword(f.fEmail.trim()); FX.modal(`<div class="unlock"><div class="lock-anim open">${I('mail')}</div><h3>Confira seu e-mail</h3><p class="muted">Se existir uma conta com <b>${esc(f.fEmail)}</b>, o link de recuperação chega em instantes. Olhe também o spam.</p><button class="btn primary" data-m="ok">Ok</button></div>`); }
       catch (e) { FX.toast(Cloud.msg(e)); }
     },
-    logout: async () => { if (!(await FX.confirm('Sair da conta?', 'Seus dados continuam salvos neste aparelho e na nuvem.', 'Sair'))) return; await Cloud.logout(); App.go('profile'); },
+    logout: async () => { if (!(await FX.confirm('Sair da conta?', 'Seus dados continuam salvos neste aparelho e na nuvem.', 'Sair'))) return; await Cloud.logout(); try { localStorage.removeItem('jg_authed'); } catch (e) {} App.setupData = null; App.setupStep = 0; UI.welcome(); },
     profileSave: async () => {
       const u = $('#pfUser').value.trim(), n = $('#pfName').value.trim(), c = $('#pfCity').value.trim();
       if (u.length < 3) return FX.toast('Nome de usuário precisa de 3 letras ou mais.');
@@ -995,6 +1024,38 @@ const App = {
       localStorage.removeItem(Store.key); Store.load(); Shop.apply(); UI.onboarding(0);
     },
     ob: (el) => UI.onboarding(+el.dataset.v),
+    // entrada do app
+    gateAuth: (el) => UI.authx(el.dataset.v),
+    gateBack: () => UI.welcome(),
+    gateLogout: async () => { try { await Cloud.logout(); } catch (e) {} try { localStorage.removeItem('jg_authed'); } catch (e) {} App.setupData = null; UI.welcome(); },
+    suStep: (el) => UI.setup(Math.max(0, +el.dataset.v)),
+    suSport: (el) => { const S = App.setupData, k = el.dataset.v, i = S.sports.indexOf(k); if (i >= 0) { if (S.sports.length > 1) S.sports.splice(i, 1); } else S.sports.push(k); el.classList.toggle('on', S.sports.includes(k)); FX.vibrate([12]); },
+    suExp: (el) => { App.setupData.exp = el.dataset.v; document.querySelectorAll('.su-exp button').forEach((b) => b.classList.toggle('on', b === el)); },
+    suGoal: (el) => { const S = App.setupData; S.goal = Math.max(1, Math.min(300, S.goal + (+el.dataset.v) * (S.goal >= 30 ? 5 : 1))); UI.setup(2); },
+    suGoalSet: (el) => { App.setupData.goal = +el.dataset.v; UI.setup(2); },
+    suNext: async () => {
+      const S = App.setupData, step = App.setupStep || 0, err = $('#suErr'), btn = $('#suNext');
+      const show = (m) => { err.textContent = m; err.hidden = false; };
+      err.hidden = true;
+      if (step === 0) {
+        S.name = ($('#suName').value || '').trim(); S.user = ($('#suUser').value || '').trim(); S.city = ($('#suCity').value || '').trim();
+        if (S.name.length < 2) return show('Digite seu nome.');
+        if (S.user.length < 3) return show('O nome de usuário precisa de pelo menos 3 caracteres.');
+        if (App.userOk === false) return show(`@${S.user} já está em uso. Tente outro.`);
+        btn.disabled = true;
+        try { await Cloud.saveProfile(S.user, S.name, S.city); }
+        catch (e) { btn.disabled = false; return show(/duplicate|unique|23505/i.test(String(e.message || e.code || '')) || e.code === '23505' ? `@${S.user} já está em uso. Tente outro.` : Cloud.msg(e)); }
+        return UI.setup(1);
+      }
+      if (step === 1) return UI.setup(2);
+      const P = Store.data.profile;
+      P.name = S.name || (Cloud.me && Cloud.me.name) || 'Atleta'; P.sports = S.sports.length ? S.sports : ['run']; P.experience = S.exp;
+      P.goalWeek = S.goal; P.goalMonth = S.goal * 4; if (!(P.missionSports && P.missionSports.length)) P.missionSports = P.sports.slice(0, 2); if (S.city) P.city = S.city; P.onboarded = true; Store.save();
+      try { Cloud.pushProfile(); } catch (e) {}
+      App.sport = P.sports[0]; App.mode = 'free'; App.setupData = null; App.setupStep = 0;
+      App.enterApp(true);
+      FX.modal(`<div class="unlock"><div class="lock-anim open">${I('sparkles')}</div><span class="eyebrow">Tudo pronto</span><h3>Bem-vindo ao JustGo, ${esc(P.name.split(' ')[0])}!</h3><p class="muted">Suas 3 missões de hoje já estão valendo XP. Grave o primeiro treino para começar a subir de nível.</p><button class="btn primary" data-m="ok">Bora!</button></div>`);
+    },
     obDone: () => {
       const P = Store.data.profile;
       P.name = $('#obName').value.trim() || 'Atleta';

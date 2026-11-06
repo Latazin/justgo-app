@@ -42,6 +42,12 @@ const Native = {
       const cd = document.querySelector('body > .countdown'); if (cd) return 'handled';
       if (typeof App === 'undefined') return 'exit';
       if (App.tracker) return 'training';
+      if (App.tab === 'gate') {
+        if (App.gateStep === 'auth') { UI.welcome(); return 'handled'; }
+        if (App.gateStep === 'setup' && App.setupStep > 0) { UI.setup(App.setupStep - 1); return 'handled'; }
+        if (prev && Date.now() - prev < 2000) return 'exit';
+        this._backAt = Date.now(); FX.toast('Toque de novo para sair'); return 'handled';
+      }
       if (typeof SwimSet !== 'undefined' && SwimSet.s) return 'training';
       if (App.tab === 'view3d') { App.actions.v3Close(); return 'handled'; }
       if (App.tab === 'retro') { App.actions.retroClose(); return 'handled'; }

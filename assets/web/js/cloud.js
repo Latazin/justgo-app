@@ -109,6 +109,8 @@ const Cloud = {
     this.loadCeo();
     await this.pull();
     if (this.me) { if (this.me.photo && !Store.data.profile.photo) { Store.data.profile.photo = this.me.photo; Store.save(); } this.pushProfile(); }
+    try { localStorage.setItem('jg_authed', '1'); } catch (e) {}
+    if (App.tab === 'gate') { if (App.gateStep !== 'setup') App.afterAuth(); return; }
     if (['social', 'profile', 'account', 'home'].includes(App.tab)) App.go(App.tab);
   },
   async saveProfile(username, name, city) {

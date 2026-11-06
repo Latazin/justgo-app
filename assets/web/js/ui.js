@@ -304,11 +304,11 @@ const UI = {
     const tip = tips[Math.floor(now / 864e5) % tips.length];
     this.render(`${this.header('', '', { brand: true })}
     <main class="screen home home2">
-      <section class="hello"><div class="grow"><span class="eyebrow">${this.today()}</span><h1>${this.greeting()}, ${esc(D.profile.name.split(' ')[0])}</h1></div><div id="hWx" class="wx-chip" hidden></div></section>
+      <section class="hello hello2"><button class="hello-av" data-act="go" data-v="profile" style="--lp:${lv.pct}" aria-label="Meu perfil">${this.avatar()}<i class="num">${lv.l}</i></button><div class="grow"><span class="eyebrow">${this.today()}</span><h1>${this.greeting()}, ${esc(D.profile.name.split(' ')[0])}</h1></div><div id="hWx" class="wx-chip" hidden></div></section>
       ${this.loginCard()}
       <div id="hTorch"></div>
       ${this.retroCard()}
-      <section class="card week tap" data-act="go" data-v="stats">
+      <section class="card week week-pro tap" data-act="go" data-v="stats">
         <div class="week-top">
           <div><span class="eyebrow">Esta semana</span><div class="week-n"><b class="num">${Fmt.num(wkKm)}</b><span>km</span></div><small>${week.length} ${week.length === 1 ? 'treino' : 'treinos'} · ${Fmt.time(wkTime)}</small></div>
           <div class="goal-ring" style="--p:${gp}"><div><b class="num">${Math.round(gp)}%</b><small>de ${goal} km</small></div></div>
@@ -329,6 +329,8 @@ const UI = {
         <button class="h2-tile tap" style="--c:#8B5CF6" data-act="go" data-v="mapa"><span class="h2-ti">${I('flag')}</span><small>Território</small><b class="num">${zones.length ? Zones.areaTxt(Zones.totalArea(zones)) : '0'}</b><span class="h2-ts">${zones.length ? `${zones.length} área${zones.length > 1 ? 's' : ''}` : 'feche uma volta'}</span></button>
       </div>
 
+      ${this.homeMonth()}
+      ${this.homeMedals()}
       ${this.avatarHome()}
 
       <section class="h2-card h2-miss">
@@ -353,6 +355,28 @@ const UI = {
   },
   agoDay(t) { const d = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(t).setHours(0, 0, 0, 0)) / 864e5); return d <= 0 ? 'hoje' : d === 1 ? 'ontem' : `há ${d} dias`; },
   // clima agora (Open-Meteo: grátis, sem chave). Guarda por 30 min.
+  // calendário do mês: cada dia com treino fica na cor do esporte principal
+  homeMonth() {
+    const now = new Date(), y = now.getFullYear(), m = now.getMonth(), first = new Date(y, m, 1), nd = new Date(y, m + 1, 0).getDate();
+    const by = {}; let km = 0;
+    Store.data.activities.forEach((a) => { const d = new Date(a.start); if (d.getFullYear() === y && d.getMonth() === m) { const k = d.getDate(); by[k] = by[k] || {}; by[k][a.sport] = (by[k][a.sport] || 0) + a.distance; km += a.distance / 1000; } });
+    const days = Object.keys(by).length, off = (first.getDay() + 6) % 7, cells = [];
+    for (let i = 0; i < off; i++) cells.push('<i class="e"></i>');
+    for (let d = 1; d <= nd; d++) {
+      const b = by[d], top = b ? Object.keys(b).sort((p, q) => b[q] - b[p])[0] : null, c = top && CONFIG.sports[top] ? CONFIG.sports[top].color : '';
+      cells.push(`<i class="${b ? 'on' : ''} ${d === now.getDate() ? 'td' : ''} ${d > now.getDate() ? 'fu' : ''}" ${c ? `style="--c:${c}"` : ''}>${d}</i>`);
+    }
+    const MN = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    return `<section class="card hm-month tap" data-act="go" data-v="history"><div class="hm-mh"><div><span class="eyebrow">${MN[m]} de ${y}</span><b>${days} ${days === 1 ? 'dia treinado' : 'dias treinados'}</b></div><div class="hm-mk"><b class="num">${Fmt.num(km)}</b><small>km no mês</small></div></div>
+      <div class="hm-cal"><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span><span>D</span>${cells.join('')}</div></section>`;
+  },
+  // medalhas: as conquistadas primeiro, depois as que faltam
+  homeMedals() {
+    const M = Store.data.medals || {}, list = [...CONFIG.medals].sort((a, b) => (M[b.id] ? 1 : 0) - (M[a.id] ? 1 : 0) || (M[b.id] || 0) - (M[a.id] || 0));
+    const got = CONFIG.medals.filter((m) => M[m.id]).length;
+    return `${this.sectionHead(`Medalhas <em>${got}/${CONFIG.medals.length}</em>`, ['Ver todas', 'profile:achievements', 'sub'])}
+      <div class="hm-medals">${list.slice(0, 10).map((m, i) => { const on = M[m.id], c = m.sport && CONFIG.sports[m.sport] ? CONFIG.sports[m.sport].color : ['#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#EF4444'][i % 5]; return `<div class="hmd ${on ? 'on' : ''}" style="--c:${c}"><span class="hmd-i">${I(on ? m.icon : 'lock')}</span><b>${esc(m.name)}</b><small>${on ? 'Conquistada' : esc(m.desc)}</small></div>`; }).join('')}</div>`;
+  },
   async homeWx() {
     if (!Geo.hasHome || !Geo.hasHome()) return;
     const c = Geo.home(); let w = this._wx;
@@ -1002,7 +1026,12 @@ const UI = {
     const sub = App.sub.progress;
     const tabs = this.tabsBar([['missions', 'Missões'], ['tree', 'Desbloqueios'], ['season', 'Temporada'], ['shop', 'Loja']], sub, 'subTab');
     const body = sub === 'tree' ? this.treeView() : sub === 'season' ? this.seasonView() : sub === 'shop' ? this.shopView() : this.missionsView();
-    this.render(`${this.back(App.backTo || 'profile', 'Progresso')}<main class="screen">${tabs}${body}</main>`);
+    const lv = this.levelLine(), L0 = Game.league(Game.monthXp()), D = Store.data;
+    const R = 30, C = 2 * Math.PI * R;
+    const hero = `<section class="pg-hero"><div class="pg-ring"><svg viewBox="0 0 72 72"><circle cx="36" cy="36" r="${R}" class="bg"/><circle cx="36" cy="36" r="${R}" class="fg" stroke-dasharray="${((C * lv.pct) / 100).toFixed(1)} ${C.toFixed(1)}"/></svg><div><small>Nível</small><b class="num">${lv.l}</b></div></div>
+      <div class="grow"><b class="pg-t">${Game.title(lv.l)}</b><small class="pg-s num">${lv.txt} para o nível ${lv.l + 1}</small><i class="pg-bar"><i style="width:${lv.pct}%"></i></i>
+      <div class="pg-chips"><span style="--c:#FF7A1A">${I('flame', 'xs')}<b class="num">${Game.streakDays()}</b> dias</span><span style="--c:${L0.color}">${I('crown', 'xs')}${L0.name}</span><span style="--c:#F5B301">${I('coin', 'xs')}<b class="num">${D.coins}</b></span></div></div></section>`;
+    this.render(`${this.back(App.backTo || 'profile', 'Progresso')}<main class="screen">${hero}${tabs}${body}</main>`);
     if (sub === 'season') this.loadSeasonBoard();
   },
   missionsView() {
