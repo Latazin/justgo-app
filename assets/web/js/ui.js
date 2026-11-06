@@ -101,22 +101,83 @@ const UI = {
       this._mo.observe($('#app'), { childList: true, subtree: true });
     }
   },
+  // miniatura do treino: um único mapa escondido tira uma "foto" de cada percurso
+  // (leve: só 1 mapa 3D aberto no app inteiro, e as fotos ficam guardadas)
   thumbMap(el) {
     let pts; try { pts = JSON.parse(el.dataset.route); } catch (e) { return; }
     if (!pts || !pts.length) return;
-    if (!Array.isArray(pts[0][0])) pts = [pts]; // formato antigo: uma linha só
+    if (!Array.isArray(pts[0][0])) pts = [pts];
     pts = pts.filter((sg) => sg.length > 1); if (!pts.length) return;
-    while (this.thumbs.length >= 5) this.dropThumb(this.thumbs[0].el);
+    el._map = true; if (this._io) this._io.unobserve(el);
+    const dk = ['dark', 'midnight', 'graphite'].includes(document.documentElement.dataset.theme);
+    const w = Math.round(el.clientWidth || 360), h = Math.round(el.clientHeight || 200), col = el.dataset.color || '#1F6BFF';
+    const key = `${dk ? 'd' : 'l'}${w}x${h}:${col}:${el.dataset.route.length}:${el.dataset.route.slice(0, 40)}:${el.dataset.route.slice(-40)}`;
+    this._snapCache = this._snapCache || new Map();
+    const put = (url) => { if (!document.body.contains(el)) return; el.querySelectorAll('.thumb-img').forEach((x) => x.remove()); el.insertAdjacentHTML('beforeend', `<img class="thumb-img" src="${url}" alt=""><span class="thumb-attr">© OpenFreeMap © OpenStreetMap</span>`); el.classList.add('live'); };
+    if (this._snapCache.has(key)) return put(this._snapCache.get(key));
+    if (!window.maplibregl || !this.webgl()) return this.thumbLeaflet(el, pts, col);
+    (this._snapQ = this._snapQ || []).push({ el, pts, w, h, col, dk, key, put });
+    this.snapNext();
+  },
+  async snapNext() {
+    if (this._snapBusy) return;
+    const job = (this._snapQ || []).shift(); if (!job) return;
+    if (!document.body.contains(job.el)) return this.snapNext();
+    this._snapBusy = true;
+    try {
+      const url = await this.snapRoute(job);
+      if (url) { this._snapCache.set(job.key, url); if (this._snapCache.size > 80) this._snapCache.delete(this._snapCache.keys().next().value); job.put(url); }
+      else this.thumbLeaflet(job.el, job.pts, job.col);
+    } catch (e) { this.thumbLeaflet(job.el, job.pts, job.col); }
+    this._snapBusy = false; setTimeout(() => this.snapNext(), 0);
+  },
+  snapRoute({ pts, w, h, col, dk }) {
+    return new Promise((res) => {
+      const pr = Math.min(2, window.devicePixelRatio || 1);
+      let box = this._snapBox;
+      if (!box) { box = this._snapBox = document.createElement('div'); box.style.cssText = 'position:fixed;left:-3000px;top:0;pointer-events:none;'; document.body.appendChild(box); }
+      box.style.width = w + 'px'; box.style.height = h + 'px';
+      const style = dk ? CONFIG.maps.dark : CONFIG.maps.color;
+      let m = this._snapMap;
+      if (m && m._jgStyle !== style) { try { m.remove(); } catch (e) {} m = this._snapMap = null; }
+      if (!m) {
+        try { m = this._snapMap = new maplibregl.Map({ container: box, style, interactive: false, attributionControl: false, preserveDrawingBuffer: true, pixelRatio: pr, fadeDuration: 0 }); } catch (e) { return res(null); }
+        m._jgStyle = style;
+      } else m.resize();
+      const all = pts.flat(); let a = 90, b = -90, c = 180, d = -180;
+      all.forEach((p) => { a = Math.min(a, p[0]); b = Math.max(b, p[0]); c = Math.min(c, p[1]); d = Math.max(d, p[1]); });
+      let done = false;
+      const shot = () => {
+        if (done) return; done = true; clearTimeout(to);
+        try {
+          const cv = document.createElement('canvas'); cv.width = Math.round(w * pr); cv.height = Math.round(h * pr);
+          const g = cv.getContext('2d'); g.drawImage(m.getCanvas(), 0, 0, cv.width, cv.height); g.scale(pr, pr);
+          g.lineCap = 'round'; g.lineJoin = 'round';
+          const path = () => { g.beginPath(); pts.forEach((sg) => sg.forEach((p, i) => { const q = m.project([p[1], p[0]]); i ? g.lineTo(q.x, q.y) : g.moveTo(q.x, q.y); })); };
+          path(); g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineWidth = 7; g.stroke();
+          path(); g.strokeStyle = col; g.lineWidth = 4; g.stroke();
+          const s = m.project([pts[0][0][1], pts[0][0][0]]), ls = pts[pts.length - 1], e = m.project([ls[ls.length - 1][1], ls[ls.length - 1][0]]);
+          g.beginPath(); g.arc(e.x, e.y, 6, 0, 7); g.fillStyle = '#111317'; g.fill(); g.lineWidth = 2.5; g.strokeStyle = '#fff'; g.stroke();
+          g.beginPath(); g.arc(s.x, s.y, 6, 0, 7); g.fillStyle = '#fff'; g.fill(); g.lineWidth = 3; g.strokeStyle = col; g.stroke();
+          res(cv.toDataURL('image/jpeg', 0.82));
+        } catch (err) { res(null); }
+      };
+      const to = setTimeout(shot, 4500);
+      const go = () => { try { m.fitBounds([[c, a], [d, b]], { padding: 24, duration: 0, maxZoom: 16 }); } catch (e) {} m.once('idle', () => requestAnimationFrame(shot)); m.triggerRepaint(); };
+      if (m.isStyleLoaded()) go(); else m.once('load', go);
+      m.once('error', () => {});
+    });
+  },
+  // reserva sem 3D: mapa simples do OpenStreetMap
+  thumbLeaflet(el, pts, col) {
+    if (!window.L || !document.body.contains(el)) return;
+    while (this.thumbs.length >= 4) this.dropThumb(this.thumbs[0].el);
     const box = document.createElement('div'); box.className = 'thumb-map'; el.appendChild(box);
-    const m = L.map(box, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, tap: false, fadeAnimation: false, zoomAnimation: false, markerZoomAnimation: false });
-    // miniaturas usam imagens prontas (leve); o mapa 3D/vetorial fica só nas telas grandes
-    const dk = document.documentElement.dataset.theme === 'dark' || ['midnight', 'graphite'].includes(document.documentElement.dataset.theme);
-    L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/${dk ? 'dark_all' : 'voyager'}/{z}/{x}/{y}{r}.png`, { subdomains: 'abcd', maxZoom: 19, updateWhenIdle: true, keepBuffer: 0 }).addTo(m);
-    box.insertAdjacentHTML('beforeend', '<span class="thumb-attr">© OpenStreetMap © CARTO</span>');
-    const r = this.routeLine(m, pts, el.dataset.color || '#1F6BFF', 4);
-    const lastSeg = pts[pts.length - 1];
-    this.endpoints(m, pts[0][0], lastSeg[lastSeg.length - 1]);
-    m.fitBounds(r.getBounds(), { padding: [22, 22] });
+    const m = L.map(box, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, tap: false, fadeAnimation: false, zoomAnimation: false });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(m);
+    box.insertAdjacentHTML('beforeend', '<span class="thumb-attr">© OpenStreetMap</span>');
+    const r = this.routeLine(m, pts, col, 4); const ls = pts[pts.length - 1];
+    this.endpoints(m, pts[0][0], ls[ls.length - 1]); m.fitBounds(r.getBounds(), { padding: [22, 22] });
     el._map = m; el.classList.add('live'); this.thumbs.push({ el, map: m });
   },
   dropThumb(el) {
