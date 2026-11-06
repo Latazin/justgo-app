@@ -4,7 +4,7 @@
    Nada neste arquivo exige mexer no resto do código.
    ========================================================= */
 const CONFIG = {
-  version: '2.23.1',
+  version: '2.24.0',
 
   /* ---------- Esportes ----------
      xpPerKm: peso do XP por km (natação vale mais que pedal)
@@ -49,6 +49,7 @@ const CONFIG = {
     { id: 2, name: 'Em evolução' },
     { id: 3, name: 'Atleta' },
     { id: 4, name: 'Elite' },
+    { id: 5, name: 'Lenda' },
   ],
   unlocks: [
     // Nível 1
@@ -71,6 +72,14 @@ const CONFIG = {
     { id: 'plans',      tier: 4, icon: 'clipboard', name: 'Planos de treino guiados',  desc: '5K, 10K, 21K, 42K, pedal de 100 km, travessia.',          req: { type: 'km', sport: 'all', value: 200 },reward: { xp: 400, coins: 150 }, ready: true },
     { id: 'racePredict',tier: 4, icon: 'gauge', name: 'Previsão de tempo de prova',desc: 'Estimativa para 5K, 10K, 21K e 42K.',                      req: { type: 'dayStreak', value: 30 },        reward: { xp: 400, coins: 150 }, ready: true },
     { id: 'swolf',      tier: 4, icon: 'activity', name: 'Eficiência (SWOLF)',        desc: 'Tempo + braçadas por volta: quanto menor, melhor.',        req: { type: 'km', sport: 'swim', value: 25 },reward: { xp: 400, coins: 150 }, ready: true },
+    // Análises (2.24)
+    { id: 'weekCompare',tier: 1, icon: 'trending', name: 'Comparativo semanal',     desc: 'Esta semana contra a passada, na mesma altura da semana.',  req: { type: 'workouts', value: 2 },          reward: { xp: 40,  coins: 15 },  ready: true },
+    { id: 'sportMix',   tier: 1, icon: 'activity', name: 'Mix de esportes',          desc: 'Quanto cada esporte pesou nos seus últimos 30 dias.',       req: { type: 'km', sport: 'all', value: 15 }, reward: { xp: 60,  coins: 20 },  ready: true },
+    { id: 'calendar',   tier: 2, icon: 'calendar', name: 'Calendário de treinos',    desc: 'Seis meses de treinos num quadro, dia a dia.',             req: { type: 'workouts', value: 10 },         reward: { xp: 120, coins: 50 },  ready: true },
+    { id: 'bestHours',  tier: 2, icon: 'clock', name: 'Seu melhor horário',          desc: 'Em que período do dia você mais treina.',                  req: { type: 'workouts', value: 15 },         reward: { xp: 120, coins: 50 },  ready: true },
+    { id: 'trainLoad',  tier: 3, icon: 'gauge', name: 'Carga de treino',             desc: 'Compara a última semana com a sua média para evitar lesão.',req: { type: 'weekStreak', value: 3 },       reward: { xp: 200, coins: 80 },  ready: true },
+    { id: 'paceTrend',  tier: 5, icon: 'trending', name: 'Evolução do ritmo',        desc: 'Seu ritmo médio de corrida mês a mês.',                    req: { type: 'km', sport: 'run', value: 150 },reward: { xp: 600, coins: 250 }, ready: true },
+    { id: 'yearGoal',   tier: 5, icon: 'target', name: 'Projeção do ano',            desc: 'Quantos km você fecha o ano mantendo o ritmo atual.',      req: { type: 'km', sport: 'all', value: 400 },reward: { xp: 600, coins: 250 }, ready: true },
   ],
 
   /* ---------- Missões diárias (3 sorteadas por dia) ----------

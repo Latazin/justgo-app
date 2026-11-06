@@ -214,7 +214,7 @@ const Cloud = {
     const row = {
       id: act.id, user_id: this.user.id, sport: act.sport, start: new Date(act.start).toISOString(), distance: act.distance, duration: act.duration,
       elapsed: act.elapsed, title: UI.actTitle(act), route, xp: act.xp || 0, flagged: !!act.flagged,
-      stats: { elev: Geo.elevationGain(act.points), alt: act.altSrc || 'gps', kcal: Game.calories(act), adj: (() => { try { const A = Adjust.compute(act); return A ? { kind: A.kind, real: A.real, gap: A.gap, adj: A.adj, T: A.T, RH: A.RH } : null; } catch (e) { return null; } })(), pool: act.pool || null, weather: act.weather || null },
+      stats: { elev: Geo.elevationGain(act.points), alt: act.altSrc || 'gps', kcal: Game.calories(act), adj: (() => { try { const A = Adjust.compute(act); return A ? { kind: A.kind, real: A.real, gap: A.gap, adj: A.adj, T: A.T, RH: A.RH } : null; } catch (e) { return null; } })(), pool: act.pool || null, weather: act.weather || null, caption: act.caption || null },
     };
     const ph = UI.photosOf(act); if (ph.length || act.photosCleared) row.photos = ph;
     let { error } = await this.sb.from('activities').upsert(row);
@@ -331,9 +331,11 @@ const Cloud = {
 
   /* ---------- clubes ---------- */
   async myClubs() { const { data } = await this.sb.from('club_members').select('clubs(*)').eq('user_id', this.user.id); return (data || []).map((x) => x.clubs).filter(Boolean); },
-  async createClub(name, goal) {
+  async createClub(name, goal, extra = {}) {
     const code = Math.random().toString(36).slice(2, 8).toUpperCase();
-    const { data, error } = await this.sb.from('clubs').insert({ name, goal_km: +goal || 500, invite_code: code, created_by: this.user.id }).select().single();
+    const base = { name, goal_km: +goal || 500, invite_code: code, created_by: this.user.id, description: extra.description || null };
+    let { data, error } = await this.sb.from('clubs').insert({ ...base, sport: extra.sport || null, color: extra.color || null, icon: extra.icon || null, kind: extra.kind || null, city: extra.city || null }).select().single();
+    if (error && /column|schema cache/i.test(error.message || '')) ({ data, error } = await this.sb.from('clubs').insert(base).select().single()); // SQL novo ainda não rodado
     if (error) throw error;
     await this.sb.from('club_members').insert({ club_id: data.id, user_id: this.user.id, role: 'admin' });
     return data;
@@ -368,7 +370,11 @@ const Cloud = {
     const km = {}; board.forEach((x) => (km[x.user_id] = Number(x.value)));
     return { c, members: mem.map((x) => ({ ...x, km: km[x.user_id] || 0 })).sort((a, b) => b.km - a.km), board, wboard, acts, total: board.reduce((s, x) => s + Number(x.value), 0), admin: c.created_by === this.user.id };
   },
-  async clubUpdate(id, f) { const { error } = await this.sb.from('clubs').update(f).eq('id', id); if (error) throw error; },
+  async clubUpdate(id, f) {
+    let { error } = await this.sb.from('clubs').update(f).eq('id', id);
+    if (error && /column|schema cache/i.test(error.message || '')) { const b = { ...f }; ['sport', 'color', 'icon', 'kind', 'city'].forEach((k) => delete b[k]); ({ error } = await this.sb.from('clubs').update(b).eq('id', id)); }
+    if (error) throw error;
+  },
   async clubLeave(id) { const { error } = await this.sb.from('club_members').delete().eq('club_id', id).eq('user_id', this.user.id); if (error) throw error; },
 
   /* ---------- seguidores ---------- */
@@ -392,14 +398,18 @@ const Cloud = {
     const { data } = await this.sb.from('profiles').select('*').in('id', ids); const M = {}; (data || []).forEach((p) => (M[p.id] = p)); return M;
   },
   /* ---------- TOCHA: corrente de km entre amigos ---------- */
+  // devolve Tochas vencidas para quem passou (no servidor; no máx. 1x a cada 30 s)
+  async torchTick() { if (this._ttAt && Date.now() - this._ttAt < 30000) return; this._ttAt = Date.now(); try { await this.sb.rpc('torch_tick'); } catch (e) {} },
+  async torchReady(tid, aid) { const { data, error } = await this.sb.rpc('torch_ready', { tid, aid }); if (error) throw error; this._th = null; return data; },
   async torchHolding(force) {
     if (!force && this._th && Date.now() - this._th.t < 60000) return this._th.list;
+    await this.torchTick();
     const { data } = await this.sb.from('torches').select('*').eq('holder', this.user.id).gt('deadline', new Date().toISOString()).order('deadline');
     const list = data || []; const pm = await this.profilesMap(list.map((t) => t.created_by)); list.forEach((t) => (t.creator = pm[t.created_by]));
     this._th = { t: Date.now(), list }; return list;
   },
   async torchList() {
-    const me = this.user.id;
+    const me = this.user.id; await this.torchTick();
     const [{ data: legs }, { data: hold }] = await Promise.all([this.sb.from('torch_legs').select('torch_id').eq('user_id', me).limit(300), this.sb.from('torches').select('id').eq('holder', me).limit(50)]);
     const ids = [...new Set([...(legs || []).map((x) => x.torch_id), ...(hold || []).map((x) => x.id)])];
     if (!ids.length) return [];
@@ -409,14 +419,16 @@ const Cloud = {
     return list;
   },
   async torchDetail(id) {
+    await this.torchTick();
     const [{ data: t }, { data: legs }] = await Promise.all([this.sb.from('torches').select('*').eq('id', id).maybeSingle(), this.sb.from('torch_legs').select('*').eq('torch_id', id).order('created_at')]);
     if (!t) return null;
     const pm = await this.profilesMap([t.holder, t.created_by, ...(legs || []).map((l) => l.user_id)]);
     t.holderP = pm[t.holder]; t.creator = pm[t.created_by]; (legs || []).forEach((l) => (l.p = pm[l.user_id]));
+    if (t.returned_from) { try { t.returnedP = (await this.profilesMap([t.returned_from]))[t.returned_from]; } catch (e) {} }
     return { t, legs: legs || [] };
   },
   async torchLight(aid, to) { const { data, error } = await this.sb.rpc('torch_light', { aid, to_user: to }); if (error) throw error; this._th = null; return data; },
-  async torchPass(tid, aid, to) { const { error } = await this.sb.rpc('torch_pass', { tid, aid, to_user: to }); if (error) throw error; this._th = null; },
+  async torchPass(tid, aid, to) { const { error } = await this.sb.rpc('torch_pass', { tid, aid: aid || null, to_user: to }); if (error) throw error; this._th = null; },
   async followers() { const { data } = await this.sb.from('follows').select('follower').eq('following', this.user.id); return (data || []).map((x) => x.follower); },
   // amigos = vocês se seguem (os dois lados)
   async friends() { const [a, b] = await Promise.all([this.following(), this.followers()]); const B = new Set(b); this._friends = new Set(a.filter((x) => B.has(x))); return [...this._friends]; },
@@ -441,7 +453,7 @@ const Cloud = {
 
   /* ---------- notificações (montadas a partir do que já existe no banco) ---------- */
   async notifications() {
-    const me = this.user.id, out = [];
+    const me = this.user.id, out = []; await this.torchTick();
     const safe = (p) => p.then((r) => r).catch(() => ({ data: [] }));
     const { data: mine } = await this.sb.from('activities').select('id,title,sport').eq('user_id', me).order('start', { ascending: false }).limit(60);
     const ids = (mine || []).map((a) => a.id), title = {}; (mine || []).forEach((a) => (title[a.id] = a.title));
@@ -461,6 +473,7 @@ const Cloud = {
     });
     (zon.data || []).forEach((x) => out.push({ k: 'zone', t: Date.parse(x.captured_at), u: { id: x.owner, name: x.owner_name || 'Alguém' }, area: x.area }));
     try { const { data: tl } = await this.sb.from('torch_legs').select('torch_id, created_at, user_id').eq('passed_to', me).order('created_at', { ascending: false }).limit(20); const pm = await this.profilesMap((tl || []).map((x) => x.user_id)); (tl || []).forEach((x) => out.push({ k: 'torch', t: Date.parse(x.created_at), u: pm[x.user_id] || { id: x.user_id, name: 'Um amigo' }, id: x.torch_id })); } catch (e) {}
+    try { const { data: tb } = await this.sb.from('torches').select('id, passed_at, returned_from, last_event').eq('holder', me).eq('last_event', 'return').limit(10); const pm = await this.profilesMap((tb || []).map((x) => x.returned_from)); (tb || []).forEach((x) => out.push({ k: 'torchBack', t: Date.parse(x.passed_at), u: pm[x.returned_from] || { id: x.returned_from, name: 'Seu amigo' }, id: x.id })); } catch (e) {}
     out.sort((a, b) => b.t - a.t);
     return out.slice(0, 60);
   },

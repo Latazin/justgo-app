@@ -14,7 +14,7 @@
 const View3D = {
   DEM: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
   map: null, raf: 0, playing: false, t: 0,
-  weak() { const m = navigator.deviceMemory || 4, c = navigator.hardwareConcurrency || 8; return m <= 3 || c <= 4; },
+  weak() { const m = navigator.deviceMemory || 4, c = navigator.hardwareConcurrency || 8, big = Math.min(screen.width, screen.height) >= 700; return m <= 4 || c <= 6 || (big && m < 8); },
   supported() { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { return false; } },
   canVideo() { return typeof VideoEncoder !== 'undefined' && typeof VideoFrame !== 'undefined'; },
 
@@ -95,33 +95,32 @@ const View3D = {
       container: el, style: M.color, attributionControl: { compact: true },
       bounds: this.bounds(), fitBoundsOptions: { padding: 50 },
       pitch: 55, bearing: this.T.B[0] - 40, maxPitch: 80, fadeDuration: 0,
-      pixelRatio: light ? 1 : Math.min(1.5, window.devicePixelRatio || 1), // 1.5 já fica nítido e pesa bem menos que 2–3
-      antialias: false, maxTileCacheSize: 120,
+      pixelRatio: light ? 1 : Math.min(1.25, window.devicePixelRatio || 1), // nítido o bastante e bem mais leve que 2–3
+      antialias: false, maxTileCacheSize: 80, refreshExpiredTiles: false, crossSourceCollisions: false,
     });
     this.map = map;
     map.on('error', (e) => console.warn('3D', e && e.error && e.error.message));
     map.on('load', () => {
       try {
-        map.addSource('dem', { type: 'raster-dem', tiles: [this.DEM], encoding: 'terrarium', tileSize: 256, maxzoom: light ? 12 : 13, attribution: 'Relevo: Terrain Tiles (AWS/Mapzen)' });
-        map.setTerrain({ source: 'dem', exaggeration: light ? 1.25 : 1.6 });
+        map.addSource('dem', { type: 'raster-dem', tiles: [this.DEM], encoding: 'terrarium', tileSize: 256, maxzoom: 12, attribution: 'Relevo: Terrain Tiles (AWS/Mapzen)' });
+        map.setTerrain({ source: 'dem', exaggeration: light ? 1.2 : 1.45 });
         const firstSymbol = (map.getStyle().layers.find((l) => l.type === 'symbol') || {}).id;
-        if (!light) map.addLayer({ id: 'jg-hill', type: 'hillshade', source: 'dem', paint: { 'hillshade-exaggeration': 0.35, 'hillshade-shadow-color': '#5a6b7d' } }, firstSymbol);
-        if (map.setSky) map.setSky({ 'sky-color': '#7fb6ff', 'horizon-color': '#e6f0ff', 'fog-color': '#f2f6fb', 'sky-horizon-blend': 0.6, 'horizon-fog-blend': 0.6, 'fog-ground-blend': 0.4 });
+        if (map.setSky && !light) map.setSky({ 'sky-color': '#7fb6ff', 'horizon-color': '#e6f0ff', 'fog-color': '#f2f6fb', 'sky-horizon-blend': 0.6, 'horizon-fog-blend': 0.6, 'fog-ground-blend': 0.4 });
       } catch (e) { console.warn(e); }
       // menos coisa para desenhar: some com ícones de lojas/POIs (no 3D só poluem) e,
       // no modo leve, com os prédios
       map.getStyle().layers.forEach((l) => {
         try {
           if (l.type === 'fill-extrusion') map.setLayoutProperty(l.id, 'visibility', light ? 'none' : 'visible');
-          else if (l.type === 'symbol' && /poi|housenum|transit|aerialway|ferry/i.test(l.id)) map.setLayoutProperty(l.id, 'visibility', 'none');
+          else if (l.type === 'symbol' && /poi|housenum|transit|aerialway|ferry|water_name|place_(village|hamlet|suburb|neighbourhood)|highway-shield|road_shield/i.test(l.id)) map.setLayoutProperty(l.id, 'visibility', 'none');
         } catch (e) {}
       });
       const segs = Geo.segments(this.P).map((s) => s.map((p) => [p[1], p[0]]));
       map.addSource('jg-route', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: segs } } });
-      map.addSource('jg-done', { type: 'geojson', data: this.doneGeo(0) });
+      map.addSource('jg-done', { type: 'geojson', lineMetrics: true, data: { type: 'Feature', geometry: { type: 'LineString', coordinates: this.P.map((p) => [p[1], p[0]]) } } });
       map.addLayer({ id: 'jg-route-case', type: 'line', source: 'jg-route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': 9, 'line-opacity': 0.9 } });
       map.addLayer({ id: 'jg-route', type: 'line', source: 'jg-route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': this.color, 'line-width': 5, 'line-opacity': 0.45 } });
-      map.addLayer({ id: 'jg-done', type: 'line', source: 'jg-done', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': this.color, 'line-width': 6 } });
+      map.addLayer({ id: 'jg-done', type: 'line', source: 'jg-done', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-width': 6, 'line-gradient': this.doneGrad(0) } });
       const P = this.P, pin = (cls) => { const d = document.createElement('div'); d.className = 'pin ' + cls; d.innerHTML = '<i></i>'; return d; };
       this.pins = [new maplibregl.Marker({ element: pin('start') }).setLngLat([P[0][1], P[0][0]]).addTo(map),
         new maplibregl.Marker({ element: pin('end') }).setLngLat([P[P.length - 1][1], P[P.length - 1][0]]).addTo(map)];
@@ -154,7 +153,8 @@ const View3D = {
   setSpeed() { const L = [0.5, 1, 1.5, 2]; this.speed = L[(L.indexOf(this.speed) + 1) % L.length]; try { localStorage.setItem('jg_v3_speed', String(this.speed)); } catch (e) {} this.ui(); },
   // duração do voo = a mesma da prévia, na velocidade escolhida
   flySec() { return this.flyMs() / 1000 / this.speed; },
-  setDone(d) { const s = this.map && this.map.getSource('jg-done'); if (s) s.setData(this.doneGeo(d)); },
+  doneGrad(f) { f = Math.max(0.0001, Math.min(0.9999, f)); return ['step', ['line-progress'], this.color, f, 'rgba(0,0,0,0)']; },
+  setDone(d) { if (!this.map || !this.map.getLayer('jg-done')) return; try { this.map.setPaintProperty('jg-done', 'line-gradient', this.doneGrad(this.total ? d / this.total : 0)); } catch (e) {} },
 
   // voo: duração proporcional à distância (12 s a 45 s)
   play() {
@@ -171,7 +171,7 @@ const View3D = {
         const d = this.t * this.total, here = this.at(d).pos;
         m.jumpTo(this.cam(this.t));
         this.dot.setLngLat([here[1], here[0]]);
-        if (now - lastData > 110 || this.t >= 1) { lastData = now; this.setDone(d); this.ui(true); }
+        if (now - lastData > 70 || this.t >= 1) { lastData = now; this.setDone(d); this.ui(true); }
         if (this.t >= 1) { this.playing = false; this.ui(); this.overview(); return; }
         this.raf = requestAnimationFrame(step);
       };

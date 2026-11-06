@@ -3,6 +3,9 @@
    Uso: I('bike') ou I('bike', 'classe-extra')
    ========================================================= */
 const ICONS = {
+  briefcase: '<rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+  book: '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   play: '<polygon points="7 4 20 12 7 20 7 4"/>',
   pause: '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
   stop: '<rect x="5" y="5" width="14" height="14" rx="2"/>',

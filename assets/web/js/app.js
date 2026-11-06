@@ -10,7 +10,7 @@ const App = {
   tracker: null, coach: null, routeLive: null, wl: null,
 
   // tela -> aba da barra inferior que fica acesa
-  parents: { notifs: 'home', pro: 'profile', progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', ract: 'social', chalPick: 'social', torch: 'social', retro: 'home', atleta: 'profile', avatarEdit: 'profile', club: 'social', history: 'home', heatmap: 'home' },
+  parents: { clubNew: 'social', followList: 'profile', notifs: 'home', pro: 'profile', progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', ract: 'social', chalPick: 'social', torch: 'social', retro: 'home', atleta: 'profile', avatarEdit: 'profile', club: 'social', history: 'home', heatmap: 'home' },
 
   init() {
     Store.load();
@@ -29,8 +29,7 @@ const App = {
     }
 
     // barra inferior com o botão Gravar no centro
-    $('#nav').innerHTML = [['home', 'home', 'Início'], ['mapa', 'map', 'Mapa'], ['record', 'play', 'Gravar'], ['social', 'users', 'Social'], ['profile', 'user', 'Perfil']]
-      .map(([v, ic, n]) => v === 'record' ? `<button class="nav-rec" data-act="go" data-v="${v}" aria-label="${n}"><span class="rec-btn">${I(ic)}</span><span>${n}</span></button>` : `<button data-act="${v === 'profile' ? 'navProfile' : 'go'}" data-v="${v}">${I(ic)}<span>${n}</span></button>`).join('');
+    $('#nav').innerHTML = V8.navHtml();
     // título pequeno no topo aparece ao rolar
     let scT = false; window.addEventListener('scroll', () => { if (scT) return; scT = true; requestAnimationFrame(() => { scT = false; const s = window.scrollY > 36; const t = document.querySelector('.top'); if (t && t.classList.contains('scrolled') !== s) t.classList.toggle('scrolled', s); }); }, { passive: true });
 
@@ -225,13 +224,14 @@ const App = {
     const v = await FX.modal(`<div class="finish"><h3>Finalizar treino</h3><p class="muted num">${Fmt.km(tr0.distance)} km · ${Fmt.time(tr0.moving / 1000)}</p>
       <span class="fin-lbl">Esporte</span>
       <div class="fin-sports">${Object.entries(CONFIG.sports).map(([k, sp]) => `<label><input type="radio" name="finSport" value="${k}" ${k === tr0.sport ? 'checked' : ''}><span style="--c:${sp.color}">${I(SPORT_IC[k])}${sp.name}</span></label>`).join('')}</div>
-      <label class="field"><span>Nome do treino <em>opcional</em></span><input id="finTitle" maxlength="60" placeholder="${esc(defTitle)}"></label>
+      <label class="field fin-t"><span>Título</span><input id="finTitle" maxlength="60" placeholder="${esc(defTitle)}"></label>
+      <label class="field fin-cap"><span>Legenda <em>aparece no post</em></span><textarea id="finCap" maxlength="280" rows="3" placeholder="Como foi? Conte para a galera…"></textarea></label>
       <span class="fin-lbl">Quem pode ver</span>
       <div class="fin-vis">
         <label><input type="radio" name="finVis" value="public" checked><span>${I('globe')}<b>Público</b><small>${logged ? 'Aparece no feed e no Descobrir, e disputa território' : 'É publicado quando você entrar na sua conta'}</small></span></label>
         <label><input type="radio" name="finVis" value="private"><span>${I('lock')}<b>Só eu</b><small>Fica salvo só para você</small></span></label>
       </div>
-      <div class="row2"><button class="btn ghost" data-m="no">Voltar ao treino</button><button class="btn primary" data-m="yes">Salvar treino</button></div></div>`);
+      <div class="row2"><button class="btn ghost" data-m="no">Voltar ao treino</button><button class="btn primary" data-m="yes">${logged ? 'Publicar treino' : 'Salvar treino'}</button></div></div>`);
     if (v !== 'yes' || !this.tracker) return;
     const F = FX.form || {};
     const tr = this.tracker; tr.stop(); this.release(); Background.stop(); Native.call('trainStop');
@@ -239,6 +239,7 @@ const App = {
     const act = tr.toActivity();
     if (F.finSport && CONFIG.sports[F.finSport]) act.sport = F.finSport;
     if (F.finTitle && F.finTitle.trim()) act.title = F.finTitle.trim().slice(0, 60);
+    if (F.finCap && F.finCap.trim()) act.caption = F.finCap.trim().slice(0, 280);
     act.private = F.finVis === 'private'; // padrão: público
     if (this.coach) act.workout = this.coach.summary();
     if (this.route) act.routeId = this.route.id;
@@ -264,7 +265,7 @@ const App = {
       const el = $('#sWeather'); if (el) el.innerHTML = `${I(w.weather.rain >= 0.2 ? 'cloudRain' : 'cloud', 'xs')} ${Math.round(w.weather.temp)}°C`;
       if (w.medal) { FX.toast('Medalha: Treino na chuva!'); FX.beep([659, 784, 988]); }
     });
-    Cloud.publish(act).catch(() => {});
+    Cloud.publish(act).then(() => this.torchAfter(act)).catch(() => {});
     // altitude pelo relevo real (subida/descida e calorias mais exatas); publica de novo com os números certos
     Elev.apply(act).then((ch) => { if (!ch) return; Store.save(); if (act.pub) Cloud.publish(act).catch(() => {}); if (App.tab === 'detail' && $('#sWeather')) UI.summary(act, null, false); }).catch(() => {});
     // território: disputa as áreas fechadas neste treino
@@ -276,6 +277,14 @@ const App = {
         else if (r.created.length) FX.toast(`Área conquistada: ${Zones.areaTxt(r.created.reduce((x, z) => x + z.area, 0))}`);
       }).catch((e) => console.error(e));
     }
+  },
+  // terminou um treino com a Tocha na mão: marca o treino e pergunta para quem passar
+  async torchAfter(act) {
+    if (!Cloud.loggedIn() || act.private || act.flagged || act.mode === 'sim' || !act.pub) return;
+    let L = []; try { L = await Cloud.torchHolding(true); } catch (e) { return; }
+    const t = L.find((x) => UI.torchLit(x)); if (!t) return;
+    try { if (!t.pending_act) { const dl = await Cloud.torchReady(t.id, act.id); if (dl) t.deadline = dl; t.pending_act = act.id; } } catch (e) { console.warn('tocha', e); return; }
+    setTimeout(() => UI.torchPassSheet(t, true), 1400);
   },
   async adjustPhoto() {
     const P = Store.data.profile, src = P.photoSrc || P.photo; if (!src) return;
@@ -652,6 +661,7 @@ const App = {
       try { await Cloud.follow(el.dataset.v); } catch (e) {}
       document.querySelectorAll(`[data-act=followHere][data-v="${el.dataset.v}"]`).forEach((b) => { b.outerHTML = `<span class="followed-tag">${I('check', 'xs')} Seguindo</span>`; });
       if (Cloud._fol) Cloud._fol.add(el.dataset.v);
+      if (App.tab === 'followList' && UI._fl) { UI._fl.myFol.add(el.dataset.v); UI.followDraw(); }
       FX.toast('Seguindo!');
     },
     checkUpdate: async () => {
@@ -739,8 +749,14 @@ const App = {
       try { [hold, fr] = await Promise.all([Cloud.torchHolding(true), Cloud.friends()]); } catch (e) { return FX.toast('Tocha ainda não configurada no servidor (SQL).'); }
       if (!fr.length) return FX.toast('A Tocha é entre amigos: vocês dois precisam se seguir.');
       const pm = await Cloud.profilesMap(fr), opts = fr.map((id) => `<option value="${id}">${esc((pm[id] && pm[id].name) || 'Amigo')}</option>`).join('');
-      const t = hold[0], lit = !t && Date.now() - a.start > 48 * 3600e3;
+      const t = hold.find((x) => UI.torchLit(x)), lit = !t && Date.now() - a.start > 48 * 3600e3;
       if (lit) return FX.toast('Para acender uma Tocha, use um treino das últimas 48 h.');
+      // com a Tocha na mão: marca este treino e abre a escolha do amigo
+      if (t) {
+        try { if (!a.pub) await Cloud.publish(a); if (!t.pending_act) { const dl = await Cloud.torchReady(t.id, a.id); if (dl) t.deadline = dl; t.pending_act = a.id; } }
+        catch (e) { const m = String(e && e.message || ''); return FX.toast(/ja usado/.test(m) ? 'Este treino já foi usado numa Tocha.' : /treino invalido/.test(m) ? 'Use um treino feito depois de receber a Tocha (e público).' : 'Não deu para usar este treino agora.'); }
+        return UI.torchPassSheet(t, false);
+      }
       const f = await FX.prompt(t ? 'Passar a Tocha 🔥' : 'Acender uma Tocha 🔥', [['toFriend', 'Para qual amigo?', 'select', opts]], t ? 'Passar a Tocha' : 'Acender e passar',
         t ? `Você está com a Tocha de ${esc((t.creator && t.creator.name) || 'um amigo')} (${t.legs} pessoas, ${Fmt.num(t.total_m / 1000)} km). Este treino de ${Fmt.km(a.distance)} km entra na corrente.` : `Este treino de ${Fmt.km(a.distance)} km abre a corrente. Seu amigo terá 48 h para treinar e passar adiante.`);
       if (!f || !f.toFriend) return;
@@ -760,11 +776,13 @@ const App = {
       const opts = Object.entries(CONFIG.sports).filter(([k, v]) => (gps ? v.gps !== false && k !== 'swim' || k === a.sport : true)).map(([k, v]) => `<option value="${k}" ${k === a.sport ? 'selected' : ''}>${v.name}</option>`).join('');
       const f = await FX.prompt('Editar treino', [
         ['eaTitle', 'Título', 'text', UI.actTitle(a), 'ex.: Pedal na orla com a galera', 'maxlength="60"'],
+        ['eaCap', 'Legenda', 'text', a.caption || '', 'Como foi? Conte para a galera…', 'maxlength="280"'],
         ['eaSport', 'Esporte', 'select', opts],
       ], 'Salvar');
       if (!f) return;
       const t = (f.eaTitle || '').trim().slice(0, 60);
       a.title = t || undefined; if (!t) delete a.title;
+      const cp = (f.eaCap || '').trim().slice(0, 280); if (cp) a.caption = cp; else delete a.caption;
       if (f.eaSport && CONFIG.sports[f.eaSport] && f.eaSport !== a.sport) { a.sport = f.eaSport; delete a.zc; }
       Store.save();
       if (a.pub && !a.private) Cloud.publish(a).catch(() => {});
@@ -1001,16 +1019,29 @@ const App = {
       UI.raComments(el.dataset.a);
     },
     userOpen: (el) => { if (!Cloud.loggedIn()) return; App.tab = 'user'; App.nav = 'social'; UI.user(el.dataset.v); },
-    clubCreate: async () => {
-      const f = await FX.prompt('Criar clube', [['cName', 'Nome do clube', 'text', '', 'ex.: Corredores do Parque'], ['cGoal', 'Meta coletiva do mês (km)', 'number', '500']], 'Criar');
-      if (!f || !f.cName) return;
-      try { const c = await Cloud.createClub(f.cName, f.cGoal); FX.toast(`Clube criado! Código: ${c.invite_code}`); App.tab = 'club'; UI.club(c.id); } catch (e) { FX.toast('Erro ao criar o clube.'); }
+    clubCreate: () => { App.clubNew = null; UI.clubNew(0); },
+    cnSet: (el) => { const [k, ...r] = el.dataset.v.split(':'), v = r.join(':'); const S = App.clubNew; if (!S) return; const n = $('#cnName'), d = $('#cnDesc'), c = $('#cnCity'); if (n) S.name = n.value; if (d) S.description = d.value; if (c) S.city = c.value; S[k] = k === 'goal' ? +v : v; UI.clubNew(App.clubStep || 0); },
+    cnStep: (el) => { const S = App.clubNew; if (!S) return; const n = $('#cnName'), d = $('#cnDesc'), c = $('#cnCity'); if (n) S.name = n.value; if (d) S.description = d.value; if (c) S.city = c.value; const to = +el.dataset.v; if (to > 0 && (S.name || '').trim().length < 3) { FX.toast('Dê um nome ao clube (3 letras ou mais).'); return UI.clubNew(0); } UI.clubNew(to); window.scrollTo(0, 0); },
+    cnCreate: async (el) => {
+      const S = App.clubNew; if (!S || (S.name || '').trim().length < 3) return FX.toast('Dê um nome ao clube.');
+      el.disabled = true; el.textContent = 'Criando…';
+      try {
+        const c = await Cloud.createClub(S.name.trim().slice(0, 40), S.goal, { description: (S.description || '').trim().slice(0, 120), sport: S.sport || null, color: S.color, icon: S.icon, kind: S.kind, city: (S.city || '').trim().slice(0, 40) || null });
+        App.clubNew = null; FX.beep([523, 659, 784]);
+        await FX.modal(`<div class="ui8"><span class="ui8-ic on" style="background:${S.color}">${I(S.icon || 'users')}</span><h3>Clube criado!</h3><p class="muted">Agora chame a galera. O código de convite é:</p><div class="cn8-code num">${esc(c.invite_code)}</div><button class="btn primary" data-m="ok">${I('userPlus')}Ver o clube</button></div>`);
+        App.tab = 'club'; App.clubTab = 'rank'; UI._club = null; UI.club(c.id);
+      } catch (e) { el.disabled = false; el.innerHTML = `${I('check')}Criar clube`; FX.toast('Erro ao criar o clube. Tente de novo.'); }
     },
     clubJoin: async () => {
       const f = await FX.prompt('Entrar em um clube', [['cCode', 'Código de convite', 'text', '', 'ex.: K7P2QX']], 'Entrar');
       if (!f || !f.cCode) return;
       try { const id = await Cloud.joinClub(f.cCode); FX.toast('Você entrou no clube!'); App.tab = 'club'; UI.club(id); } catch (e) { FX.toast('Código não encontrado.'); }
     },
+    notifF: (el) => { App.notifF = el.dataset.v; UI.notifsDraw(); },
+    flTab: (el) => { if (App.flState) { App.flState.which = el.dataset.v; UI.followDraw(); } },
+    torchChoose: async (el) => { let L = []; try { L = await Cloud.torchHolding(true); } catch (e) {} const t = L.find((x) => x.id === el.dataset.v); if (!t) return FX.toast('A Tocha não está mais com você.'); const ok = await UI.torchPassSheet(t, false); if (ok) { if (App.tab === 'torch') UI.torch(t.id); else if (App.tab === 'social') UI.social(); } },
+    unlockInfo: (el) => UI.unlockInfo(el.dataset.v),
+    treeTier: (el) => { App.treeTier = +el.dataset.v; UI.progress(); },
     clubOpen: (el) => { App.tab = 'club'; App.nav = 'social'; App.clubTab = 'rank'; UI._club = null; UI.club(el.dataset.v); },
     chalNew: (el) => {
       if (el && el.dataset && el.dataset.nf) return FX.toast('Desafios são entre amigos: vocês dois precisam se seguir.');
@@ -1083,6 +1114,7 @@ const App = {
     },
   },
   refreshSocial(id) {
+    if (this.tab === 'followList' && UI._fl) { UI._fl.myFol.delete(id); return UI.followDraw(); }
     if (this.tab === 'user') return UI.user(id);
     if (this.tab === 'search') { const q = $('#searchQ'); return UI.searchResults(q ? q.value.trim() : ''); }
     UI.social();

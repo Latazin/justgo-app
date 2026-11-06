@@ -1,0 +1,381 @@
+/* =========================================================
+   JustGo — v8 (2.24): posts, notificações, seguidores/amigos,
+   Tocha (passar ao terminar o treino), clubes, desbloqueios,
+   análises novas e barra inferior.
+   Carregado depois das outras telas: substitui as antigas.
+   ========================================================= */
+const V8 = {
+  NAV: {
+    home: ['<path d="M4 10.2 12 4l8 6.2V19a1.5 1.5 0 0 1-1.5 1.5H15v-5.5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5.5H5.5A1.5 1.5 0 0 1 4 19z"/>',
+      '<path d="M3.4 9.5 11.1 3.6a1.5 1.5 0 0 1 1.8 0l7.7 5.9c.4.3.6.7.6 1.2V19a2 2 0 0 1-2 2h-4v-5.2a1 1 0 0 0-1-1h-4.4a1 1 0 0 0-1 1V21h-4a2 2 0 0 1-2-2v-8.3c0-.5.2-.9.6-1.2z"/>'],
+    mapa: ['<path d="M9 4.5 3.8 6.6a1 1 0 0 0-.6.9v11.6a.8.8 0 0 0 1.1.7L9 18l6 2.5 5.2-2.1a1 1 0 0 0 .6-.9V5.9a.8.8 0 0 0-1.1-.7L15 7 9 4.5z"/><path d="M9 4.5V18M15 7v13.5"/>',
+      '<path d="M8.2 3.8v14.6l-4 1.6A1.2 1.2 0 0 1 2.5 19V7.6c0-.6.3-1.1.9-1.3z"/><path d="M9.8 3.9 14.2 6v14.2l-4.4-2.1z"/><path d="M15.8 6.1l4-1.7c.8-.3 1.7.3 1.7 1.1v11.3c0 .6-.4 1.1-.9 1.3l-4.8 2z"/>'],
+    social: ['<circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.6-3.3 3.1-5.3 6.2-5.3s5.6 2 6.2 5.3"/><path d="M15.5 4.9a3.3 3.3 0 0 1 0 6.3M17.6 14.6c2 .7 3.3 2.4 3.7 4.9"/>',
+      '<circle cx="9" cy="7.8" r="3.8"/><path d="M1.8 19.4C2.4 15.6 5.3 13.4 9 13.4s6.6 2.2 7.2 6c.1.6-.4 1.1-1 1.1H2.8c-.6 0-1.1-.5-1-1.1z"/><path d="M15.4 3.9a4 4 0 0 1 0 7.8zM17.4 13.6c2.6.7 4.4 2.8 4.8 5.6.1.6-.4 1.3-1 1.3h-3.1c.1-2.9-.4-4.9-.7-6.9z"/>'],
+    profile: ['<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c.8-3.8 3.8-6 7.5-6s6.7 2.2 7.5 6"/>',
+      '<circle cx="12" cy="7.8" r="4.6"/><path d="M3.6 20.1C4.4 15.9 7.7 13.6 12 13.6s7.6 2.3 8.4 6.5c.1.7-.4 1.4-1.2 1.4H4.8c-.8 0-1.3-.7-1.2-1.4z"/>'],
+  },
+  navHtml() {
+    const it = (v, n) => `<button class="nv" data-act="${v === 'profile' ? 'navProfile' : 'go'}" data-v="${v}" aria-label="${n}"><span class="nv-ic"><svg class="o" viewBox="0 0 24 24">${this.NAV[v][0]}</svg><svg class="f" viewBox="0 0 24 24">${this.NAV[v][1]}</svg></span><span class="nv-t">${n}</span></button>`;
+    const rec = `<button class="nav-rec" data-act="go" data-v="record" aria-label="Gravar treino"><span class="rec-fab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.6v12.8c0 .8.9 1.3 1.6.8l9.4-6.4c.6-.4.6-1.2 0-1.6L10.6 4.8C9.9 4.3 9 4.8 9 5.6z"/></svg></span><span class="nv-t">Gravar</span></button>`;
+    return it('home', 'Início') + it('mapa', 'Mapa') + rec + it('social', 'Social') + it('profile', 'Perfil');
+  },
+  ago(t) { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'agora' : m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} h` : m < 10080 ? `${Math.round(m / 1440)} d` : new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }); },
+  first(n) { return esc(((n || 'Atleta') + '').split(' ')[0]); },
+  CLUB_COLORS: ['#1F6BFF', '#7C3AED', '#EC4899', '#F97316', '#F5B301', '#12B886', '#0EA5E9', '#111827'],
+  CLUB_ICONS: ['run', 'bike', 'swim', 'mountain', 'flame', 'trophy', 'zap', 'heart', 'shield', 'users'],
+  CLUB_KINDS: [['amigos', 'Amigos', 'users'], ['empresa', 'Empresa', 'briefcase'], ['assessoria', 'Assessoria', 'trophy'], ['igreja', 'Igreja', 'heart'], ['faculdade', 'Faculdade', 'book'], ['familia', 'Família', 'home']],
+};
+
+Object.assign(UI, {
+  /* =================== POST (treino de outra pessoa) =================== */
+  remotePost(a, opts = {}) {
+    const p = this.keep({ id: a.user_id, ...(a.profiles || {}) }), sp = CONFIG.sports[a.sport] || CONFIG.sports.run;
+    const t = typeof a.start === 'string' ? Date.parse(a.start) : a.start, avg = a.duration ? a.distance / a.duration : 0;
+    const route = (a.route || []).filter((q) => q && q[0] != null), color = Shop.lineColor(a.sport);
+    const map = route.length > 1 ? `<div class="post-map" data-color="${color}" data-route='${JSON.stringify(this.thinRoute(route.map((q) => (q[4] ? [q[0], q[1], 0, null, 1] : [q[0], q[1], 0]))))}'>${this.routeSVG(route.map((q) => [q[0], q[1], 0]), color)}</div>` : a.stats && a.stats.pool ? `<div class="post-map pool">${I('swim')}<span>Natação na piscina</span></div>` : '';
+    const media = this.mediaHtml(map, this.photosOf(a));
+    const st = a.stats || {}, elev = st.elev, speed = Fmt.isSpeed(a.sport);
+    const cells = [['Distância', `${Fmt.km(a.distance)}<small>km</small>`], [speed ? 'Velocidade' : 'Ritmo', `${Fmt.pace(a.sport, avg)}<small>${speed ? 'km/h' : a.sport === 'swim' ? '/100m' : '/km'}</small>`], ['Tempo', Fmt.time(a.duration)]];
+    if (elev >= 10) cells.push(['Subida', `${elev}<small>m</small>`]);
+    else if (st.kcal) cells.push(['Calorias', `${Fmt.num(st.kcal, 0)}<small>kcal</small>`]);
+    const mine = a.user_id === (Cloud.user && Cloud.user.id);
+    const fol = opts.follow && !mine ? `<button class="p8-follow" data-act="followHere" data-v="${a.user_id}">${I('userPlus', 'xs')}Seguir</button>` : '';
+    const cap = (st.caption || '').trim();
+    const where = p.city ? ` · ${esc(p.city)}` : '';
+    const liked = a.liked ? 'on' : '';
+    return `<article class="p8" style="--c:${sp.color}">
+      <header class="p8-h"><button class="p8-av" data-act="userOpen" data-v="${a.user_id}">${this.avatarOf(p.name, p.frame, p.avatar, 'md', p.photo)}<i class="p8-sp">${I(sp.icon, 'xs')}</i></button>
+        <div class="p8-who"><b data-act="userOpen" data-v="${a.user_id}">${esc(p.name || 'Atleta')}${UI.vb(a.user_id, p.username)}</b><small>${this.rel(t)}${where}</small></div>${fol}</header>
+      <div class="p8-body tap" data-act="raOpen" data-v="${a.id}">
+        <span class="p8-tag">${I(sp.icon, 'xs')}${sp.name}</span>
+        <h3>${esc(this.actTitle(a))}</h3>${cap ? `<p class="p8-cap">${esc(cap)}</p>` : ''}
+        <div class="p8-stats">${cells.map(([l, v]) => `<div><span>${l}</span><b class="num">${v}</b></div>`).join('')}</div></div>
+      ${media ? `<div class="p8-media tap" data-act="raOpen" data-v="${a.id}">${media}</div>` : ''}
+      ${opts.noFoot ? '' : `<footer class="p8-f">
+        <button class="p8-btn p8-like ${liked} sp-like" data-act="like" data-v="${a.id}" data-on="${a.liked ? 1 : 0}" aria-label="Curtir">${I('heart')}<span class="num">${a.likes || 0}</span></button>
+        <button class="p8-btn" data-act="raOpen" data-cm="1" data-v="${a.id}" aria-label="Comentar">${I('message')}<span class="num">${a.comments || 0}</span></button>
+        <span class="grow"></span><button class="p8-see" data-act="raOpen" data-v="${a.id}">Ver treino${I('chevronRight', 'xs')}</button></footer>`}
+    </article>`;
+  },
+
+  /* =================== NOTIFICAÇÕES =================== */
+  NOTIF_K: {
+    torch: ['flame', '#F97316', (n) => 'passou a <b>Tocha</b> para você. Treine e passe adiante!'],
+    torchBack: ['flame', '#F97316', (n) => 'não passou a Tocha a tempo e ela <b>voltou para você</b>. Treine e passe de novo!'],
+    follow: ['userPlus', '#6366F1', (n, f) => (f ? 'seguiu você · agora vocês são <b>amigos</b>' : 'começou a seguir você')],
+    like: ['heart', '#EF4444', (n) => `curtiu ${n.title ? `<b>${esc(n.title)}</b>` : 'seu treino'}`],
+    comment: ['message', '#0EA5E9', (n) => `comentou: <q>${esc((n.text || '').slice(0, 90))}</q>`],
+    chal: ['swords', '#7C3AED', () => 'desafiou você para um duelo'],
+    chalOn: ['swords', '#7C3AED', () => 'desafio aceito: <b>valendo!</b>'],
+    chalOk: ['swords', '#7C3AED', () => 'aceitou seu desafio'],
+    zone: ['flag', '#12B886', (n) => `roubou sua área de <b>${Zones.areaTxt(n.area || 0)}</b>`],
+  },
+  NOTIF_F: [['all', 'Tudo'], ['like', 'Curtidas'], ['comment', 'Comentários'], ['follow', 'Seguidores'], ['game', 'Tocha e desafios']],
+  async notifs() {
+    App.notifF = App.notifF || 'all';
+    this.render(`${this.back(App.backTo2 || 'home', 'Notificações')}<main class="screen nt8"><div id="nBody">${this.skel('rank')}</div></main>`);
+    let seen = 0; try { seen = +localStorage.getItem(Cloud.seenKey()) || 0; } catch (e) {}
+    this._nSeen = this._nSeen || seen;
+    const list = await Cloud.refreshNotifs(true); Cloud.markSeen();
+    const fol = new Set(await Cloud.following().catch(() => []));
+    this._nList = list; this._nFol = fol;
+    this.notifsDraw();
+  },
+  notifsDraw() {
+    const el = $('#nBody'); if (!el) return;
+    const list = this._nList || [], fol = this._nFol || new Set(), seen = this._nSeen || 0, F = App.notifF || 'all';
+    const grp = (k) => (k === 'torch' || k === 'torchBack' || k === 'zone' || /^chal/.test(k) ? 'game' : k);
+    const shown = list.filter((n) => F === 'all' || grp(n.k) === F);
+    const act = (n) => n.k === 'torch' || n.k === 'torchBack' ? `data-act="torchOpen" data-v="${n.id}"` : n.k === 'follow' ? `data-act="userOpen" data-v="${n.u.id}"` : n.k === 'like' || n.k === 'comment' ? `data-act="comments" data-v="${n.act}"` : n.k === 'zone' ? 'data-act="go" data-v="mapa"' : n.k === 'chal' ? 'data-act="sub" data-v="social:challenges"' : `data-act="chalOpen" data-v="${n.id}"`;
+    const day = 864e5, now = Date.now(), today = new Date(); today.setHours(0, 0, 0, 0);
+    const groups = [['Novas', (n) => n.t > seen], ['Hoje', (n) => n.t >= today.getTime()], ['Esta semana', (n) => n.t >= now - 7 * day], ['Antes', () => true]];
+    const used = new Set(), sections = [];
+    groups.forEach(([name, fn]) => { const items = shown.filter((n, i) => !used.has(i) && fn(n) && used.add(i)); if (items.length) sections.push([name, items]); });
+    // usa o índice original para não repetir
+    const rows = (items) => items.map((n) => {
+      const K = this.NOTIF_K[n.k] || ['bell', '#64748B', () => ''], isNew = n.t > seen;
+      const right = n.k === 'follow' ? (fol.has(n.u.id) ? `<span class="nt-badge">${I('users', 'xs')}Amigos</span>` : `<button class="nt-btn" data-act="followHere" data-v="${n.u.id}">Seguir de volta</button>`)
+        : n.k === 'chal' ? `<span class="nt-badge vio">Responder</span>` : n.k === 'torch' || n.k === 'torchBack' ? `<span class="nt-badge fire">${I('flame', 'xs')}Sua vez</span>` : '';
+      return `<div class="nt-row tap ${isNew ? 'new' : ''}" ${act(n)}><div class="nt-av">${this.avatarOf(n.u.name, n.u.frame, n.u.avatar, 'md', n.u.photo)}<i class="nt-ic" style="--c:${K[1]}">${I(K[0], 'xs')}</i></div>
+        <div class="nt-txt"><p><b>${esc(n.u.name || 'Atleta')}</b>${UI.vb(n.u.id, n.u.username)} ${K[2](n, fol.has(n.u.id))}</p><small>${V8.ago(n.t)}</small></div>${right}</div>`;
+    }).join('');
+    const chips = `<div class="nt-chips">${this.NOTIF_F.map(([k, n]) => { const c = k === 'all' ? list.length : list.filter((x) => grp(x.k) === k).length; return `<button class="${F === k ? 'on' : ''}" data-act="notifF" data-v="${k}">${n}${c ? `<em>${c > 99 ? '99+' : c}</em>` : ''}</button>`; }).join('')}</div>`;
+    el.innerHTML = list.length ? `${chips}${sections.length ? sections.map(([n, items]) => `<div class="nt-sec">${n}</div><div class="nt-card">${rows(items)}</div>`).join('') : `<div class="v8-empty sm">${I('bell')}<p>Nada nesta categoria ainda.</p></div>`}`
+      : `<div class="v8-empty">${I('bell')}<h3>Tudo em dia por aqui</h3><p>Quando alguém seguir você, curtir, comentar, desafiar ou passar a Tocha, aparece aqui.</p><button class="btn primary" data-act="sub" data-v="social:discover">${I('compass')}Descobrir atletas</button></div>`;
+  },
+
+  /* =================== SEGUIDORES · SEGUINDO · AMIGOS =================== */
+  async followList(which, uid) {
+    const id = uid || Cloud.user.id, self = id === Cloud.user.id;
+    App.flState = { which: which || 'followers', id, q: '' };
+    this.render(`${this.back(self ? 'profile' : 'social', self ? 'Sua rede' : 'Conexões')}<main class="screen fl8"><div id="flHead"></div><div id="flBody">${this.skel('rank')}</div></main>`);
+    try {
+      const [fw, fg, myFol, myFw, cnt] = await Promise.all([Cloud.followList(id, 'followers'), Cloud.followList(id, 'following'), Cloud.following(), Cloud.followers(), Promise.resolve(null)]);
+      const F = new Set(fw.map((p) => p.id)), friends = fg.filter((p) => F.has(p.id));
+      this._fl = { followers: fw, following: fg, friends, myFol: new Set(myFol), myFw: new Set(myFw), self };
+      this.followDraw();
+    } catch (e) { const el = $('#flBody'); if (el) el.innerHTML = `<div class="v8-empty sm">${I('alert')}<p>Não foi possível carregar.</p></div>`; }
+  },
+  followDraw() {
+    const S = App.flState, D = this._fl; if (!S || !D) return;
+    const head = $('#flHead'), body = $('#flBody'); if (!head || !body) return;
+    const tabs = [['followers', 'Seguidores'], ['following', 'Seguindo'], ['friends', 'Amigos']];
+    if (!head.firstChild) head.innerHTML = `<div class="fl-tabs">${tabs.map(([k, n]) => `<button data-act="flTab" data-v="${k}"><b class="num">${D[k].length}</b><span>${n}</span></button>`).join('')}<i class="fl-ind"></i></div>
+      <label class="v8-search">${I('search', 'xs')}<input id="flQ" placeholder="Buscar por nome ou @" autocomplete="off"></label>`;
+    const idx = tabs.findIndex(([k]) => k === S.which);
+    head.querySelectorAll('.fl-tabs button').forEach((b, i) => b.classList.toggle('on', i === idx));
+    const ind = head.querySelector('.fl-ind'); if (ind) ind.style.transform = `translateX(${idx * 100}%)`;
+    const inp = $('#flQ'); if (inp && !inp.oninput) inp.oninput = () => { S.q = inp.value; this.followDraw(); };
+    const q = (S.q || '').toLowerCase().trim(), me = Cloud.user.id;
+    const list = D[S.which].filter((r) => !q || (r.name || '').toLowerCase().includes(q) || (r.username || '').toLowerCase().includes(q));
+    const rel = (r) => {
+      if (r.id === me) return '<span class="fl-you">Você</span>';
+      const f = D.myFol.has(r.id), b = D.myFw.has(r.id);
+      if (f && b) return `<button class="fl-b friend" data-act="unfollow" data-v="${r.id}">${I('users', 'xs')}Amigos</button>`;
+      if (f) return `<button class="fl-b" data-act="unfollow" data-v="${r.id}">Seguindo</button>`;
+      return `<button class="fl-b go" data-act="followHere" data-v="${r.id}">${b ? 'Seguir de volta' : 'Seguir'}</button>`;
+    };
+    const intro = S.which === 'friends' ? `<div class="fl-note">${I('users', 'xs')}<span>Amigos são quem vocês dois se seguem. Só amigos podem passar a Tocha e se desafiar.</span></div>` : '';
+    const emptyTxt = { followers: ['Ainda sem seguidores', 'Publique seus treinos e entre nos rankings para mais gente encontrar você.'], following: ['Ninguém por aqui ainda', 'Encontre atletas no Descobrir ou busque pelo nome.'], friends: ['Ainda sem amigos', 'Siga de volta quem segue você e vocês viram amigos.'] }[S.which];
+    body.innerHTML = list.length ? `${intro}<div class="fl-card">${list.map((r) => { UI.keep(r); return `<div class="fl-row"><button class="tap" data-act="userOpen" data-v="${r.id}">${this.avatarOf(r.name, r.frame, r.avatar, 'md', r.photo)}</button><div class="fl-who tap" data-act="userOpen" data-v="${r.id}"><b>${esc(r.name || 'Atleta')}${UI.vb(r.id, r.username)}</b><small>${r.username ? '@' + esc(r.username) : ''}${r.city ? ` · ${esc(r.city)}` : ''}${r.level ? ` · nível ${r.level}` : ''}</small></div>${rel(r)}</div>`; }).join('')}</div>`
+      : q ? `<div class="v8-empty sm">${I('search')}<p>Ninguém com “${esc(S.q)}”.</p></div>` : `${intro}<div class="v8-empty">${I('users')}<h3>${emptyTxt[0]}</h3><p>${emptyTxt[1]}</p><button class="btn primary" data-act="sub" data-v="social:discover">${I('compass')}Descobrir atletas</button></div>`;
+  },
+
+  /* =================== TOCHA =================== */
+  torchLit(t) { return !!t.holder && t.deadline && Date.parse(t.deadline) > Date.now(); },
+  torchFlame(size = '') { return `<div class="tf8 ${size}"><i class="tf-glow"></i><svg viewBox="0 0 64 80" aria-hidden="true"><defs><linearGradient id="tfg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#FF4D17"/><stop offset=".55" stop-color="#FF9A1F"/><stop offset="1" stop-color="#FFD84D"/></linearGradient></defs><path class="tf-o" d="M32 4c4 10 18 18 18 36a18 18 0 0 1-36 0c0-9 5-14 8-18 1 6 4 9 7 9-2-10 1-19 3-27z" fill="url(#tfg)"/><path class="tf-i" d="M32 34c2 5 8 8 8 16a8 8 0 0 1-16 0c0-4 2-6 4-8 0 3 2 4 3 4-1-5 0-9 1-12z" fill="#FFF3B0"/></svg></div>`; },
+  async socialTorch() {
+    let list = [];
+    try { list = await Cloud.torchList(); } catch (e) { if (/torch|relation|does not exist/i.test(String(e && e.message))) return `<div class="notice warn">${I('alert')}<div><b>Tocha ainda não configurada</b><small>Rode o SQL da Tocha no Supabase para liberar.</small></div></div>`; throw e; }
+    const me = Cloud.user.id, hold = list.filter((t) => t.holder === me && this.torchLit(t)), others = list.filter((t) => !(t.holder === me && this.torchLit(t)));
+    const holdCard = (t) => {
+      const ready = !!t.pending_act;
+      return `<section class="th8-hold" data-act="${ready ? 'torchChoose' : 'torchOpen'}" data-v="${t.id}">${this.torchFlame('md')}
+        <div class="grow"><span class="th8-k">${t.last_event === 'return' ? 'A Tocha voltou para você' : 'A Tocha está com você'}</span><b>${ready ? 'Escolha para quem passar' : 'Treine para passar adiante'}</b>
+        <small>${ready ? `Você tem <b>${this.hoursLeft(t.deadline)}</b> para escolher. Se não escolher, ela volta para quem te passou.` : `Faltam <b>${this.hoursLeft(t.deadline)}</b>. Ao terminar o treino, o app pergunta para quem passar.`}</small>
+        <div class="th8-mini"><span>${I('users', 'xs')}${t.legs} ${t.legs === 1 ? 'pessoa' : 'pessoas'}</span><span>${I('route', 'xs')}${Fmt.num(t.total_m / 1000)} km</span></div></div>
+        <span class="th8-go">${ready ? 'Passar' : 'Ver'}${I('chevronRight', 'xs')}</span></section>`;
+    };
+    const how = `<section class="th8-how"><h3>Como funciona</h3><ol>
+      <li><i>1</i><div><b>Treine e acenda</b><small>Qualquer esporte vale. Passe a Tocha para um amigo.</small></div></li>
+      <li><i>2</i><div><b>48 h para treinar</b><small>Quem recebe treina. Ao terminar, o app pergunta para quem passar.</small></div></li>
+      <li><i>3</i><div><b>1 dia para escolher</b><small>Se não escolher a tempo, a Tocha volta para quem passou.</small></div></li></ol></section>`;
+    const row = (t) => { const lit = this.torchLit(t); return `<button class="th8-row tap" data-act="torchOpen" data-v="${t.id}"><span class="th8-ic ${lit ? 'on' : ''}">${I('flame')}</span><div class="grow"><b>Tocha de ${esc((t.creator && t.creator.name) || 'Atleta')}</b><small>${t.legs} ${t.legs === 1 ? 'pessoa' : 'pessoas'} · ${Fmt.num(t.total_m / 1000)} km · ${lit ? `com ${t.holder === me ? 'você' : V8.first(t.holderP && t.holderP.name)}` : 'apagou'}</small></div>${lit ? `<span class="th8-live">Acesa</span>` : ''}${I('chevronRight', 'chev')}</button>`; };
+    const total = list.reduce((s, t) => s + t.total_m, 0);
+    return `${hold.map(holdCard).join('')}
+      <section class="th8-hero">${this.torchFlame('lg')}<div class="grow"><span class="th8-k">Tocha JustGo</span><h2>Corrente de km entre amigos</h2><p>${list.length ? `Você participou de <b>${list.length}</b> ${list.length === 1 ? 'tocha' : 'tochas'} que somaram <b>${Fmt.num(total / 1000)} km</b>.` : 'Acenda uma Tocha e veja até onde a sua galera leva.'}</p>
+        <button class="btn th8-btn" data-act="torchNew">${I('flame')}Acender uma Tocha</button></div></section>
+      ${others.length ? `<div class="v8-sec"><h2>Suas Tochas</h2><small>${others.length}</small></div><div class="v8-card">${others.map(row).join('')}</div>` : ''}${how}`;
+  },
+  async torch(id) {
+    this.render(`${this.back('social', 'Tocha')}<main class="screen tc8"><div id="tBody">${this.skel('rank')}</div></main>`);
+    let d = null; try { d = await Cloud.torchDetail(id); } catch (e) {}
+    const el = $('#tBody'); if (!el) return;
+    if (!d) { el.innerHTML = `<div class="v8-empty sm">${I('flame')}<p>Tocha não encontrada.</p></div>`; return; }
+    const { t, legs } = d, lit = this.torchLit(t), me = Cloud.user.id, mine = t.holder === me && lit;
+    const who = t.holder === me ? 'você' : esc(t.holderP ? t.holderP.name : 'um amigo');
+    const action = mine ? (t.pending_act
+      ? `<button class="btn primary lg tc8-cta" data-act="torchChoose" data-v="${t.id}">${I('flame')}Escolher para quem passar</button><p class="tc8-hint">Você tem ${this.hoursLeft(t.deadline)}. Se não escolher, ela volta para ${t.returnedP ? '' : 'quem te passou'}.</p>`
+      : `<button class="btn primary lg tc8-cta" data-act="go" data-v="record">${I('play')}Treinar agora</button><p class="tc8-hint">Faltam ${this.hoursLeft(t.deadline)}. Ao terminar, você escolhe para quem passar.</p>`) : '';
+    el.innerHTML = `<section class="tc8-hero ${lit ? 'on' : 'off'}">${this.torchFlame('xl')}<h1 class="num">${Fmt.num(t.total_m / 1000)}<small> km</small></h1>
+        <p>${t.legs} ${t.legs === 1 ? 'pessoa' : 'pessoas'} na corrente · acesa por ${esc((t.creator && t.creator.name) || 'Atleta')}</p>
+        <span class="tc8-st">${lit ? `${I('flame', 'xs')}Com ${who} · ${this.hoursLeft(t.deadline)}` : 'Apagou'}</span>
+        ${t.last_event === 'return' && t.returnedP && lit ? `<small class="tc8-ret">${I('repeat', 'xs')} Voltou porque ${V8.first(t.returnedP.name)} não passou a tempo</small>` : ''}</section>
+      ${action}
+      <div class="v8-sec"><h2>A corrente</h2><small>${legs.length} ${legs.length === 1 ? 'trecho' : 'trechos'}</small></div>
+      <div class="tc8-chain">${legs.map((l, i) => `<div class="tc8-leg"><span class="tc8-n">${i + 1}</span><button class="tap" data-act="userOpen" data-v="${l.user_id}">${this.avatarOf(l.p && l.p.name, l.p && l.p.frame, l.p && l.p.avatar, 'sm', l.p && l.p.photo)}</button><div class="grow"><b>${esc((l.p && l.p.name) || 'Atleta')}</b><small>${I(SPORT_IC[l.sport] || 'run', 'xs')} ${Fmt.km(l.distance)} km · ${new Date(l.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</small></div><b class="num tc8-km">+${Fmt.km(l.distance)}</b></div>`).join('')}
+        ${lit ? `<div class="tc8-leg now"><span class="tc8-n">${I('flame', 'xs')}</span>${t.holderP ? this.avatarOf(t.holderP.name, t.holderP.frame, t.holderP.avatar, 'sm', t.holderP.photo) : ''}<div class="grow"><b>${t.holder === me ? 'Você' : esc(t.holderP ? t.holderP.name : 'Um amigo')}</b><small>${t.pending_act ? 'já treinou · escolhendo para quem passar' : 'está com a Tocha agora'}</small></div></div>` : ''}</div>`;
+  },
+  // tela para escolher o amigo (aparece sozinha ao terminar um treino com a Tocha)
+  async torchPassSheet(t, fresh) {
+    let fr = [];
+    try { const ids = await Cloud.friends(); const pm = await Cloud.profilesMap(ids); fr = ids.map((id) => this.keep({ id, ...(pm[id] || {}) })).sort((a, b) => (a.name || '').localeCompare(b.name || '')); } catch (e) {}
+    if (!fr.length) { FX.toast('Para passar a Tocha você precisa de amigos (vocês dois se seguem).'); return null; }
+    const back = t.returned_from || null;
+    const html = `<div class="tp8">${this.torchFlame('lg')}<span class="th8-k">${fresh ? 'Treino concluído!' : 'A Tocha está com você'}</span><h3>Para quem você passa a Tocha?</h3>
+      <p class="muted">Tocha de ${esc((t.creator && t.creator.name) || 'um amigo')} · ${t.legs} ${t.legs === 1 ? 'pessoa' : 'pessoas'} · ${Fmt.num(t.total_m / 1000)} km</p>
+      ${fr.length > 6 ? `<label class="v8-search">${I('search', 'xs')}<input id="tpQ" placeholder="Buscar amigo" autocomplete="off"></label>` : ''}
+      <div class="tp8-grid">${fr.map((p) => `<label class="tp8-f" data-n="${esc((p.name || '').toLowerCase())} ${esc((p.username || '').toLowerCase())}"><input type="radio" name="tpTo" value="${p.id}"><span>${this.avatarOf(p.name, p.frame, p.avatar, 'md', p.photo)}<b>${V8.first(p.name)}</b>${p.id === back ? '<em>não passou</em>' : ''}<i>${I('check', 'xs')}</i></span></label>`).join('')}</div>
+      <p class="tp8-dl">${I('clock', 'xs')} Você tem ${this.hoursLeft(t.deadline)} para escolher. Depois disso a Tocha volta para quem te passou.</p>
+      <button class="btn primary lg" data-m="pass" id="tpGo" disabled>${I('flame')}Passar a Tocha</button><button class="btn link" data-m="later">Escolher depois</button></div>`;
+    const pr = FX.modal(html);
+    const q = $('#tpQ'), go = $('#tpGo');
+    if (q) q.oninput = () => { const v = q.value.toLowerCase().trim(); document.querySelectorAll('.tp8-f').forEach((x) => (x.style.display = !v || x.dataset.n.includes(v) ? '' : 'none')); };
+    document.querySelectorAll('input[name=tpTo]').forEach((r) => (r.onchange = () => { if (go) { go.disabled = false; const p = fr.find((x) => x.id === r.value); go.innerHTML = `${I('flame')}Passar para ${V8.first(p && p.name)}`; } }));
+    const v = await pr, to = FX.form && FX.form.tpTo;
+    if (v !== 'pass' || !to) return null;
+    try {
+      await Cloud.torchPass(t.id, null, to);
+      Store.data.torchPasses = (Store.data.torchPasses || 0) + 1; Store.save();
+      const p = fr.find((x) => x.id === to);
+      FX.vibrate([30, 40, 30]); FX.beep([523, 784]);
+      FX.modal(`<div class="tp8 done">${this.torchFlame('lg')}<h3>Tocha passada!</h3><p class="muted">${V8.first(p && p.name)} tem 48 h para treinar e passar adiante. A corrente já soma ${Fmt.num(t.total_m / 1000)} km.</p><button class="btn primary" data-m="ok">Boa!</button></div>`);
+      return to;
+    } catch (e) {
+      const m = String((e && e.message) || '');
+      FX.toast(/apagou/.test(m) ? 'O prazo venceu: a Tocha voltou.' : /amigos/.test(m) ? 'Só dá para passar para amigos (vocês se seguem).' : /treino/.test(m) ? 'Esse treino não vale para a Tocha.' : 'Não foi possível passar agora. Tente de novo.');
+      return null;
+    }
+  },
+
+  /* =================== CLUBES =================== */
+  clubBadge(c, size = '') {
+    const col = c.color || V8.CLUB_COLORS[(this.hue(c.id || c.name) >> 2) % V8.CLUB_COLORS.length], ic = c.icon || (c.sport ? SPORT_IC[c.sport] || 'users' : null);
+    const ini = (c.name || 'C').split(/\s+/).filter((w) => w && !/^(d[aeo]s?|e|of|the)$/i.test(w)).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+    return `<span class="cb8 ${size}" style="--c:${col}">${ic ? I(ic) : `<b>${esc(ini)}</b>`}</span>`;
+  },
+  async socialClubs() {
+    const clubs = await Cloud.myClubs();
+    const kindN = (k) => (V8.CLUB_KINDS.find((x) => x[0] === k) || [0, ''])[1];
+    const card = (c) => `<button class="cl8 tap" data-act="clubOpen" data-v="${c.id}" style="--c:${c.color || 'var(--brand)'}">${this.clubBadge(c, 'md')}<div class="grow"><b>${esc(c.name)}</b><small>${[kindN(c.kind), c.sport && CONFIG.sports[c.sport] ? CONFIG.sports[c.sport].name : '', c.city].filter(Boolean).map(esc).join(' · ') || esc(c.description || 'Clube')}</small><span class="cl8-goal">${I('target', 'xs')}Meta de ${Fmt.num(c.goal_km, 0)} km no mês</span></div>${I('chevronRight', 'chev')}</button>`;
+    return `<div class="cl8-ctas"><button class="cl8-new" data-act="clubCreate"><span>${I('plus')}</span><b>Criar clube</b><small>Monte o seu grupo</small></button><button class="cl8-join" data-act="clubJoin"><span>${I('link')}</span><b>Tenho um código</b><small>Entrar num clube</small></button></div>
+      ${clubs.length ? `<div class="v8-sec"><h2>Seus clubes</h2><small>${clubs.length}</small></div><div class="cl8-list">${clubs.map(card).join('')}</div>`
+        : `<section class="v8-empty">${I('shield')}<h3>Treine em grupo</h3><p>Clubes somam os km de todo mundo numa meta do mês, com ranking semanal, membros e feed só do grupo. Perfeito para empresa, assessoria, igreja ou amigos.</p></section>`}`;
+  },
+  // criar clube em 3 passos
+  clubNew(step = 0) {
+    App.tab = 'clubNew'; App.nav = 'social';
+    const S = App.clubNew || (App.clubNew = { name: '', description: '', icon: 'run', color: V8.CLUB_COLORS[0], kind: 'amigos', sport: (Store.data.profile.sports || ['run'])[0] || 'run', city: (Cloud.me && Cloud.me.city) || '', goal: 300 });
+    App.clubStep = step;
+    const steps = ['Identidade', 'Grupo', 'Meta'];
+    const prev = `<section class="cn8-prev" style="--c:${S.color}"><div class="cn8-ban"></div>${this.clubBadge(S, 'lg')}<b>${esc(S.name || 'Nome do clube')}</b><small>${[(V8.CLUB_KINDS.find((x) => x[0] === S.kind) || [0, ''])[1], CONFIG.sports[S.sport] ? CONFIG.sports[S.sport].name : 'Vários esportes', S.city].filter(Boolean).map(esc).join(' · ')}</small><span>${I('target', 'xs')}${Fmt.num(S.goal, 0)} km por mês</span></section>`;
+    let body = '';
+    if (step === 0) body = `<label class="cn8-f"><span>Nome do clube</span><input id="cnName" maxlength="40" value="${esc(S.name)}" placeholder="ex.: Corredores do Parque"></label>
+      <label class="cn8-f"><span>Descrição <em>opcional</em></span><textarea id="cnDesc" maxlength="120" rows="2" placeholder="ex.: Treinos toda terça às 19h no parque">${esc(S.description)}</textarea></label>
+      <div class="cn8-l">Emblema</div><div class="cn8-icons">${V8.CLUB_ICONS.map((ic) => `<button class="${S.icon === ic ? 'on' : ''}" data-act="cnSet" data-v="icon:${ic}">${I(ic)}</button>`).join('')}</div>
+      <div class="cn8-l">Cor</div><div class="cn8-cols">${V8.CLUB_COLORS.map((c) => `<button class="${S.color === c ? 'on' : ''}" style="--c:${c}" data-act="cnSet" data-v="color:${c}" aria-label="Cor"></button>`).join('')}</div>`;
+    else if (step === 1) body = `<div class="cn8-l">Que tipo de grupo?</div><div class="cn8-kinds">${V8.CLUB_KINDS.map(([k, n, ic]) => `<button class="${S.kind === k ? 'on' : ''}" data-act="cnSet" data-v="kind:${k}">${I(ic)}<b>${n}</b></button>`).join('')}</div>
+      <div class="cn8-l">Esporte principal</div><div class="cn8-sports"><button class="${!S.sport ? 'on' : ''}" data-act="cnSet" data-v="sport:">${I('activity')}<small>Vários</small></button>${Object.entries(CONFIG.sports).map(([k, s]) => `<button class="${S.sport === k ? 'on' : ''}" style="--c:${s.color}" data-act="cnSet" data-v="sport:${k}">${I(s.icon)}<small>${s.name}</small></button>`).join('')}</div>
+      <label class="cn8-f"><span>Cidade <em>opcional</em></span><input id="cnCity" maxlength="40" value="${esc(S.city)}" placeholder="ex.: Vitória"></label>`;
+    else {
+      const sug = S.sport === 'ride' ? [500, 1000, 2000] : S.sport === 'swim' ? [30, 60, 120] : [150, 300, 600];
+      body = `<div class="cn8-goal"><small>Meta coletiva do mês</small><b class="num" id="cnGoalV">${Fmt.num(S.goal, 0)}<small> km</small></b><p>Somando todos os membros. Dá para mudar depois.</p>
+        <input type="range" id="cnGoal" min="${sug[0] / 5}" max="${sug[2] * 2}" step="${sug[0] >= 150 ? 10 : 5}" value="${S.goal}"></div>
+        <div class="cn8-sug">${sug.map((g, i) => `<button class="${+S.goal === g ? 'on' : ''}" data-act="cnSet" data-v="goal:${g}"><b class="num">${Fmt.num(g, 0)} km</b><small>${['Grupo pequeno', 'Turma animada', 'Galera grande'][i]}</small></button>`).join('')}</div>
+        <div class="fl-note">${I('users', 'xs')}<span>Você vira admin: pode editar o clube e convidar com um código ou pelo WhatsApp.</span></div>`;
+    }
+    this.render(`${this.back('social', 'Criar clube')}<main class="screen cn8">${prev}
+      <div class="cn8-steps">${steps.map((n, i) => `<span class="${i < step ? 'ok' : i === step ? 'on' : ''}"><i>${i < step ? I('check', 'xs') : i + 1}</i>${n}</span>`).join('')}</div>
+      <section class="cn8-body">${body}</section>
+      <div class="cn8-bar">${step ? `<button class="btn ghost" data-act="cnStep" data-v="${step - 1}">Voltar</button>` : ''}<button class="btn primary" data-act="${step < 2 ? 'cnStep' : 'cnCreate'}" data-v="${step + 1}" id="cnNext">${step < 2 ? 'Continuar' : `${I('check')}Criar clube`}</button></div></main>`, false);
+    const sync = () => { const n = $('#cnName'), d = $('#cnDesc'), c = $('#cnCity'); if (n) S.name = n.value; if (d) S.description = d.value; if (c) S.city = c.value; const b = $('.cn8-prev b'); if (b) b.textContent = S.name || 'Nome do clube'; };
+    ['#cnName', '#cnDesc', '#cnCity'].forEach((s) => { const e = $(s); if (e) e.oninput = sync; });
+    const g = $('#cnGoal'); if (g) g.oninput = () => { S.goal = +g.value; $('#cnGoalV').innerHTML = `${Fmt.num(S.goal, 0)}<small> km</small>`; const sp = $('.cn8-prev span'); if (sp) sp.innerHTML = `${I('target', 'xs')}${Fmt.num(S.goal, 0)} km por mês`; document.querySelectorAll('.cn8-sug button').forEach((b) => b.classList.remove('on')); };
+  },
+  // detalhe do clube
+  async club(id) {
+    this._clubId = id;
+    const tab = App.clubTab || 'rank';
+    this.render(`${this.back('social', 'Clube')}<main class="screen cd8"><div id="clubBody">${this.skel('rank')}</div></main>`);
+    try {
+      const d = this._club && this._club.c.id === id && Date.now() - this._clubAt < 30000 ? this._club : await Cloud.clubFull(id);
+      this._club = d; this._clubAt = Date.now();
+      const c = d.c, pct = Math.min(100, (d.total / (c.goal_km || 1)) * 100), top = d.wboard[0], me = Cloud.user.id;
+      const mo = new Date(), days = new Date(mo.getFullYear(), mo.getMonth() + 1, 0).getDate() - mo.getDate() + 1;
+      const kind = (V8.CLUB_KINDS.find((x) => x[0] === c.kind) || [0, ''])[1];
+      const tabs = [['rank', 'Ranking'], ['members', `Membros`], ['feed', 'Treinos']];
+      let body = '';
+      if (tab === 'members') body = `<div class="v8-card">${d.members.map((m) => { const p = m.profiles || {}; return `<div class="fl-row tap" data-act="userOpen" data-v="${m.user_id}">${this.avatarOf(p.name, p.frame, p.avatar, 'md', p.photo)}<div class="fl-who"><b>${esc(p.name || 'Atleta')}${UI.vb(m.user_id, p.username)}${m.user_id === me ? ' <em class="you">você</em>' : ''}</b><small>${p.username ? '@' + esc(p.username) : ''}${m.role === 'admin' ? ' · admin' : ''}</small></div><b class="num cd8-km">${Fmt.num(m.km)}<small> km</small></b></div>`; }).join('')}</div>`;
+      else if (tab === 'feed') body = d.acts.length ? d.acts.map((a) => this.safePost(a)).join('') : `<div class="v8-empty sm">${I('activity')}<p>Os treinos dos membros aparecem aqui.</p></div>`;
+      else {
+        const rows = d.board, mx = Math.max(1, ...rows.map((r) => Number(r.value)));
+        body = rows.length ? `<div class="v8-card cd8-rank">${rows.map((r, i) => `<button class="cd8-r tap ${r.user_id === me ? 'me' : ''}" data-act="userOpen" data-v="${r.user_id}"><span class="cd8-pos ${i < 3 ? 'p' + (i + 1) : ''}">${i + 1}</span><div class="grow"><b>${esc(r.name || 'Atleta')}${r.user_id === me ? ' <em class="you">você</em>' : ''}</b><i class="cd8-bar"><i style="width:${(Number(r.value) / mx) * 100}%"></i></i></div><b class="num">${Fmt.num(Number(r.value))}<small> km</small></b></button>`).join('')}</div>`
+          : `<div class="v8-empty sm">${I('trophy')}<p>Ninguém treinou este mês ainda. Seja o primeiro!</p></div>`;
+      }
+      $('#clubBody').outerHTML = `<section class="cd8-hero" style="--c:${c.color || 'var(--brand)'}"><div class="cd8-ban"></div>${this.clubBadge(c, 'xl')}
+          <h1>${esc(c.name)}</h1><small>${[kind, c.sport && CONFIG.sports[c.sport] ? CONFIG.sports[c.sport].name : '', c.city].filter(Boolean).map(esc).join(' · ') || 'Clube JustGo'}</small>
+          ${c.description ? `<p>${esc(c.description)}</p>` : ''}
+          <div class="cd8-stats"><div><b class="num">${d.members.length}</b><small>${d.members.length === 1 ? 'membro' : 'membros'}</small></div><div><b class="num">${Fmt.num(d.total, 0)}</b><small>km no mês</small></div><div><b class="num">${Math.round(pct)}%</b><small>da meta</small></div></div>
+          <div class="cd8-acts"><button class="btn primary" data-act="clubInvite">${I('userPlus')}Convidar</button><button class="btn ghost" data-act="copy" data-v="${esc(c.invite_code)}">${I('copy')}${esc(c.invite_code)}</button>${d.admin ? `<button class="icon-btn" data-act="clubEdit" aria-label="Editar">${I('settings')}</button>` : `<button class="icon-btn" data-act="clubLeave" aria-label="Sair">${I('logout')}</button>`}</div></section>
+        <section class="cd8-goal"><div class="cd8-ring" style="--p:${pct};--c:${c.color || 'var(--brand)'}"><b class="num">${Math.round(pct)}%</b></div><div class="grow"><span class="th8-k">Meta do mês</span><b class="num">${Fmt.num(d.total)} de ${Fmt.num(c.goal_km, 0)} km</b><small>${pct >= 100 ? 'Meta batida! Bora para a próxima.' : `Faltam ${Fmt.num(Math.max(0, c.goal_km - d.total))} km · ${days} ${days > 1 ? 'dias' : 'dia'} para acabar o mês`}</small></div></section>
+        ${top ? `<section class="cd8-star">${I('crown')}<div class="grow"><span class="th8-k">Destaque da semana</span><b>${esc(top.name)}</b></div><b class="num">${Fmt.num(Number(top.value))}<small> km</small></b></section>` : ''}
+        <div class="fl-tabs cd8-tabs">${tabs.map(([k, n]) => `<button class="${k === tab ? 'on' : ''}" data-act="clubTab" data-v="${k}"><span>${n}</span></button>`).join('')}<i class="fl-ind" style="transform:translateX(${tabs.findIndex((x) => x[0] === tab) * 100}%)"></i></div>
+        ${body}`;
+    } catch (e) { console.error(e); const el = $('#clubBody'); if (el) el.innerHTML = `<div class="v8-empty sm">${I('alert')}<p>Não foi possível abrir o clube.</p></div>`; }
+  },
+
+  /* =================== DESBLOQUEIOS =================== */
+  treeView() {
+    Game.syncUnlocks && Game.syncUnlocks();
+    const U = CONFIG.unlocks, total = U.length, done = U.filter((u) => Game.has(u.id)).length;
+    const tierOf = (t) => U.filter((u) => u.tier === t.id), tierDone = (t) => tierOf(t).every((u) => Game.has(u.id));
+    const cur = CONFIG.tiers.find((t) => !tierDone(t)) || CONFIG.tiers[CONFIG.tiers.length - 1];
+    const sel = CONFIG.tiers.find((t) => t.id === App.treeTier) || cur;
+    const next = Game.nextUnlocks(1)[0];
+    const np = next && Game.reqProgress(next.req);
+    const hero = next ? `<section class="tr8-next tap" data-act="unlockInfo" data-v="${next.id}"><div class="tr8-nic">${I(next.icon)}<i class="tr8-ring" style="--p:${np.pct}"></i></div><div class="grow"><span class="th8-k">Próxima função</span><b>${esc(next.name)}</b><small>${esc(Game.reqText(next.req))}</small><div class="tr8-bar"><i style="width:${np.pct}%"></i></div><small class="num tr8-cur">${np.curTxt}</small></div></section>`
+      : `<section class="tr8-next all"><div class="tr8-nic">${I('trophy')}</div><div class="grow"><span class="th8-k">Parabéns</span><b>Você liberou tudo!</b><small>Todas as ${total} funções estão ativas.</small></div></section>`;
+    const stepper = `<div class="tr8-tiers">${CONFIG.tiers.map((t) => { const us = tierOf(t), dn = us.filter((u) => Game.has(u.id)).length, st = dn === us.length ? 'ok' : t.id === cur.id ? 'cur' : t.id < cur.id ? 'ok' : 'lock'; return `<button class="tr8-t ${st} ${t.id === sel.id ? 'sel' : ''}" data-act="treeTier" data-v="${t.id}"><i>${st === 'ok' ? I('check', 'xs') : st === 'lock' ? I('lock', 'xs') : t.id}</i><b>${t.name}</b><small class="num">${dn}/${us.length}</small></button>`; }).join('')}</div>`;
+    const us = tierOf(sel), sdn = us.filter((u) => Game.has(u.id)).length;
+    const tile = (u) => { const on = Game.has(u.id), p = Game.reqProgress(u.req); return `<button class="tr8-tile ${on ? 'on' : p.pct >= 50 ? 'near' : ''}" data-act="unlockInfo" data-v="${u.id}"><span class="tr8-ti">${I(u.icon)}${on ? `<i class="ok">${I('check', 'xs')}</i>` : `<i>${I('lock', 'xs')}</i>`}</span><b>${esc(u.name)}</b>${on ? '<small class="tr8-ok">Liberada</small>' : `<div class="tr8-bar sm"><i style="width:${p.pct}%"></i></div><small class="num">${Math.floor(p.pct)}%</small>`}</button>`; };
+    return `<section class="tr8-sum"><div><b class="num">${done}<span>/${total}</span></b><small>funções liberadas</small></div><div class="tr8-prog"><i style="width:${(done / total) * 100}%"></i></div></section>
+      ${hero}${stepper}
+      <div class="v8-sec"><h2>Etapa ${sel.id} · ${sel.name}</h2><small>${sdn} de ${us.length}</small></div>
+      <div class="tr8-grid">${us.map(tile).join('')}</div>
+      <p class="tr8-tip">${I('zap', 'xs')} Toque numa função para ver o que ela faz e quanto falta.</p>`;
+  },
+  unlockInfo(id) {
+    const u = Game.unlock(id); if (!u) return;
+    const on = Game.has(u.id), p = Game.reqProgress(u.req), tier = CONFIG.tiers.find((t) => t.id === u.tier) || { name: '' };
+    const where = { autopause: 'Ajustes', splits: 'Resumo do treino', paceChart: 'Resumo do treino', rideChart: 'Resumo do treino', swimTools: 'Natação', voice: 'Tela de gravar', goals: 'Progresso', routes: 'Treino', swimSets: 'Natação', intervals: 'Tela de gravar', ghost: 'Rotas', heatmap: 'Mapa', segments: 'Rotas', plans: 'Início', racePredict: 'Estatísticas', swolf: 'Natação', weekCompare: 'Estatísticas', sportMix: 'Estatísticas', calendar: 'Estatísticas', bestHours: 'Estatísticas', trainLoad: 'Estatísticas', yearGoal: 'Estatísticas', paceTrend: 'Estatísticas' }[u.id];
+    FX.modal(`<div class="ui8"><span class="ui8-ic ${on ? 'on' : ''}">${I(u.icon)}</span><span class="th8-k">Etapa ${u.tier} · ${tier.name}</span><h3>${esc(u.name)}</h3><p class="muted">${esc(u.desc)}</p>
+      ${on ? `<div class="ui8-ok">${I('check')}<div><b>Liberada</b><small>${where ? `Use em: ${where}` : 'Já está ativa no app'}</small></div></div>`
+        : `<div class="ui8-req"><div class="ui8-rh"><b>${esc(Game.reqText(u.req))}</b><span class="num">${Math.floor(p.pct)}%</span></div><div class="tr8-bar"><i style="width:${p.pct}%"></i></div><small class="num">${p.curTxt}</small></div>
+          <div class="ui8-rw"><span>${I('zap', 'xs')}+${u.reward.xp} XP</span><span>${I('coin', 'xs')}+${u.reward.coins} moedas</span></div>`}
+      <button class="btn primary" data-m="ok">${on ? 'Fechar' : 'Bora treinar'}</button></div>`);
+  },
+
+  /* =================== ANÁLISES (novas funções liberáveis) =================== */
+  insightsHtml() {
+    const acts = Game.acts(), now = Date.now(), D = 864e5, has = (id) => Game.has(id);
+    const km = (L) => L.reduce((s, a) => s + a.distance, 0) / 1000;
+    const out = [], locked = [];
+    const card = (id, title, ic, body) => { if (has(id)) out.push(`<section class="in8"><div class="in8-h"><span class="in8-ic">${I(ic, 'xs')}</span><b>${title}</b></div>${body}</section>`); else locked.push(Game.unlock(id)); };
+    // comparativo semanal
+    const ws = Game.weekStart(now), nowIn = now - ws, thisW = acts.filter((a) => a.start >= ws), lastW = acts.filter((a) => a.start >= ws - 7 * D && a.start < ws - 7 * D + nowIn);
+    const a1 = km(thisW), a0 = km(lastW), dif = a0 ? ((a1 - a0) / a0) * 100 : a1 ? 100 : 0;
+    card('weekCompare', 'Comparativo semanal', 'trending', `<div class="in8-cmp"><div><small>Esta semana</small><b class="num">${Fmt.num(a1)}<small> km</small></b><small>${thisW.length} treinos</small></div><span class="in8-d ${dif >= 0 ? 'up' : 'dn'}">${dif >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(dif))}%</span><div><small>Semana passada até hoje</small><b class="num">${Fmt.num(a0)}<small> km</small></b><small>${lastW.length} treinos</small></div></div>`);
+    // mix de esportes (30 dias)
+    const m30 = acts.filter((a) => a.start >= now - 30 * D), bys = {}; m30.forEach((a) => (bys[a.sport] = (bys[a.sport] || 0) + a.distance / 1000));
+    const tot = Object.values(bys).reduce((s, v) => s + v, 0) || 1, ent = Object.entries(bys).sort((a, b) => b[1] - a[1]);
+    card('sportMix', 'Seus esportes (30 dias)', 'activity', ent.length ? `<div class="in8-mix">${ent.map(([k, v]) => `<i style="flex:${v};--c:${(CONFIG.sports[k] || CONFIG.sports.run).color}"></i>`).join('')}</div><div class="in8-leg">${ent.map(([k, v]) => `<span style="--c:${(CONFIG.sports[k] || CONFIG.sports.run).color}"><i></i>${(CONFIG.sports[k] || CONFIG.sports.run).name} <b class="num">${Math.round((v / tot) * 100)}%</b></span>`).join('')}</div>` : '<p class="muted small">Treine nos próximos dias para ver seu mix.</p>');
+    // calendário (26 semanas)
+    const start = Game.weekStart(now) - 25 * 7 * D, dayKm = {}; acts.forEach((a) => { if (a.start >= start) { const k = Math.floor((a.start - start) / D); dayKm[k] = (dayKm[k] || 0) + a.distance / 1000; } });
+    const mx = Math.max(1, ...Object.values(dayKm)), today = Math.floor((now - start) / D);
+    let cells = ''; for (let w = 0; w < 26; w++) { cells += '<div>'; for (let d = 0; d < 7; d++) { const k = w * 7 + d, v = dayKm[k] || 0; cells += `<i class="${k > today ? 'fut' : ''}" style="--a:${v ? 0.25 + (v / mx) * 0.75 : 0}"></i>`; } cells += '</div>'; }
+    card('calendar', 'Calendário de treinos', 'calendar', `<div class="in8-cal">${cells}</div><div class="in8-calf"><small>${Object.keys(dayKm).length} dias com treino em 6 meses</small><span>menos <i style="--a:.25"></i><i style="--a:.6"></i><i style="--a:1"></i> mais</span></div>`);
+    // melhor horário
+    const H = [['Madrugada', 0, 6], ['Manhã', 6, 12], ['Tarde', 12, 18], ['Noite', 18, 24]].map(([n, a, b]) => { const L = acts.filter((x) => { const h = new Date(x.start).getHours(); return h >= a && h < b; }); return { n, c: L.length, km: km(L) }; });
+    const hm = Math.max(1, ...H.map((h) => h.c)), best = [...H].sort((a, b) => b.c - a.c)[0];
+    card('bestHours', 'Seu melhor horário', 'clock', `<div class="in8-hrs">${H.map((h) => `<div class="${h === best && h.c ? 'best' : ''}"><i style="height:${Math.max(6, (h.c / hm) * 100)}%"></i><b class="num">${h.c}</b><small>${h.n}</small></div>`).join('')}</div>${best.c ? `<p class="in8-p">Você treina mais de <b>${best.n.toLowerCase()}</b> (${Fmt.num(best.km)} km no total).</p>` : ''}`);
+    // carga de treino
+    const k7 = km(acts.filter((a) => a.start >= now - 7 * D)), k28 = km(acts.filter((a) => a.start >= now - 28 * D)) / 4, r = k28 ? k7 / k28 : 0;
+    const st = !k28 ? ['Sem base ainda', 'Treine por algumas semanas para medir', 'mid'] : r < 0.8 ? ['Recuperando', 'Você treinou menos que o normal. Bom para descansar.', 'low'] : r <= 1.3 ? ['Ideal', 'Carga equilibrada: evolução com pouco risco.', 'ok'] : ['Puxado', 'Bem acima do normal. Cuidado com lesões, durma bem.', 'hi'];
+    card('trainLoad', 'Carga de treino', 'gauge', `<div class="in8-load ${st[2]}"><div class="in8-gauge"><i style="left:${Math.min(100, (r / 2) * 100)}%"></i></div><div class="in8-gl"><span>leve</span><span>ideal</span><span>puxado</span></div><b>${st[0]}</b><small>${st[1]} 7 dias: ${Fmt.num(k7)} km · média: ${Fmt.num(k28)} km/sem</small></div>`);
+    // projeção do ano
+    const y0 = new Date(new Date().getFullYear(), 0, 1).getTime(), yd = Math.max(1, (now - y0) / D), yk = km(acts.filter((a) => a.start >= y0)), proj = (yk / yd) * 365;
+    const ly = km(acts.filter((a) => a.start >= new Date(new Date().getFullYear() - 1, 0, 1).getTime() && a.start < y0));
+    card('yearGoal', `Projeção de ${new Date().getFullYear()}`, 'target', `<div class="in8-cmp"><div><small>Até agora</small><b class="num">${Fmt.num(yk, 0)}<small> km</small></b></div><span class="in8-d up">${I('chevronRight', 'xs')}</span><div><small>No seu ritmo, até dezembro</small><b class="num">${Fmt.num(proj, 0)}<small> km</small></b>${ly ? `<small>${proj >= ly ? 'acima' : 'abaixo'} do ano passado (${Fmt.num(ly, 0)} km)</small>` : ''}</div></div>`);
+    // evolução do ritmo (corrida, 6 meses)
+    const ms = []; for (let i = 5; i >= 0; i--) { const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); d.setMonth(d.getMonth() - i); const e = new Date(d); e.setMonth(e.getMonth() + 1); const L = acts.filter((a) => a.sport === 'run' && a.start >= d.getTime() && a.start < e.getTime() && a.distance > 500); const dist = L.reduce((s, a) => s + a.distance, 0), dur = L.reduce((s, a) => s + a.duration, 0); ms.push({ n: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''), p: dist ? dur / (dist / 1000) : 0 }); }
+    const ps = ms.filter((m) => m.p), pmin = Math.min(...ps.map((m) => m.p)), pmax = Math.max(...ps.map((m) => m.p));
+    card('paceTrend', 'Evolução do ritmo (corrida)', 'trending', ps.length ? `<div class="in8-hrs pace">${ms.map((m) => `<div class="${m.p && m.p === pmin ? 'best' : ''}"><i style="height:${m.p ? 30 + (pmax === pmin ? 50 : ((pmax - m.p) / (pmax - pmin)) * 70) : 4}%"></i><b class="num">${m.p ? Fmt.time(m.p) : '–'}</b><small>${m.n}</small></div>`).join('')}</div><p class="in8-p">Barra mais alta = ritmo mais rápido (min/km).</p>` : '<p class="muted small">Corra nos próximos meses para ver sua evolução.</p>');
+    const lockRow = locked.length ? `<button class="in8-lock tap" data-act="sub" data-v="progress:tree"><span>${I('lock', 'xs')}</span><div class="grow"><b>${locked.length} ${locked.length === 1 ? 'análise bloqueada' : 'análises bloqueadas'}</b><small>${locked.slice(0, 2).map((u) => esc(u.name)).join(', ')}${locked.length > 2 ? '…' : ''}</small></div>${I('chevronRight', 'chev')}</button>` : '';
+    return `<div class="v8-sec"><h2>Análises</h2><small>${out.length} de ${out.length + locked.length}</small></div>${out.join('')}${lockRow}`;
+  },
+});
+
+/* análises entram no fim da tela de estatísticas */
+(() => {
+  const orig = UI.stats;
+  UI.stats = function () { const r = orig.apply(this, arguments); try { const m = $('main.screen'); if (m && App.tab === 'stats') m.insertAdjacentHTML('beforeend', this.insightsHtml()); } catch (e) { console.warn(e); } return r; };
+})();
+
+/* libera (sem festa) as funções novas para quem já tinha cumprido a meta */
+Game.syncUnlocks = function () {
+  const D = Store.data; if (!D || !D.unlocked) return;
+  let ch = false;
+  for (const u of CONFIG.unlocks) { if (D.unlocked[u.id]) continue; try { if (this.reqProgress(u.req).cur >= u.req.value) { D.unlocked[u.id] = Date.now(); D.xp = (D.xp || 0) + u.reward.xp; D.coins = (D.coins || 0) + u.reward.coins; ch = true; } } catch (e) {} }
+  if (ch) Store.save();
+};
