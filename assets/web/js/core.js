@@ -51,6 +51,23 @@ const Store = {
     try { localStorage.setItem(this.key, JSON.stringify(this.data)); }
     catch (e) { if (/quota/i.test(e.name + e.message)) FX.toast('Armazenamento cheio: exporte um backup e apague treinos antigos.'); }
   },
+  /* ---------- dados por conta (cada login tem os seus treinos, XP e territórios) ---------- */
+  stash(name) { try { localStorage.setItem(this.key + '_' + name, JSON.stringify(this.data)); } catch (e) {} },
+  unstash(name) { try { const r = JSON.parse(localStorage.getItem(this.key + '_' + name)); return r && typeof r === 'object' ? r : null; } catch (e) { return null; } },
+  dropStash(name) { try { localStorage.removeItem(this.key + '_' + name); } catch (e) {} },
+  // começa do zero para a conta, mantendo só as preferências do aparelho
+  fresh(owner) {
+    const old = (this.data && this.data.profile) || {}, d = this.defaults();
+    ['theme', 'voice', 'units', 'haptics', 'autopause', 'mapStyle'].forEach((k) => { if (old[k] !== undefined) d.profile[k] = old[k]; });
+    d.voice2 = 1; d.owner = owner || null; this.data = d;
+    try { localStorage.setItem(this.key, JSON.stringify(d)); } catch (e) {}
+  },
+  // troca os dados do aparelho para outra conta
+  useData(obj, owner) {
+    const d = this.defaults();
+    this.data = { ...d, ...obj, profile: { ...d.profile, ...(obj.profile || {}) }, equipped: { ...d.equipped, ...(obj.equipped || {}) }, privacy: { ...d.privacy, ...(obj.privacy || {}) }, owner };
+    try { localStorage.setItem(this.key, JSON.stringify(this.data)); } catch (e) {}
+  },
   saveLive(snapshot) { try { localStorage.setItem(this.liveKey, JSON.stringify(snapshot)); } catch (e) {} },
   loadLive() { try { return JSON.parse(localStorage.getItem(this.liveKey)); } catch (e) { return null; } },
   clearLive() { try { localStorage.removeItem(this.liveKey); } catch (e) {} },

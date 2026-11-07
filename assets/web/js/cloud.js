@@ -95,10 +95,19 @@ const Cloud = {
   async deleteAccount() {
     const { error } = await this.sb.rpc('delete_my_account');
     if (error) throw error;
+    const uid = this.user && this.user.id;
     try { await this.sb.auth.signOut(); } catch (e) {}
     this.user = null; this.me = null;
+    if (uid) Store.dropStash(uid); Store.fresh(null);
   },
-  async logout() { await this.sb.auth.signOut(); this.user = null; this.me = null; },
+  async logout() {
+    const uid = this.user && this.user.id;
+    try { if (uid && Store.data.owner === uid) await this.push(); } catch (e) {}
+    await this.sb.auth.signOut(); this.user = null; this.me = null;
+    // os dados da conta ficam guardados e o aparelho volta limpo para o próximo login
+    if (uid && Store.data.owner === uid) Store.stash(uid);
+    Store.fresh(null);
+  },
 
   CEO: ['samuel', 'rodrigoalves'],
   ceoIds() { if (!this._ceo) { try { this._ceo = JSON.parse(localStorage.getItem('jg_ceo') || '[]'); } catch (e) { this._ceo = []; } } return this._ceo; },
@@ -109,7 +118,35 @@ const Cloud = {
     } catch (e) {}
   },
   isCeo(id, username) { return !!((id && this.ceoIds().includes(id)) || (username && this.CEO.includes(String(username).toLowerCase()))); },
+  // garante que os dados do aparelho são da conta que entrou (antes, outra conta via os treinos da anterior)
+  async ensureOwner() {
+    const uid = this.user.id, D = Store.data;
+    if (D.owner === uid) return;
+    const foreign = async (obj) => {
+      const ids = ((obj && obj.activities) || []).filter((a) => a.pub).map((a) => a.id).slice(-150);
+      if (!ids.length) return false;
+      const { data, error } = await this.sb.from('activities').select('id,user_id').in('id', ids);
+      if (error) throw error;
+      return (data || []).some((r) => r.user_id !== uid);
+    };
+    if (D.owner && D.owner !== uid) {
+      // troca de conta: guarda a anterior e carrega a desta
+      Store.stash(D.owner);
+      const mine = Store.unstash(uid), leg = !mine && Store.unstash('legacy');
+      if (mine) Store.useData(mine, uid);
+      else if (leg && !(await foreign(leg).catch(() => true))) { Store.useData(leg, uid); Store.dropStash('legacy'); }
+      else Store.fresh(uid);
+      return;
+    }
+    // aparelho limpo (saiu da conta antes): volta o que estava guardado desta conta
+    if (!D.owner && !D.activities.length) { const mine = Store.unstash(uid); if (mine) Store.useData(mine, uid); else { D.owner = uid; Store.save(); } return; }
+    // dados antigos sem dono: se os treinos foram publicados por outra conta, não são desta
+    let other = false; try { other = await foreign(D); } catch (e) { return; }
+    if (other) { Store.stash('legacy'); Store.fresh(uid); this._resetCloud = true; }
+    else { D.owner = uid; Store.save(); }
+  },
   async afterLogin() {
+    try { await this.ensureOwner(); } catch (e) { console.warn('owner', e); }
     const { data } = await this.sb.from('profiles').select('*').eq('id', this.user.id).maybeSingle();
     this.me = data;
     this.loadCeo();
@@ -178,9 +215,9 @@ const Cloud = {
   },
 
   /* ---------- sincronização do estado completo (backup na nuvem) ---------- */
-  queuePush() { if (!this.loggedIn() || this._pulling) return; clearTimeout(this._pt); this._pt = setTimeout(() => this.push(), 4000); },
+  queuePush() { if (!this.loggedIn() || this._pulling || (Store.data.owner && Store.data.owner !== this.user.id)) return; clearTimeout(this._pt); this._pt = setTimeout(() => this.push(), 4000); },
   async push() {
-    if (!this.loggedIn()) return;
+    if (!this.loggedIn() || Store.data.owner !== this.user.id) return; // nunca grava dados de outra conta
     const { error } = await this.sb.from('user_state').upsert({ user_id: this.user.id, data: Store.data, updated_at: new Date().toISOString() });
     if (!error) this.lastSync = Date.now();
   },
@@ -188,8 +225,10 @@ const Cloud = {
   async pull() {
     this._pulling = true;
     try {
+      if (Store.data.owner !== this.user.id) { this._pulling = false; return; }
       const { data } = await this.sb.from('user_state').select('data').eq('user_id', this.user.id).maybeSingle();
-      if (!data || !data.data) { this._pulling = false; return this.push(); }
+      // backup desta conta foi misturado com o de outra (bug antigo): recomeça limpo
+      if (!data || !data.data || this._resetCloud) { this._resetCloud = false; this._pulling = false; return this.push(); }
       const C = data.data, L = Store.data;
       const ids = new Set(L.activities.map((a) => a.id));
       (C.activities || []).forEach((a) => { if (!ids.has(a.id)) L.activities.push(a); });
