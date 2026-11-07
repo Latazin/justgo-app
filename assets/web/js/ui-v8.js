@@ -300,29 +300,32 @@ Object.assign(UI, {
   /* =================== DESBLOQUEIOS =================== */
   treeView() {
     Game.syncUnlocks && Game.syncUnlocks();
-    const U = CONFIG.unlocks, total = U.length, done = U.filter((u) => Store.data.unlocked[u.id]).length;
+    const ALL = CONFIG.unlocks, U = ALL.filter((u) => Game.relevant(u)), other = ALL.filter((u) => !Game.relevant(u));
+    const total = U.length, done = U.filter((u) => Store.data.unlocked[u.id]).length;
     const tierOf = (t) => U.filter((u) => u.tier === t.id), tierDone = (t) => tierOf(t).every((u) => Game.has(u.id));
-    const cur = CONFIG.tiers.find((t) => !tierDone(t)) || CONFIG.tiers[CONFIG.tiers.length - 1];
-    const sel = CONFIG.tiers.find((t) => t.id === App.treeTier) || cur;
+    const tiers = CONFIG.tiers.filter((t) => tierOf(t).length);
+    const cur = tiers.find((t) => !tierDone(t)) || tiers[tiers.length - 1];
+    const sel = tiers.find((t) => t.id === App.treeTier) || cur;
     const next = Game.nextUnlocks(1)[0];
     const np = next && Game.reqProgress(next.req);
     const hero = next ? `<section class="tr8-next tap" data-act="unlockInfo" data-v="${next.id}"><div class="tr8-nic">${I(next.icon)}<i class="tr8-ring" style="--p:${np.pct}"></i></div><div class="grow"><span class="th8-k">Próxima função</span><b>${esc(next.name)}</b><small>${esc(Game.reqText(next.req))}</small><div class="tr8-bar"><i style="width:${np.pct}%"></i></div><small class="num tr8-cur">${np.curTxt}</small></div></section>`
       : `<section class="tr8-next all"><div class="tr8-nic">${I('trophy')}</div><div class="grow"><span class="th8-k">Parabéns</span><b>Você liberou tudo!</b><small>Todas as ${total} funções estão ativas.</small></div></section>`;
-    const stepper = `<div class="tr8-tiers">${CONFIG.tiers.map((t) => { const us = tierOf(t), dn = us.filter((u) => Game.has(u.id)).length, st = dn === us.length ? 'ok' : t.id === cur.id ? 'cur' : t.id < cur.id ? 'ok' : 'lock'; return `<button class="tr8-t ${st} ${t.id === sel.id ? 'sel' : ''}" data-act="treeTier" data-v="${t.id}"><i>${st === 'ok' ? I('check', 'xs') : st === 'lock' ? I('lock', 'xs') : t.id}</i><b>${t.name}</b><small class="num">${dn}/${us.length}</small></button>`; }).join('')}</div>`;
+    const stepper = `<div class="tr8-tiers">${tiers.map((t) => { const us = tierOf(t), dn = us.filter((u) => Game.has(u.id)).length, st = dn === us.length ? 'ok' : t.id === cur.id ? 'cur' : t.id < cur.id ? 'ok' : 'lock'; return `<button class="tr8-t ${st} ${t.id === sel.id ? 'sel' : ''}" data-act="treeTier" data-v="${t.id}"><i>${st === 'ok' ? I('check', 'xs') : st === 'lock' ? I('lock', 'xs') : t.id}</i><b>${t.name}</b><small class="num">${dn}/${us.length}</small></button>`; }).join('')}</div>`;
     const us = tierOf(sel), sdn = us.filter((u) => Game.has(u.id)).length;
     const tile = (u) => { const on = Game.has(u.id), tr = on && !Store.data.unlocked[u.id], p = Game.reqProgress(u.req); return `<button class="tr8-tile ${on ? 'on' : p.pct >= 50 ? 'near' : ''}" data-act="unlockInfo" data-v="${u.id}"><span class="tr8-ti">${I(u.icon)}${on ? `<i class="ok">${I(tr ? 'clock' : 'check', 'xs')}</i>` : `<i>${I('lock', 'xs')}</i>`}</span><b>${esc(u.name)}</b>${tr ? '<small class="tr8-ok trial">Teste de 24 h</small>' : on ? '<small class="tr8-ok">Liberada</small>' : `<div class="tr8-bar sm"><i style="width:${p.pct}%"></i></div><small class="num">${Math.floor(p.pct)}%</small>`}</button>`; };
     return `<section class="tr8-sum"><div><b class="num">${done}<span>/${total}</span></b><small>funções liberadas</small></div><div class="tr8-prog"><i style="width:${(done / total) * 100}%"></i></div></section>
       ${hero}${stepper}
       <div class="v8-sec"><h2>Etapa ${sel.id} · ${sel.name}</h2><small>${sdn} de ${us.length}</small></div>
       <div class="tr8-grid">${us.map(tile).join('')}</div>
-      <p class="tr8-tip">${I('zap', 'xs')} Toque numa função para ver o que ela faz e quanto falta.</p>`;
+      <p class="tr8-tip">${I('zap', 'xs')} Toque numa função para ver o que ela faz e quanto falta.</p>
+      <div class="tr8-sports">${I('activity', 'xs')}<span>Mostrando funções de <b>${Game.userSports().map((k) => (CONFIG.sports[k] || {}).name).filter(Boolean).join(', ') || 'todos os esportes'}</b>.${other.length ? ` ${other.length} de outros esportes ficam escondidas.` : ''}</span><button data-act="msEditTree">Mudar</button></div>`;
   },
   async unlockInfo(id) {
     const u = Game.unlock(id); if (!u) return;
     const trial = !Store.data.unlocked[u.id] && (typeof Ads !== 'undefined') && Ads.trialOn(u.id);
     const on = !!Store.data.unlocked[u.id], p = Game.reqProgress(u.req), tier = CONFIG.tiers.find((t) => t.id === u.tier) || { name: '' };
     const where = { autopause: 'Ajustes', splits: 'Resumo do treino', paceChart: 'Resumo do treino', rideChart: 'Resumo do treino', swimTools: 'Natação', voice: 'Tela de gravar', goals: 'Progresso', routes: 'Treino', swimSets: 'Natação', intervals: 'Tela de gravar', ghost: 'Rotas', heatmap: 'Mapa', segments: 'Rotas', plans: 'Início', racePredict: 'Estatísticas', swolf: 'Natação', weekCompare: 'Estatísticas', sportMix: 'Estatísticas', calendar: 'Estatísticas', bestHours: 'Estatísticas', trainLoad: 'Estatísticas', yearGoal: 'Estatísticas', paceTrend: 'Estatísticas' }[u.id];
-    FX.modal(`<div class="ui8"><span class="ui8-ic ${on ? 'on' : ''}">${I(u.icon)}</span><span class="th8-k">Etapa ${u.tier} · ${tier.name}</span><h3>${esc(u.name)}</h3><p class="muted">${esc(u.desc)}</p>
+    FX.modal(`<div class="ui8"><span class="ui8-ic ${on ? 'on' : ''}">${I(u.icon)}</span><span class="th8-k">Etapa ${u.tier} · ${tier.name}</span><h3>${esc(u.name)}</h3><p class="muted">${esc(u.desc)}</p>${(u.needs || []).filter((n) => !Game.has(n)).map((n) => `<div class="ui8-need">${I('link', 'xs')}<span>Usa junto <b>${esc(Game.unlock(n).name)}</b>${!on ? ' (o teste de 24 h libera as duas)' : ''}.</span></div>`).join('')}
       ${trial ? `<div class="ui8-ok trial">${I('clock')}<div><b>Teste ativo · ${UI.hoursLeft(new Date(Store.data.trials[u.id]).toISOString())}</b><small>${where ? `Use em: ${where}` : 'Já está ativa no app'}</small></div></div>` : ''}
       ${on ? `<div class="ui8-ok">${I('check')}<div><b>Liberada</b><small>${where ? `Use em: ${where}` : 'Já está ativa no app'}</small></div></div>`
         : `<div class="ui8-req"><div class="ui8-rh"><b>${esc(Game.reqText(u.req))}</b><span class="num">${Math.floor(p.pct)}%</span></div><div class="tr8-bar"><i style="width:${p.pct}%"></i></div><small class="num">${p.curTxt}</small></div>
@@ -384,3 +387,39 @@ Game.syncUnlocks = function () {
   for (const u of CONFIG.unlocks) { if (D.unlocked[u.id]) continue; try { if (this.reqProgress(u.req).cur >= u.req.value) { D.unlocked[u.id] = Date.now(); D.xp = (D.xp || 0) + u.reward.xp; D.coins = (D.coins || 0) + u.reward.coins; ch = true; } } catch (e) {} }
   if (ch) Store.save();
 };
+
+/* ---------- desbloqueios pelos esportes da pessoa ---------- */
+Game.userSports = function () {
+  const P = Store.data.profile || {}, set = new Set([...(P.sports || []), ...(P.missionSports || [])]);
+  const since = Date.now() - 90 * 864e5; (Store.data.activities || []).forEach((a) => { if (a.start > since && a.sport) set.add(a.sport); });
+  return [...set].filter((k) => CONFIG.sports[k]);
+};
+Game.relevant = function (u) {
+  if (!u.sports) return true;
+  if (Store.data.unlocked && Store.data.unlocked[u.id]) return true; // já liberou: mostra
+  const mine = this.userSports(); if (!mine.length) return true;
+  return u.sports.some((s) => mine.includes(s));
+};
+(() => {
+  const nx = Game.nextUnlocks;
+  Game.nextUnlocks = function (n = 3) { return CONFIG.unlocks.filter((u) => !this.has(u.id) && this.relevant(u)).map((u) => ({ u, p: this.reqProgress(u.req).pct })).sort((a, b) => b.p - a.p).slice(0, n).map((x) => x.u); };
+})();
+
+/* ---------- atalhos: Missões, Desbloqueios e Liga sempre à mão ---------- */
+UI.quickProgress = function () {
+  try {
+    Game.syncUnlocks && Game.syncUnlocks();
+    const now = Date.now(), day = Game.dailyMissions(now), sc = Game.scope('day', now), done = day.filter((m) => Game.mProgress(m, sc).cur >= m.value).length;
+    const U = CONFIG.unlocks.filter((u) => Game.relevant(u)), un = U.filter((u) => Store.data.unlocked[u.id]).length, nx = Game.nextUnlocks(1)[0];
+    const L = Game.league(Game.monthXp());
+    return `<div class="qp8">
+      <button data-act="sub" data-v="progress:missions" style="--c:#7C3AED"><span>${I('target')}</span><b>Missões</b><small>${day.length ? `${done}/${day.length} hoje` : 'do dia e da semana'}</small></button>
+      <button data-act="sub" data-v="progress:tree" style="--c:#1F6BFF"><span>${I('zap')}</span><b>Desbloqueios</b><small class="num">${un}/${U.length}${nx ? ' · próxima' : ''}</small></button>
+      <button data-act="sub" data-v="progress:season" style="--c:${L.color}"><span>${I('crown')}</span><b>Liga</b><small>${L.name}</small></button></div>`;
+  } catch (e) { return ''; }
+};
+/* no Início, logo abaixo do cabeçalho */
+(() => {
+  const home = UI.home;
+  UI.home = function () { const r = home.apply(this, arguments); try { const t = $('#hTorch'); if (t && !$('.qp8.home')) t.insertAdjacentHTML('beforebegin', UI.quickProgress().replace('class="qp8"', 'class="qp8 home"')); } catch (e) {} return r; };
+})();

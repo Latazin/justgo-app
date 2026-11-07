@@ -4,7 +4,7 @@
    Nada neste arquivo exige mexer no resto do código.
    ========================================================= */
 const CONFIG = {
-  version: '2.28.0',
+  version: '2.29.0',
 
   /* ---------- Esportes ----------
      xpPerKm: peso do XP por km (natação vale mais que pedal)
@@ -55,30 +55,30 @@ const CONFIG = {
     // Nível 1
     { id: 'autopause',  tier: 1, icon: 'pause', name: 'Pausa automática',          desc: 'O cronômetro pausa sozinho quando você para.',              req: { type: 'km', sport: 'all', value: 5 },  reward: { xp: 50,  coins: 20 },  ready: true },
     { id: 'splits',     tier: 1, icon: 'timer', name: 'Parciais por km',           desc: 'Tempo de cada quilômetro no resumo do treino.',            req: { type: 'workouts', value: 3 },          reward: { xp: 50,  coins: 20 },  ready: true },
-    { id: 'paceChart',  tier: 1, icon: 'trending', name: 'Análise de ritmo',          desc: 'Gráfico de pace da sua corrida.',                          req: { type: 'km', sport: 'run', value: 10 }, reward: { xp: 80,  coins: 30 },  ready: true },
-    { id: 'rideChart',  tier: 1, icon: 'mountain', name: 'Velocidade e elevação',     desc: 'Gráficos de velocidade e altimetria do pedal.',            req: { type: 'km', sport: 'ride', value: 20 },reward: { xp: 80,  coins: 30 },  ready: true },
-    { id: 'swimTools',  tier: 1, icon: 'hash', name: 'Braçadas e ritmo /100 m',   desc: 'Registre braçadas por volta e veja o ritmo por 100 m.',     req: { type: 'km', sport: 'swim', value: 1 }, reward: { xp: 80,  coins: 30 },  ready: true },
+    { id: 'paceChart',  tier: 1, icon: 'trending', name: 'Análise de ritmo',          desc: 'Gráfico de pace da sua corrida.',                          req: { type: 'km', sport: 'run', value: 10 }, reward: { xp: 80,  coins: 30 },  ready: true , sports: ['run', 'walk', 'hike'] },
+    { id: 'rideChart',  tier: 1, icon: 'mountain', name: 'Velocidade e elevação',     desc: 'Gráficos de velocidade e altimetria do pedal.',            req: { type: 'km', sport: 'ride', value: 20 },reward: { xp: 80,  coins: 30 },  ready: true , sports: ['ride', 'skate'] },
+    { id: 'swimTools',  tier: 1, icon: 'hash', name: 'Braçadas e ritmo /100 m',   desc: 'Registre braçadas por volta e veja o ritmo por 100 m.',     req: { type: 'km', sport: 'swim', value: 1 }, reward: { xp: 80,  coins: 30 },  ready: true , sports: ['swim'] },
     // Nível 2
-    { id: 'voice',      tier: 2, icon: 'mic', name: 'Treinador por voz',          desc: 'Aviso falado a cada km com tempo e ritmo.',                req: { type: 'km', sport: 'all', value: 25 }, reward: { xp: 120, coins: 50 },  ready: true },
+    { id: 'voice',      tier: 2, icon: 'mic', name: 'Treinador por voz',          desc: 'A voz passa a falar seu ritmo a cada km e se você acelerou ou cansou.',                req: { type: 'km', sport: 'all', value: 25 }, reward: { xp: 120, coins: 50 },  ready: true },
     { id: 'goals',      tier: 2, icon: 'target', name: 'Metas personalizadas',      desc: 'Defina metas semanais e mensais de km.',                   req: { type: 'weekStreak', value: 2 },        reward: { xp: 120, coins: 50 },  ready: true },
-    { id: 'routes',     tier: 2, icon: 'route', name: 'Rotas salvas',              desc: 'Salve percursos de pedal e repita depois.',                req: { type: 'km', sport: 'ride', value: 50 },reward: { xp: 120, coins: 50 },  ready: true },
-    { id: 'swimSets',   tier: 2, icon: 'repeat', name: 'Treinos de série',          desc: 'Séries como 10×100 m com descanso.',                       req: { type: 'km', sport: 'swim', value: 5 }, reward: { xp: 120, coins: 50 },  ready: true },
+    { id: 'routes',     tier: 2, icon: 'route', name: 'Rotas salvas',              desc: 'Salve um percurso e repita depois, comparando os tempos.', req: { type: 'km', sport: 'all', value: 50 },reward: { xp: 120, coins: 50 },  ready: true },
+    { id: 'swimSets',   tier: 2, icon: 'repeat', name: 'Treinos de série',          desc: 'Séries como 10×100 m com descanso.',                       req: { type: 'km', sport: 'swim', value: 5 }, reward: { xp: 120, coins: 50 },  ready: true , sports: ['swim'] },
     // Nível 3
-    { id: 'intervals',  tier: 3, icon: 'zap', name: 'Treino intervalado',         desc: 'Tiros com alertas sonoros.',                               req: { type: 'km', sport: 'run', value: 50 }, reward: { xp: 200, coins: 80 },  ready: true },
-    { id: 'ghost',      tier: 3, icon: 'ghost', name: 'Corrida contra o Fantasma', desc: 'Corra contra seu melhor tempo no percurso.',               req: { type: 'km', sport: 'all', value: 100 },reward: { xp: 200, coins: 80 },  ready: true },
+    { id: 'intervals',  tier: 3, icon: 'zap', name: 'Treino intervalado',         desc: 'Tiros com alertas sonoros.',                               req: { type: 'km', sport: 'run', value: 50 }, reward: { xp: 200, coins: 80 },  ready: true , sports: ['run'] },
+    { id: 'ghost',      tier: 3, icon: 'ghost', name: 'Corrida contra o Fantasma', desc: 'Treine numa rota salva contra o seu melhor tempo nela.',               req: { type: 'km', sport: 'all', value: 100 },reward: { xp: 200, coins: 80 },  ready: true , needs: ['routes'] },
     { id: 'heatmap',    tier: 3, icon: 'flame', name: 'Mapa de calor',             desc: 'Todos os seus percursos sobrepostos em um mapa.',          req: { type: 'dailyDone', value: 5 },         reward: { xp: 200, coins: 80 },  ready: true },
-    { id: 'segments',   tier: 3, icon: 'flag', name: 'Segmentos e recordes',      desc: 'Recordes pessoais por trecho.',                            req: { type: 'km', sport: 'ride', value: 150 },reward: { xp: 200, coins: 80 }, ready: true },
+    { id: 'segments',   tier: 3, icon: 'flag', name: 'Segmentos e recordes',      desc: 'Recordes pessoais por trecho.',                            req: { type: 'km', sport: 'all', value: 150 },reward: { xp: 200, coins: 80 }, ready: true , needs: ['routes'] },
     // Nível 4
     { id: 'plans',      tier: 4, icon: 'clipboard', name: 'Planos de treino guiados',  desc: '5K, 10K, 21K, 42K, pedal de 100 km, travessia.',          req: { type: 'km', sport: 'all', value: 200 },reward: { xp: 400, coins: 150 }, ready: true },
     { id: 'racePredict',tier: 4, icon: 'gauge', name: 'Previsão de tempo de prova',desc: 'Estimativa para 5K, 10K, 21K e 42K.',                      req: { type: 'dayStreak', value: 30 },        reward: { xp: 400, coins: 150 }, ready: true },
-    { id: 'swolf',      tier: 4, icon: 'activity', name: 'Eficiência (SWOLF)',        desc: 'Tempo + braçadas por volta: quanto menor, melhor.',        req: { type: 'km', sport: 'swim', value: 25 },reward: { xp: 400, coins: 150 }, ready: true },
+    { id: 'swolf',      tier: 4, icon: 'activity', name: 'Eficiência (SWOLF)',        desc: 'Tempo + braçadas por volta: quanto menor, melhor.',        req: { type: 'km', sport: 'swim', value: 25 },reward: { xp: 400, coins: 150 }, ready: true , sports: ['swim'] },
     // Análises (2.24)
     { id: 'weekCompare',tier: 1, icon: 'trending', name: 'Comparativo semanal',     desc: 'Esta semana contra a passada, na mesma altura da semana.',  req: { type: 'workouts', value: 2 },          reward: { xp: 40,  coins: 15 },  ready: true },
     { id: 'sportMix',   tier: 1, icon: 'activity', name: 'Mix de esportes',          desc: 'Quanto cada esporte pesou nos seus últimos 30 dias.',       req: { type: 'km', sport: 'all', value: 15 }, reward: { xp: 60,  coins: 20 },  ready: true },
     { id: 'calendar',   tier: 2, icon: 'calendar', name: 'Calendário de treinos',    desc: 'Seis meses de treinos num quadro, dia a dia.',             req: { type: 'workouts', value: 10 },         reward: { xp: 120, coins: 50 },  ready: true },
     { id: 'bestHours',  tier: 2, icon: 'clock', name: 'Seu melhor horário',          desc: 'Em que período do dia você mais treina.',                  req: { type: 'workouts', value: 15 },         reward: { xp: 120, coins: 50 },  ready: true },
     { id: 'trainLoad',  tier: 3, icon: 'gauge', name: 'Carga de treino',             desc: 'Compara a última semana com a sua média para evitar lesão.',req: { type: 'weekStreak', value: 3 },       reward: { xp: 200, coins: 80 },  ready: true },
-    { id: 'paceTrend',  tier: 5, icon: 'trending', name: 'Evolução do ritmo',        desc: 'Seu ritmo médio de corrida mês a mês.',                    req: { type: 'km', sport: 'run', value: 150 },reward: { xp: 600, coins: 250 }, ready: true },
+    { id: 'paceTrend',  tier: 5, icon: 'trending', name: 'Evolução do ritmo',        desc: 'Seu ritmo médio de corrida mês a mês.',                    req: { type: 'km', sport: 'run', value: 150 },reward: { xp: 600, coins: 250 }, ready: true , sports: ['run'] },
     { id: 'yearGoal',   tier: 5, icon: 'target', name: 'Projeção do ano',            desc: 'Quantos km você fecha o ano mantendo o ritmo atual.',      req: { type: 'km', sport: 'all', value: 400 },reward: { xp: 600, coins: 250 }, ready: true },
   ],
 

@@ -102,9 +102,9 @@ const Ads = {
   async trial(id) {
     if (!this.left('trial')) return FX.toast('Você já testou uma função hoje. Volte amanhã!');
     if (!(await this.show('trial'))) return;
-    const D = Store.data; D.trials = D.trials || {}; D.trials[id] = Date.now() + 24 * 3600e3; this.mark('trial'); Store.save();
+    const D = Store.data; D.trials = D.trials || {}; const until = Date.now() + 24 * 3600e3; D.trials[id] = until; (Game.unlock(id).needs || []).forEach((n) => { if (!D.unlocked[n]) D.trials[n] = Math.max(D.trials[n] || 0, until); }); this.mark('trial'); Store.save();
     const u = Game.unlock(id); FX.beep([523, 784]);
-    FX.modal(`<div class="ui8"><span class="ui8-ic on">${I(u.icon)}</span><h3>${esc(u.name)} liberada por 24 h</h3><p class="muted">Aproveite! Para ficar com ela para sempre: ${esc(Game.reqText(u.req).toLowerCase())}.</p><button class="btn primary" data-m="ok">Usar agora</button></div>`);
+    FX.modal(`<div class="ui8"><span class="ui8-ic on">${I(u.icon)}</span><h3>${esc(u.name)} liberada por 24 h</h3>${(u.needs || []).length ? `<p class="muted small">Junto com: ${u.needs.map((n) => esc(Game.unlock(n).name)).join(', ')}.</p>` : ''}<p class="muted">Aproveite! Para ficar com ela para sempre: ${esc(Game.reqText(u.req).toLowerCase())}.</p><button class="btn primary" data-m="ok">Usar agora</button></div>`);
     if (App.tab === 'progress') UI.progress();
   },
 

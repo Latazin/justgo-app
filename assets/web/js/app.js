@@ -179,6 +179,7 @@ const App = {
     if (this.mode === 'route' && !this.route && !(await this.pickRoute())) return;
     if (this.mode === 'plan' && !Plans.active()) return this.go('plans');
     if (Pref('countdown') && !this._counted) { this._counted = true; await this.countdown(); this._counted = false; if (this.tab !== 'record') return; }
+    this._lastSplit = null;
     const tr = new Tracker(this.sport, {
       sim: this.sim, mult: this.simMult, autoPause: Game.has('autopause') && Pref('autoPause'), simPath: this.mode === 'route' && this.route ? this.route.points : null,
       onUpdate: () => this.onTick(), onSplit: (n, t) => this.onSplit(n, t),
@@ -214,7 +215,14 @@ const App = {
     if (Pref('voice') && !tr.stale && !(this.coach && !this.coach.done)) {
       const kmh = Math.min((tr.distance / Math.max(1, tr.moving / 1000)) * 3.6, (CONFIG.sports[tr.sport] || {}).maxKmh || 60);
       const pace = Fmt.isSpeed(tr.sport) ? `velocidade média de ${Math.round(kmh)} quilômetros por hora` : `ritmo do último quilômetro: ${FX.spokenTime(t)}`;
-      FX.say(`Quilômetro ${n}. Tempo total: ${FX.spokenTime(tr.moving / 1000)}. ${pace}.`);
+      // básico: km e tempo. Com "Treinador por voz" liberado: ritmo/velocidade e comparação com o km anterior
+      let extra = '';
+      if (Game.has('voice')) {
+        const prev = this._lastSplit; extra = ` ${pace}.`;
+        if (prev && !Fmt.isSpeed(tr.sport)) { const d = Math.round(t - prev); if (Math.abs(d) >= 3) extra += d < 0 ? ` ${-d} segundos mais rápido que o anterior.` : ` ${d} segundos mais lento que o anterior.`; }
+      }
+      this._lastSplit = t;
+      FX.say(`Quilômetro ${n}. Tempo total: ${FX.spokenTime(tr.moving / 1000)}.${extra}`);
     }
     if (Game.has('splits')) FX.toast(`Km ${n}: ${Fmt.time(t)}`);
   },
@@ -616,6 +624,7 @@ const App = {
       UI.progress();
     },
     msSave: () => { const sel = (App.msPick || []).slice(0, 2); if (!sel.length) return; Store.data.profile.missionSports = sel; Store.save(); App.msEditing = false; App.msPick = null; FX.toast('Missões atualizadas!'); UI.progress(); },
+    msEditTree: () => { App.sub.progress = 'missions'; App.msEditing = true; App.msPick = [...(Store.data.profile.missionSports || Store.data.profile.sports || [])].slice(0, 2); UI.progress(); },
     msEdit: () => { App.msEditing = true; App.msPick = [...(Store.data.profile.missionSports || [])]; UI.progress(); },
     swapDaily: (el) => { const n = Game.swapDaily(el.dataset.v); if (n) FX.toast(`Nova missão: ${n.text}`); else FX.toast('Você já trocou uma missão hoje.'); UI.go ? null : null; if (App.tab === 'progress') UI.progress(); else App.go(App.tab); },
     sportPick: async () => {

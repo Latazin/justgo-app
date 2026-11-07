@@ -1275,6 +1275,7 @@ const UI = {
         </div>
         <div class="pf2-xp"><div><b>Nível ${lv.l}</b><small class="num">${lv.txt}</small></div>${this.bar(lv.pct, 'brand')}</div>
         <div class="pf2-btns"><button class="btn primary" data-act="editProfile">${I('edit', 'xs')} Editar perfil</button><button class="btn ghost" data-act="go" data-v="atleta">${I('user', 'xs')} Seu atleta</button></div>
+        ${UI.quickProgress ? UI.quickProgress() : ''}
       </div>
     </section>
     <div class="pf2-hl">${hl.map(([ic, col, big, sub, lab, act, v]) => `<button class="hl-card" style="--c:${col}" data-act="${act}" data-v="${v}"><span class="hl-ic">${I(ic)}</span><small>${lab}</small><b class="num">${big}</b><span class="hl-sub">${sub}</span></button>`).join('')}</div>`;
