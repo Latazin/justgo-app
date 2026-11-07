@@ -30,6 +30,7 @@ const V8 = {
 Object.assign(UI, {
   /* =================== POST (treino de outra pessoa) =================== */
   remotePost(a, opts = {}) {
+    if ((Store.data.hiddenPosts || []).includes(a.id)) return '';
     const p = this.keep({ id: a.user_id, ...(a.profiles || {}) }), sp = CONFIG.sports[a.sport] || CONFIG.sports.run;
     const t = typeof a.start === 'string' ? Date.parse(a.start) : a.start, avg = a.duration ? a.distance / a.duration : 0;
     const route = (a.route || []).filter((q) => q && q[0] != null), color = Shop.lineColor(a.sport);
@@ -44,9 +45,9 @@ Object.assign(UI, {
     const cap = (st.caption || '').trim();
     const where = p.city ? ` · ${esc(p.city)}` : '';
     const liked = a.liked ? 'on' : '';
-    return `<article class="p8" style="--c:${sp.color}">
+    return `<article class="p8" data-pid="${esc(a.id)}" style="--c:${sp.color}">
       <header class="p8-h"><button class="p8-av" data-act="userOpen" data-v="${a.user_id}">${this.avatarOf(p.name, p.frame, p.avatar, 'md', p.photo)}<i class="p8-sp">${I(sp.icon, 'xs')}</i></button>
-        <div class="p8-who"><b data-act="userOpen" data-v="${a.user_id}">${esc(p.name || 'Atleta')}${UI.vb(a.user_id, p.username)}</b><small>${this.rel(t)}${where}</small></div>${fol}</header>
+        <div class="p8-who"><b data-act="userOpen" data-v="${a.user_id}">${esc(p.name || 'Atleta')}${UI.vb(a.user_id, p.username)}</b><small>${this.rel(t)}${where}</small></div>${fol}<button class="p8-more" data-act="postMenu" data-v="${esc(a.id)}" data-u="${a.user_id}" aria-label="Mais opções">${I('more')}</button></header>
       <div class="p8-body tap" data-act="raOpen" data-v="${a.id}">
         <span class="p8-tag">${I(sp.icon, 'xs')}${sp.name}</span>
         <h3>${esc(this.actTitle(a))}</h3>${cap ? `<p class="p8-cap">${esc(cap)}</p>` : ''}

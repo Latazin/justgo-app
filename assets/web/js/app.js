@@ -10,7 +10,7 @@ const App = {
   tracker: null, coach: null, routeLive: null, wl: null,
 
   // tela -> aba da barra inferior que fica acesa
-  parents: { clubNew: 'social', followList: 'profile', notifs: 'home', pro: 'profile', progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', ract: 'social', chalPick: 'social', torch: 'social', retro: 'home', atleta: 'profile', avatarEdit: 'profile', club: 'social', history: 'home', heatmap: 'home' },
+  parents: { modPanel: 'account', clubNew: 'social', followList: 'profile', notifs: 'home', pro: 'profile', progress: 'profile', settings: 'profile', stats: 'profile', gear: 'profile', safety: 'profile', account: 'profile', plans: 'home', pool: 'record', swimSetup: 'record', search: 'social', user: 'social', ract: 'social', chalPick: 'social', torch: 'social', retro: 'home', atleta: 'profile', avatarEdit: 'profile', club: 'social', history: 'home', heatmap: 'home' },
 
   init() {
     Store.load();
@@ -304,6 +304,7 @@ const App = {
     const k = Math.min(1, 1280 / Math.max(img.width, img.height)), c = document.createElement('canvas');
     c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
     const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, c.width, c.height);
+    if (!(await Mod.guard(c))) return; // bloqueia nudez antes de enviar
     const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.82));
     FX.toast('Enviando foto…');
     try {
@@ -328,6 +329,7 @@ const App = {
   },
   // recorta (centralizar/zoom) e salva; guarda também a original (até 1280 px) para reajustar depois
   async setPhotoImg(img, isNew) {
+    if (!(await Mod.guard(img))) return; // bloqueia nudez antes de virar foto de perfil
     const crop = await this.cropPhoto(img);
     if (!crop) return;
     const S = 320, c = document.createElement('canvas'); c.width = c.height = S;
@@ -1038,6 +1040,17 @@ const App = {
       try { const id = await Cloud.joinClub(f.cCode); FX.toast('Você entrou no clube!'); App.tab = 'club'; UI.club(id); } catch (e) { FX.toast('Código não encontrado.'); }
     },
     adStreak: () => Ads.saveStreak(),
+    postMenu: (el) => Mod.postMenu(el.dataset.v, el.dataset.u),
+    report: (el) => Mod.report(el.dataset.k || 'post', el.dataset.v, el.dataset.u),
+    modPanel: () => Mod.panel(),
+    modTab: (el) => { App.modTab = el.dataset.v; Mod.panel(); },
+    modDo: async (el) => {
+      const [rid, act] = el.dataset.v.split(':');
+      const T = { dismiss: ['Ignorar denúncia?', 'O conteúdo continua no ar e a denúncia sai da lista.'], hide: ['Ocultar o conteúdo?', 'Some do feed para todos. O autor ainda vê e você pode reexibir depois.'], restore: ['Reexibir o conteúdo?', 'Volta a aparecer para todos.'], delete: ['Apagar de vez?', 'O conteúdo é apagado do servidor. Não dá para desfazer.'], ban: ['Banir o autor?', 'A conta não poderá mais publicar nem comentar, e tudo o que ela postou fica oculto.'] }[act];
+      if (!T || !(await FX.confirm(T[0], T[1], 'Confirmar', act === 'delete' || act === 'ban'))) return;
+      try { await Cloud.modResolve(rid, act); FX.toast('Feito.'); Mod.panel(); } catch (e) { FX.toast('Não deu: ' + String((e && e.message) || '').slice(0, 60)); }
+    },
+    modUnban: async (el) => { if (!(await FX.confirm('Desbanir?', 'A conta volta a publicar e o conteúdo dela reaparece.', 'Desbanir'))) return; try { await Cloud.modUnban(el.dataset.v); FX.toast('Conta liberada.'); Mod.panel(); } catch (e) { FX.toast('Não deu agora.'); } },
     adShield: () => Ads.shield(),
     adXp: (el) => Ads.doubleXp(el.dataset.v),
     notifF: (el) => { App.notifF = el.dataset.v; UI.notifsDraw(); },

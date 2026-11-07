@@ -50,6 +50,7 @@ Object.assign(UI, {
           <button class="row tap" data-act="syncNow">${this.iconBox('refresh')}<div class="grow"><b>Sincronizar agora</b><small>${Cloud.lastSync ? 'Última sincronização às ' + new Date(Cloud.lastSync).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Envia e recebe seus dados'}</small></div></button>
           <button class="row tap" data-act="publishAll">${this.iconBox('upload')}<div class="grow"><b>Publicar treinos antigos</b><small>Leva o histórico deste aparelho para o feed e os rankings</small></div></button>
           <button class="row tap" data-act="userOpen" data-v="${Cloud.user.id}">${this.iconBox('user')}<div class="grow"><b>Ver meu perfil público</b><small>Como os outros te veem</small></div>${I('chevronRight', 'chev')}</button>
+          <div id="modRow"></div>
           <button class="row tap" data-act="legal" data-v="privacy">${this.iconBox('shield')}<div class="grow"><b>Política de privacidade</b><small>Como usamos seus dados</small></div>${I('chevronRight', 'chev')}</button>
           <button class="row tap" data-act="legal" data-v="terms">${this.iconBox('shield')}<div class="grow"><b>Termos de uso</b><small>Regras do JustGo</small></div>${I('chevronRight', 'chev')}</button>
           <button class="row tap danger" data-act="logout">${this.iconBox('logout')}<div class="grow"><b>Sair da conta</b><small>Seus dados continuam neste aparelho</small></div></button>
@@ -339,7 +340,7 @@ Object.assign(UI, {
   async commentsSheet(id) {
     const list = await Cloud.comments(id);
     const me = Cloud.user && Cloud.user.id;
-    const v = await FX.modal(`<h3>Comentários</h3><div class="comments">${list.length ? list.map((c) => { const p = c.profiles || {}; return `<div class="ra-c">${this.avatarOf(p.name, p.frame, p.avatar, 'sm', p.photo)}<div class="grow"><div class="ra-c-h"><b>${esc(p.name || 'Atleta')}${UI.vb(c.user_id, p.username)}</b><small>${this.ago(Date.parse(c.created_at))}</small></div><p>${esc(c.text)}</p></div></div>`; }).join('') : '<div class="cm-empty">' + I('message') + '<b>Nenhum comentário ainda</b><small>Seja o primeiro a dar os parabéns!</small></div>'}</div>
+    const v = await FX.modal(`<h3>Comentários</h3><div class="comments">${list.length ? list.map((c) => { const p = c.profiles || {}; return `<div class="ra-c">${this.avatarOf(p.name, p.frame, p.avatar, 'sm', p.photo)}<div class="grow"><div class="ra-c-h"><b>${esc(p.name || 'Atleta')}${UI.vb(c.user_id, p.username)}</b><small>${this.ago(Date.parse(c.created_at))}</small>${c.user_id !== me ? `<button class="ra-c-rep" data-act="report" data-k="comment" data-v="${c.id}" data-u="${c.user_id}" aria-label="Denunciar comentário">${I('flag', 'xs')}</button>` : ''}</div><p>${esc(c.text)}</p></div></div>`; }).join('') : '<div class="cm-empty">' + I('message') + '<b>Nenhum comentário ainda</b><small>Seja o primeiro a dar os parabéns!</small></div>'}</div>
       ${this.composer('cmText', 'm:send', id)}`);
     return v;
   },
