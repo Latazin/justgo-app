@@ -2756,3 +2756,209 @@ h1, .h1 { letter-spacing: -.025em; }
 .cl8-new, .cl8-join { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--line) !important; box-shadow: none !important; border-radius: var(--r-lg) !important; }
 .cl8-new > span { background: var(--brand) !important; color: #fff !important; }
 .cl8-new small { color: var(--text-3) !important; }
+
+/* =====================================================================
+   v10 · IDENTIDADE NOVA
+   Tipografia Barlow (desenhada a partir das placas de estrada da Califórnia:
+   combina com rota, rua, quilômetro). Números em Barlow Condensed.
+   Ícones em tinta, sem quadradinhos coloridos. Cor só no esporte e no azul de ação.
+   Seções brancas de ponta a ponta, separadas pelo cinza.
+   ===================================================================== */
+@font-face { font-family: "Barlow"; font-weight: 400; font-display: swap; src: url(../fonts/barlow-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 500; font-display: swap; src: url(../fonts/barlow-latin-500-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 600; font-display: swap; src: url(../fonts/barlow-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 700; font-display: swap; src: url(../fonts/barlow-latin-700-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 800 900; font-display: swap; src: url(../fonts/barlow-latin-800-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow Cond"; font-weight: 500; font-display: swap; src: url(../fonts/barlow-condensed-latin-500-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow Cond"; font-weight: 600; font-display: swap; src: url(../fonts/barlow-condensed-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow Cond"; font-weight: 700 900; font-display: swap; src: url(../fonts/barlow-condensed-latin-700-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow Cond"; font-weight: 700 900; font-style: italic; font-display: swap; src: url(../fonts/barlow-condensed-latin-700-italic.woff2) format("woff2"); }
+
+:root { --font: "Barlow", -apple-system, "Segoe UI", Roboto, sans-serif; --display: "Barlow Cond", "Barlow", sans-serif; --ink: #0F1B2D; }
+:root:not([data-theme]), :root[data-theme="light"] { --text: #0F1B2D; --text-2: #4E5A6B; --text-3: #8792A2; --bg: #EEF0F3; --line: #E3E6EA; --brand: #1858F0; --brand-ink: #1452E0; }
+html, body { font-family: var(--font); font-size: 16px; font-feature-settings: normal; letter-spacing: .005em; }
+button, input, textarea, select { font-family: inherit; }
+.num, .display { font-family: var(--display) !important; font-weight: 600; letter-spacing: 0 !important; font-variant-numeric: tabular-nums; }
+h1, h2, h3, .ttl, b, strong { letter-spacing: -.005em; }
+.eyebrow { text-transform: none !important; letter-spacing: 0 !important; font-size: 13px !important; font-weight: 600 !important; color: var(--text-2) !important; }
+
+/* ícones em tinta, sem fundo colorido */
+.ibox { background: transparent !important; color: var(--text) !important; box-shadow: none !important; border-radius: 0 !important; width: 28px; height: 28px; }
+.ibox .ic { width: 24px; height: 24px; stroke-width: 1.8; }
+.ibox.ok { color: var(--ok) !important; }
+.row[style*="--sport"] .ibox { color: var(--sport) !important; }
+.h2-ti, .hl-ic, .st-ic, .rc-ic, .tc-ic, .nt-ic, .qp8 button > span, .tr8-ic { background: transparent !important; color: var(--text) !important; box-shadow: none !important; }
+.cfg-row .ibox, .cfg-row > span:first-child { background: transparent !important; color: var(--text) !important; }
+
+/* barra superior */
+.top, .top.sub, .top.scrolled { min-height: calc(52px + env(safe-area-inset-top)); }
+.brand span b, .brand > span { font-family: var(--display); }
+.brand > span:last-child { font-size: 23px; font-weight: 700; font-style: italic; letter-spacing: -.01em; }
+.stat-chip { font-family: var(--display); font-size: 17px; font-weight: 600; padding: 0 6px; }
+.stat-chip .ic { width: 19px; height: 19px; }
+.top.sub .ttl { font-size: 18px; font-weight: 700; }
+
+/* seções de ponta a ponta */
+.v9h { padding-top: 0 !important; }
+.v9-sec, .v9-week, .v9-hello { background: var(--surface); margin: 0 -16px 8px; padding: 18px 16px; }
+.v9-hello { display: flex; align-items: flex-end; gap: 12px; padding-bottom: 4px; margin-bottom: 0; }
+.v9-hello span { font-size: 14px; color: var(--text-2); font-weight: 500; }
+.v9-hello span::first-letter { text-transform: uppercase; }
+.v9-hello h1 { margin: 2px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+.v9-week { padding-top: 14px; }
+.v9-wk-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.v9-big b { display: block; font-size: 76px; line-height: .86; font-weight: 700 !important; font-style: italic; letter-spacing: -.01em !important; }
+.v9-big span, .v9-goal span { display: block; margin-top: 6px; font-size: 14px; color: var(--text-2); font-weight: 500; }
+.v9-goal { text-align: right; padding-bottom: 1px; }
+.v9-goal b { font-size: 30px; line-height: 1; font-weight: 600; color: var(--brand); }
+.v9-bar { height: 4px; border-radius: 2px; background: var(--surface-3); margin: 14px 0 0; overflow: hidden; }
+.v9-bar i { display: block; height: 100%; background: var(--brand); border-radius: 2px; }
+.v9-kv { display: grid; grid-template-columns: repeat(3, 1fr); margin: 16px 0 0; padding: 0; }
+.v9-kv div + div { border-left: 1px solid var(--line); padding-left: 14px; }
+.v9-kv dt { font-size: 13px; color: var(--text-2); font-weight: 500; }
+.v9-kv dd { margin: 0; font-size: 26px; line-height: 1.1; font-weight: 600; }
+.v9-kv dd small { font-size: 16px; color: var(--text-2); }
+.v9-chart { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 18px; }
+.v9-chart > div { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.v9-chart span { position: relative; width: 100%; height: 64px; display: flex; align-items: flex-end; justify-content: center; border-bottom: 2px solid var(--surface-3); }
+.v9-chart span i { width: 100%; max-width: 26px; border-radius: 3px 3px 0 0; background: var(--c, var(--text)); }
+.v9-chart small { font-size: 12px; font-weight: 600; color: var(--text-3); }
+.v9-chart .td small { color: var(--text); font-weight: 800; }
+.v9-chart .td span { border-bottom-color: var(--text); }
+
+.v9-strip { display: grid; grid-template-columns: repeat(4, 1fr); }
+.v9-strip button { display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: 0 10px; min-width: 0; }
+.v9-strip button:first-child { padding-left: 0; }
+.v9-strip button + button { border-left: 1px solid var(--line); }
+.v9-strip small { font-size: 12.5px; color: var(--text-2); font-weight: 500; }
+.v9-strip b { font-size: 24px; line-height: 1.15; font-weight: 600; font-family: var(--display); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.v9-strip span { font-size: 12.5px; color: var(--text-3); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.v9-mini { display: block; width: 100%; height: 3px; border-radius: 2px; background: var(--surface-3); margin-top: 6px; overflow: hidden; }
+.v9-mini i { display: block; height: 100%; background: var(--brand); }
+.v9-links { margin: 16px -16px -18px; border-top: 1px solid var(--line); }
+.v9-links button { display: flex; align-items: center; gap: 14px; width: 100%; padding: 15px 16px; font-size: 16px; font-weight: 600; text-align: left; }
+.v9-links button + button { border-top: 1px solid var(--line); }
+.v9-links .ic { width: 22px; height: 22px; color: var(--text); }
+.v9-links em { font-style: normal; font-size: 17px; color: var(--text-2); }
+.v9-links .ic.xs { width: 16px; height: 16px; color: var(--text-3); }
+
+.v9-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.v9-h h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.015em; }
+.v9-h > span { font-size: 18px; color: var(--text-2); }
+.v9-h button { font-size: 15px; font-weight: 600; color: var(--brand); }
+.v9-sec .list { border: 0 !important; border-radius: 0 !important; margin: 0 -16px; background: transparent; }
+.v9-sec .list .row { padding: 14px 16px; }
+.v9-more { display: block; width: 100%; margin: 6px 0 -6px; padding: 10px 0; font-size: 15px; font-weight: 600; color: var(--brand); text-align: left; }
+.v9-plan b { display: block; font-size: 18px; } .v9-plan small { color: var(--text-2); }
+.v9-empty { padding: 6px 0 2px; } .v9-empty b { font-size: 18px; } .v9-empty p { color: var(--text-2); margin: 4px 0 14px; }
+.v9-last { padding-bottom: 0; }
+.v9-last .p8 { margin: 0 -16px !important; border: 0 !important; }
+.v9-last .post-card, .v9-last > .card { margin: 0 -16px; border: 0; border-radius: 0; }
+.v9-cal .card, .v9-med .card, .v9-av .card, .v9-cal > section, .v9-med > section, .v9-av > section { background: transparent !important; border: 0 !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; }
+.v9h .comm-strip { margin: 0 -16px; padding: 0 16px; }
+.v9h > .card, .v9h > section.card { margin-left: -16px; margin-right: -16px; border-radius: 0; border-left: 0; border-right: 0; }
+.v9h .ad8-wrap { margin: 0 -16px 8px; }
+.v9h .th8-hold.home { margin: 0 -16px 8px; border-radius: 0; }
+#hTorch:empty { display: none; }
+
+/* missões e listas em geral: linhas limpas */
+.list { box-shadow: none !important; }
+.row .xp { font-family: var(--display); font-size: 15px; font-weight: 600; color: var(--brand); background: transparent !important; padding: 0 !important; }
+.bar { height: 4px !important; border-radius: 2px !important; background: var(--surface-3) !important; }
+.bar > i, .bar i { border-radius: 2px !important; background: var(--brand) !important; box-shadow: none !important; }
+.bar.ok > i, .bar.ok i { background: var(--ok) !important; }
+.row-t b { font-weight: 600; font-size: 16px; }
+
+/* barra inferior */
+#nav .nv-t, #nav small { font-size: 11.5px; font-weight: 600; letter-spacing: 0; }
+#nav button:not(.nav-rec) { color: var(--text-3); }
+#nav button:not(.nav-rec).on { color: var(--text) !important; }
+#nav button:not(.nav-rec).on .nv-t, #nav button:not(.nav-rec).on small { color: var(--text) !important; font-weight: 700; }
+#nav .rec-fab { top: -12px; width: 52px; height: 52px; margin-left: -26px; border-radius: 50%; }
+/* cartão de treino (post): plano, como uma página do feed */
+.post, .sp-post { border-radius: var(--r-lg) !important; box-shadow: none !important; border: 1px solid var(--line); }
+.post::before { display: none !important; }
+.post .avatar { box-shadow: none !important; }
+.post h3 { font-size: 21px; font-weight: 700; letter-spacing: -.015em; }
+.post-sp { background: transparent !important; padding: 0 !important; height: auto !important; font-weight: 600; }
+.post-stats span, .p8 .p8-stats span { text-transform: none !important; letter-spacing: 0 !important; font-size: 13px !important; font-weight: 500 !important; color: var(--text-2) !important; }
+.post-stats b { font-family: var(--display); font-size: 25px !important; font-weight: 600 !important; letter-spacing: 0 !important; }
+.post-map { border-radius: 0 !important; }
+.v9-last .post { margin: 0 -16px; border: 0 !important; border-radius: 0 !important; }
+.v9-kv dd { white-space: nowrap; }
+
+/* calendário do mês: círculos simples */
+.hm-cal i, .hm-cal i:not(.on):not(.fu):not(.e) { height: 34px; width: 34px; margin: 0 auto; border-radius: 50% !important; background: transparent !important; border: 0 !important; box-shadow: none !important; font-family: var(--display); font-size: 15px; font-weight: 500; color: var(--text); opacity: 1; }
+.hm-cal i.fu { color: var(--text-3) !important; }
+.hm-cal i.on { background: var(--c, var(--brand)) !important; color: #fff !important; font-weight: 700; }
+.hm-cal i.td { box-shadow: inset 0 0 0 2px var(--text) !important; }
+.hm-cal i.on.td { box-shadow: inset 0 0 0 2px var(--surface), 0 0 0 2px var(--c) !important; }
+.hm-cal > span { font-size: 12px; font-weight: 600; color: var(--text-3); }
+.hm-mh b { font-size: 20px; font-weight: 700; }
+.hm-mk b { font-size: 28px !important; }
+
+/* medalhas sem caixas */
+.v9-med .md-card, .v9-med [class*="medal"] > button, .v9-med .med-card { border-radius: 12px !important; box-shadow: none !important; }
+.hmd { border: 0 !important; background: transparent !important; box-shadow: none !important; width: 96px; padding: 6px 4px !important; }
+.hmd b { font-size: 14px; font-weight: 700; }
+
+/* ---- v10: todas as telas no mesmo sistema ---- */
+/* blocos principais viram faixas brancas de ponta a ponta */
+.screen > .card, .screen > section.card, .screen > .list, .screen > .pg-hero, .screen > .stat-grid, .screen > .post, .screen > .p8 {
+  margin-left: -16px !important; margin-right: -16px !important; border-radius: 0 !important; border-left: 0 !important; border-right: 0 !important; border-top: 0 !important; border-bottom: 0 !important; box-shadow: none !important; margin-bottom: 8px !important; }
+.screen > .list .row { padding-left: 16px; padding-right: 16px; }
+.screen > .sec, .screen > .v9-h { margin: 22px 0 10px; }
+.sec h2 { font-size: 20px !important; font-weight: 700 !important; }
+.sec-link { font-weight: 600; color: var(--brand); }
+
+/* grade de números: um painel só, com divisórias */
+.stat-grid { gap: 1px !important; background: var(--line) !important; overflow: hidden; }
+.stat-grid > div, .stat-grid.st3 > div { border: 0 !important; border-radius: 0 !important; background: var(--surface) !important; }
+.stat-grid b, .stat-grid .num { font-size: 28px !important; font-weight: 600 !important; }
+.stat-grid .st-ic { display: none !important; }
+
+/* destaques do perfil: sem caixas coloridas */
+main .hl-card { background: var(--surface) !important; border: 1px solid var(--line) !important; border-radius: var(--r-lg) !important; }
+main .hl-card .hl-ic { background: transparent !important; color: var(--text) !important; box-shadow: none !important; width: auto; height: auto; justify-content: start; }
+main .hl-card .hl-ic .ic { width: 22px; height: 22px; }
+main .hl-card b { font-family: var(--display); font-size: 26px !important; font-weight: 600 !important; }
+
+/* etiquetas: neutras, cor só no ícone */
+.pf2-chip, .pg-hero span[class=""], .pg-hero .pg-pills span, .tag, .chip-sm { background: var(--surface-2) !important; color: var(--text) !important; border: 0 !important; }
+.pf2-chip .ic, .pg-hero span .ic { color: var(--c, var(--text-2)); }
+
+/* atalhos (Missões, Desbloqueios, Liga): linhas de lista */
+.qp8 { display: block !important; background: var(--surface); margin: 14px -16px 8px !important; border-top: 1px solid var(--line); }
+.qp8 button { display: flex !important; flex-direction: row !important; align-items: center !important; gap: 14px !important; width: 100%; padding: 15px 16px !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; }
+.qp8 button + button { border-top: 1px solid var(--line) !important; }
+.qp8 button > span { margin: 0 !important; width: 24px !important; height: 24px !important; }
+.qp8 b { flex: 1; font-size: 16px !important; font-weight: 600 !important; }
+.qp8 small { font-family: var(--display); font-size: 17px !important; color: var(--text-2) !important; font-weight: 500 !important; }
+
+/* filtros (Todos, Corrida…): preto quando ativo */
+.chip-btn { height: 34px; font-weight: 600; font-size: 14.5px; }
+.chip-btn.on, .seg-chips .on, .flt button.on { background: var(--text) !important; color: var(--surface) !important; border-color: var(--text) !important; }
+
+/* resumo do treino */
+.adj-card, .corr-card { background: var(--surface) !important; border: 0 !important; }
+.pg-chips span, .ms-chip { background: var(--surface-2) !important; color: var(--text) !important; border: 0 !important; font-weight: 600 !important; }
+.pg-chips span .ic, .ms-chip .ic { color: var(--c); }
+.pg-t { font-size: 22px !important; font-weight: 700 !important; }
+.pg-ring b { font-size: 30px !important; }
+.pg-ring .fg { stroke: var(--brand) !important; }
+.screen .qp8 { margin: 16px 0 0 !important; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.screen .qp8 button { padding-left: 0 !important; padding-right: 0 !important; }
+.vis-card { background: var(--surface) !important; border: 1px solid var(--line) !important; box-shadow: none !important; }
+.vis-ic { background: transparent !important; color: var(--text) !important; box-shadow: none !important; }
+.hist-sum span, .hs-t { text-transform: none !important; letter-spacing: 0 !important; }
+.hist-sum b { font-size: 24px !important; }
+/* gravar: escolha de esporte limpa, botão iniciar sem brilho */
+.sport-pick { background: var(--surface) !important; border: 1px solid var(--line-2) !important; box-shadow: none !important; }
+.sport-pick .sp-ic { background: transparent !important; color: var(--c) !important; box-shadow: none !important; }
+.sport-pick .sp-ic .ic { width: 28px; height: 28px; }
+.sport-pick b { font-size: 19px; font-weight: 700; }
+.sport-pick .sp-change { color: var(--brand); font-weight: 600; }
+button.start { box-shadow: 0 0 0 6px color-mix(in srgb, var(--sport, var(--brand)) 14%, transparent) !important; background: var(--sport, var(--brand)) !important; }
+button.start::before, button.start::after { display: none !important; }
+button.start span { font-family: var(--display); font-size: 17px; font-weight: 700; letter-spacing: .02em; }
+.v9-kv dd small { display: inline !important; }
