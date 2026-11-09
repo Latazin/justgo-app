@@ -13,6 +13,7 @@ SOCK=$(adb shell cat /proc/net/unix | grep -o "webview_devtools_remote_[0-9]*" |
 echo "pid=$PID sock=$SOCK"
 adb forward tcp:9222 localabstract:$SOCK
 J() { python3 tool/diag_cdp.py "$1"; }
+curl -s localhost:9222/json | head -30
 J "JSON.stringify({ver: CONFIG.version, native: Native.on})"
 J "Store.data.profile.onboarded=true; Store.save(); 'ok'"
 echo "=== estado sem permissao"
