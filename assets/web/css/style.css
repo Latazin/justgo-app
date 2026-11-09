@@ -2656,3 +2656,103 @@ body, [data-theme="dark"] body, [data-theme="midnight"] body, [data-theme="graph
 .tr8-sports { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); font-size: 12.5px; color: var(--text-2); line-height: 1.4; }
 .tr8-sports > .ic { flex: none; color: var(--brand); } .tr8-sports span { flex: 1; } .tr8-sports button { flex: none; font-weight: 800; color: var(--brand-ink); padding: 6px 10px; border-radius: 10px; background: var(--surface); }
 .ui8-need { display: flex; gap: 8px; align-items: flex-start; text-align: left; margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; font-size: 13px; color: var(--brand-ink); background: var(--brand-soft); } .ui8-need .ic { flex: none; margin-top: 2px; }
+
+/* =====================================================================
+   v9 · DESIGN LIMPO (inspirado no Strava)
+   fundo cinza-claro como separador, superfícies brancas e planas,
+   linhas finas no lugar de sombras, números grandes, azul JustGo como
+   única cor de ação; ícones e esportes continuam coloridos.
+   ===================================================================== */
+:root, :root[data-theme="light"], [data-theme="dark"] { --grad: linear-gradient(var(--brand), var(--brand)); }
+:root:not([data-theme]), :root[data-theme="light"] {
+  --bg: #F2F2F4; --surface: #FFFFFF; --surface-2: #F4F4F6; --surface-3: #E7E8EB;
+  --line: #E6E7EA; --line-2: #D8DADF;
+  --text: #16181D; --text-2: #5C616B; --text-3: #8A8F98;
+  --shadow: none; --shadow-md: none;
+  --r-xl: 14px; --r-lg: 12px; --r: 10px; --r-sm: 8px;
+}
+[data-theme="dark"] { --bg: #000000; --surface: #121316; --surface-2: #1B1D21; --surface-3: #272A2F; --line: rgba(255,255,255,.08); --line-2: rgba(255,255,255,.13); --shadow: none; --shadow-md: none; }
+body { background: var(--bg) !important; }
+
+/* barra superior: branca, sólida, com linha fina */
+.top, .top.sub, .top.scrolled { background: var(--surface) !important; border-bottom: 1px solid var(--line) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.top:not(.sub)::after { display: none !important; }
+.top.sub .back { background: transparent; border-radius: 50%; margin-left: -8px; }
+.top.sub .ttl { font-size: 17px; font-weight: 750; letter-spacing: -.01em; }
+
+/* cartões: planos, borda fina, cantos menores */
+.card, .h2-tile, .hl-card, .qp8 button, .p8, .stat-grid > div, .terr-card, .retro-card, .comm-card { box-shadow: none !important; }
+.card { border-radius: var(--r-lg); border: 1px solid var(--line); margin-bottom: 8px; }
+.screen > .card, .screen > section.card { border-radius: var(--r-lg); }
+
+/* blocos: sem degradê, sem faixa colorida em cima */
+.h2-tile, .hl-card { background: var(--surface) !important; border: 1px solid var(--line) !important; border-top: 1px solid var(--line) !important; border-radius: var(--r-lg) !important; min-height: 0; padding: 14px; }
+.stat-grid.st3 > div { border-top: 1px solid var(--line) !important; }
+.h2-tiles { gap: 8px; margin-bottom: 8px; }
+.h2-tile .h2-ti { box-shadow: none !important; }
+.h2-tile small, .qp8 small { letter-spacing: .02em; }
+.h2-tile b { font-size: 24px; font-weight: 800; letter-spacing: -.03em; }
+.qp8 { gap: 8px; }
+.qp8.home { margin: 0 0 8px; }
+.qp8 button { border-radius: var(--r-lg); border: 1px solid var(--line); padding: 12px; }
+.qp8 button > span { box-shadow: none; border-radius: 10px; }
+
+/* cartão "Bora treinar?": branco, com o botão azul */
+.start-card { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--line) !important; box-shadow: none !important; }
+.start-card small { color: var(--text-2) !important; opacity: 1 !important; }
+.start-card .sc-go { background: var(--brand) !important; color: #fff !important; box-shadow: none !important; width: 52px; height: 52px; }
+.start-card .sc-go .ic, .start-card .sc-go svg { fill: #fff !important; color: #fff; }
+.start-card .sc-sports button { background: var(--surface-2) !important; color: var(--text) !important; border: 0 !important; box-shadow: none !important; }
+.start-card .sc-sports button > span { background: color-mix(in srgb, var(--c) 14%, transparent) !important; color: var(--c) !important; box-shadow: none !important; }
+.start-card .sc-sports button > span .ic, .start-card .sc-sports button > span svg { fill: currentColor; color: var(--c); }
+.start-card .sc-sports small { color: var(--text-2) !important; }
+
+/* botões */
+.btn { border-radius: var(--r); font-weight: 700; }
+.btn.primary { background: var(--brand) !important; box-shadow: none !important; }
+.chip-btn { box-shadow: none !important; border-color: var(--line-2); }
+.chip-btn.on, .chip-btn.active { background: var(--text) !important; color: var(--surface) !important; border-color: var(--text) !important; }
+.round-btn, .icon-btn { box-shadow: none !important; }
+.seg { border-radius: var(--r); }
+.seg button.on { box-shadow: none !important; }
+
+/* tipografia */
+h1, .h1 { letter-spacing: -.025em; }
+.eyebrow { font-weight: 700; letter-spacing: .04em; }
+.num { font-variant-numeric: tabular-nums; }
+.hello2 h1 { font-size: 24px; font-weight: 800; }
+
+/* feed: posts de ponta a ponta, separados pelo cinza */
+.p8 { border-radius: 0 !important; margin: 0 -16px 8px !important; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+[data-theme="dark"] .p8 { border-color: transparent; }
+
+/* barra inferior: branca, sem pílula, ativo em azul */
+#nav { background: var(--surface) !important; border-top: 1px solid var(--line) !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+#nav button:not(.nav-rec).on::before { display: none !important; }
+#nav button:not(.nav-rec).on { color: var(--brand) !important; }
+#nav button:not(.nav-rec).on .nv-t, #nav button:not(.nav-rec).on small { color: var(--brand) !important; font-weight: 750; }
+#nav .rec-fab { top: -14px; width: 54px; height: 54px; margin-left: -27px; background: var(--brand) !important; box-shadow: 0 0 0 4px var(--surface) !important; }
+#nav .rec-fab::after { display: none; }
+#nav .rec-fab svg { filter: none; }
+#nav .nav-rec.on .rec-fab { box-shadow: 0 0 0 4px var(--surface) !important; }
+#nav .nav-rec .nv-t { color: var(--text-2); }
+#nav .nv-ic { background: transparent !important; box-shadow: none !important; }
+.pg-hero { background: var(--surface) !important; box-shadow: none !important; border: 1px solid var(--line); }
+/* abas: sublinhado azul, como no Strava */
+.subtabs { background: transparent !important; border-radius: 0 !important; padding: 0 !important; gap: 0 !important; border-bottom: 1px solid var(--line); box-shadow: none !important; margin-bottom: 12px; }
+.subtabs button { background: transparent !important; border-radius: 0 !important; box-shadow: none !important; color: var(--text-2); font-weight: 650; padding: 12px 12px 11px; border-bottom: 2.5px solid transparent !important; }
+.subtabs button.on { color: var(--text) !important; font-weight: 800; border-bottom-color: var(--brand) !important; }
+.sec h2::before { display: none !important; }
+.sec h2 { font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+.stat-grid.st3 > div, .stat-grid > div { background: var(--surface) !important; border: 1px solid var(--line) !important; border-radius: var(--r-lg) !important; }
+.tr8-next { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--line); border-left: 3px solid var(--brand); border-radius: var(--r-lg) !important; box-shadow: none !important; }
+.tr8-next .th8-k { color: var(--brand) !important; }
+.tr8-next small { color: var(--text-2) !important; }
+.tr8-next .tr8-bar { background: var(--surface-3) !important; } .tr8-next .tr8-bar i { background: var(--brand) !important; }
+.tr8-next .tr8-ring { background: conic-gradient(var(--brand) calc(var(--p) * 1%), var(--surface-3) 0) !important; }
+.tr8-next .ic, .tr8-next svg { color: var(--brand); }
+.p8-media { margin: 0 !important; border-radius: 0 !important; }
+.p8-media .post-map, .p8-media .media { border-radius: 0 !important; }
+.cl8-new, .cl8-join { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--line) !important; box-shadow: none !important; border-radius: var(--r-lg) !important; }
+.cl8-new > span { background: var(--brand) !important; color: #fff !important; }
+.cl8-new small { color: var(--text-3) !important; }
