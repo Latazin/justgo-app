@@ -17,7 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 const kLiveId = 75415; // mesmo ID da notificação fixa do GPS: trocamos o texto dela pelos números do treino
-const kLiveChannel = 'geolocator_channel_01';
+const kLiveChannel = 'jg_treino_ao_vivo'; // canal próprio: aparece na tela de bloqueio (o do GPS é "silencioso")
 const _kPort = 'jg_notif_actions';
 const _kTask = 'jg_check';
 
@@ -144,10 +144,12 @@ class Notif {
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           kLiveChannel,
-          'Treino em andamento',
-          channelDescription: 'Distância, tempo e ritmo enquanto você treina',
-          importance: Importance.low,
-          priority: Priority.low,
+          'Treino ao vivo',
+          channelDescription: 'Distância, tempo e ritmo na tela de bloqueio enquanto você treina',
+          importance: Importance.defaultImportance, // "silenciosa" some da tela de bloqueio
+          priority: Priority.high,
+          playSound: false,
+          enableVibration: false,
           ongoing: true,
           autoCancel: false,
           onlyAlertOnce: true,
