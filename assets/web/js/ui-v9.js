@@ -36,7 +36,6 @@
         <button data-act="go" data-v="mapa"><small>Território</small><b class="num">${zones.length ? Zones.areaTxt(Zones.totalArea(zones)) : '0'}</b><span>${zones.length} ${zones.length === 1 ? 'área' : 'áreas'}</span></button>
       </div>
       <div class="v9-links">
-        ${typeof Pass !== 'undefined' ? `<button data-act="go" data-v="pass">${I('sparkles')}<span class="grow">${Pass.SEASON.name}</span><em class="num">nível ${Pass.level()}/${Pass.MAX}</em>${I('chevronRight', 'xs')}</button>` : ''}
         <button data-act="sub" data-v="progress:missions">${I('target')}<span class="grow">Missões</span><em class="num">${done}/${nd} hoje</em>${I('chevronRight', 'xs')}</button>
         <button data-act="sub" data-v="progress:tree">${I('zap')}<span class="grow">Desbloqueios</span><em class="num">${un}/${tot}</em>${I('chevronRight', 'xs')}</button>
       </div>

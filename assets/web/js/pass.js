@@ -56,19 +56,20 @@ const Pass = {
 
   /* ---------- trilhas ---------- */
   // c: moedas · s: escudo de ofensiva · z: escudo de território · b: pontos em dobro · i: item
+  // t: teste de 7 dias de uma função · u: liberar uma função para sempre
   FREE: [
-    ['i', 'mascot-egg'], ['c', 50], ['s', 1], ['i', 'line-ice'], ['i', 'flag'], ['b', 1], ['c', 50], ['c', 100], ['z', 1], ['i', 'line-speed'],
+    ['i', 'mascot-egg'], ['c', 50], ['s', 1], ['i', 'line-ice'], ['i', 'flag'], ['b', 1], ['t', 1], ['c', 100], ['z', 1], ['i', 'line-speed'],
     ['c', 50], ['i', 'frame-silver'], ['b', 1], ['c', 75], ['i', 'title'], ['c', 50], ['z', 1], ['i', 'av-ocean'], ['c', 75], ['s', 1],
-    ['c', 50], ['b', 1], ['i', 'line-lime'], ['c', 75], ['c', 100], ['z', 1], ['c', 50], ['i', 'fx-pulse'], ['c', 75], ['s', 1],
-    ['c', 50], ['b', 1], ['i', 'av-forest'], ['c', 75], ['c', 100], ['z', 1], ['c', 50], ['i', 'frame-verao'], ['c', 75], ['s', 1],
+    ['t', 1], ['b', 1], ['i', 'line-lime'], ['c', 75], ['c', 100], ['z', 1], ['c', 50], ['i', 'fx-pulse'], ['c', 75], ['s', 1],
+    ['c', 50], ['b', 1], ['i', 'av-forest'], ['c', 75], ['c', 100], ['z', 1], ['t', 1], ['i', 'frame-verao'], ['c', 75], ['s', 1],
     ['c', 50], ['b', 1], ['c', 75], ['i', 'line-violet'], ['c', 150], ['z', 1], ['c', 75], ['s', 1], ['c', 100], ['i', 'sticker-t1'],
   ],
   PREMIUM: [
-    ['i', 'line-flame'], ['c', 150], ['i', 'frame-fire'], ['b', 2], ['i', 'poster'], ['c', 100], ['s', 2], ['i', 'theme-midnight'], ['c', 100], ['i', 'line-neon'],
-    ['z', 2], ['i', 'ghost-wolf'], ['c', 150], ['i', 'av-aurora'], ['b', 2], ['c', 100], ['i', 'frame-gold'], ['i', 'voice-futebol'], ['c', 150], ['s', 2],
-    ['i', 'line-gold'], ['c', 100], ['i', 'theme-graphite'], ['i', 'fx-arch'], ['c', 250], ['b', 3], ['i', 'av-sunset'], ['z', 3], ['c', 150], ['i', 'frame-aurora'],
-    ['i', 'line-ruby'], ['c', 150], ['s', 3], ['i', 'theme-ocean'], ['c', 250], ['b', 3], ['i', 'frame-diamond'], ['c', 150], ['i', 'line-platinum'], ['z', 3],
-    ['c', 200], ['i', 'av-galaxy'], ['b', 3], ['i', 'frame-legend'], ['c', 300], ['s', 3], ['i', 'line-lava'], ['c', 250], ['i', 'title-legend'], ['i', 'mascot-dragon'],
+    ['i', 'line-flame'], ['c', 150], ['i', 'frame-fire'], ['b', 2], ['i', 'poster'], ['t', 2], ['s', 2], ['i', 'theme-midnight'], ['u', 1], ['i', 'line-neon'],
+    ['z', 2], ['i', 'ghost-wolf'], ['c', 150], ['i', 'av-aurora'], ['b', 2], ['t', 2], ['i', 'frame-gold'], ['i', 'voice-futebol'], ['u', 1], ['s', 2],
+    ['i', 'line-gold'], ['c', 150], ['i', 'theme-graphite'], ['i', 'fx-arch'], ['c', 250], ['b', 3], ['i', 'av-sunset'], ['z', 3], ['u', 1], ['i', 'frame-aurora'],
+    ['i', 'line-ruby'], ['t', 2], ['s', 3], ['i', 'theme-ocean'], ['c', 250], ['b', 3], ['i', 'frame-diamond'], ['u', 1], ['i', 'line-platinum'], ['z', 3],
+    ['t', 3], ['i', 'av-galaxy'], ['b', 3], ['i', 'frame-legend'], ['c', 300], ['s', 3], ['i', 'line-lava'], ['c', 250], ['i', 'title-legend'], ['i', 'mascot-dragon'],
   ],
 
   /* ---------- estado ---------- */
@@ -76,7 +77,7 @@ const Pass = {
     const D = Store.data;
     if (!D.pass) D.pass = {};
     const P = D.pass;
-    P.got = P.got || {}; P.inv = P.inv || { s: 0, z: 0, b: 0 }; P.ent = P.ent || {}; P.eq = P.eq || {};
+    P.got = P.got || {}; P.inv = P.inv || {}; ['s', 'z', 'b', 't', 'u'].forEach((k) => (P.inv[k] = P.inv[k] || 0)); P.ent = P.ent || {}; P.eq = P.eq || {};
     return P;
   },
   ent() { return this.st().ent[this.SEASON.id] || { premium: false, skips: 0 }; },
@@ -130,6 +131,8 @@ const Pass = {
     if (t === 'c') return { ic: 'coin', name: `${v} moedas`, short: `${v}`, kind: 'coins' };
     if (t === 's') return { ic: 'flame', name: v > 1 ? `${v} escudos de ofensiva` : 'Escudo de ofensiva', short: `×${v}`, kind: 'streak', desc: 'Salva sua sequência de dias automaticamente se você perder um dia.' };
     if (t === 'z') return { ic: 'shield', name: v > 1 ? `${v} escudos de território` : 'Escudo de território', short: `×${v}`, kind: 'zone', desc: 'Protege suas áreas por 24 h. Use quando quiser.' };
+    if (t === 't') return { ic: 'timer', name: v > 1 ? `${v} testes de 7 dias` : 'Teste de 7 dias', short: `×${v}`, kind: 'trial', useful: 1, desc: 'Escolha uma função ainda bloqueada (ex.: Fantasma, Planos de treino, Segmentos) e use por 7 dias.' };
+    if (t === 'u') return { ic: 'unlock', name: 'Função liberada para sempre', short: '×1', kind: 'unlock', useful: 1, desc: 'Escolha qualquer função bloqueada e ela fica sua para sempre, sem precisar dos km.' };
     if (t === 'b') return { ic: 'zap', name: v > 1 ? `${v}× pontos em dobro` : 'Pontos em dobro', short: `×${v}`, kind: 'boost', desc: 'O próximo treino vale o dobro de pontos na temporada.' };
     const it = this.item(v) || { name: v };
     return { ic: this.itemIcon(it), name: it.name, kind: 'item', item: it, desc: it.desc || '', special: !!this.ITEMS.find((x) => x.id === v) };
@@ -147,7 +150,7 @@ const Pass = {
       got[k] = Date.now();
       const [t, v] = r;
       if (t === 'c') D.coins += v;
-      else if (t === 's' || t === 'z' || t === 'b') P.inv[t] = (P.inv[t] || 0) + v;
+      else if ('szbtu'.includes(t)) P.inv[t] = (P.inv[t] || 0) + v;
       else if (t === 'i' && !D.owned[v]) {
         D.owned[v] = Date.now();
         const it = this.item(v);
@@ -247,6 +250,46 @@ const Pass = {
       P.inv.z--; Store.data.shieldUntil = Date.parse(u) || Date.now() + 24 * 3600e3; Store.save();
       FX.beep([392, 523, 659]); FX.toast('Escudo ativado: suas áreas estão protegidas por 24 h.'); UI.pass();
     } catch (e) { FX.toast(/limite/.test(String(e && e.message)) ? 'Você já usou um escudo hoje. Tente amanhã.' : 'Não foi possível ativar agora.'); }
+  },
+  locked() {
+    const D = Store.data;
+    return CONFIG.unlocks.filter((u) => !D.unlocked[u.id] && (typeof Game.relevant !== 'function' || Game.relevant(u)));
+  },
+  async pickUnlock(title, sub) {
+    const L = this.locked();
+    if (!L.length) { FX.toast('Você já liberou todas as funções. Guarde para a próxima temporada!'); return null; }
+    const v = await FX.modal(`<h3>${title}</h3><p class="muted">${sub}</p><div class="ps-pick">${L.map((u) => `<button data-m="${u.id}">${I(u.icon || 'unlock')}<span class="grow"><b>${esc(u.name)}</b><small>${esc(u.desc || '')}</small></span>${Ads && Ads.trialOn && Ads.trialOn(u.id) ? '<em>em teste</em>' : ''}</button>`).join('')}</div><button class="btn ghost block" data-m="no">Agora não</button>`);
+    return v && v !== 'no' && v !== 'ok' ? CONFIG.unlocks.find((u) => u.id === v) : null;
+  },
+  async useTrial() {
+    const P = this.st(); if (!(P.inv.t > 0)) return;
+    const u = await this.pickUnlock('Testar uma função por 7 dias', 'Escolha o que você quer usar. Depois dos 7 dias, volta a ficar bloqueada até você bater a meta.');
+    if (!u) return;
+    const D = Store.data; D.trials = D.trials || {}; const until = Math.max(D.trials[u.id] || 0, Date.now()) + 7 * 864e5;
+    D.trials[u.id] = until; (u.needs || []).forEach((n) => { if (!D.unlocked[n]) D.trials[n] = Math.max(D.trials[n] || 0, until); });
+    P.inv.t--; Store.save(); FX.beep([523, 784]);
+    FX.toast(`${u.name} liberada por 7 dias.`); if (App.tab === 'pass') UI.pass();
+  },
+  async useUnlock() {
+    const P = this.st(); if (!(P.inv.u > 0)) return;
+    const u = await this.pickUnlock('Liberar uma função para sempre', 'Escolha bem: ela fica sua de vez, sem precisar dos km.');
+    if (!u) return;
+    const D = Store.data; D.unlocked[u.id] = Date.now(); (u.needs || []).forEach((n) => { if (!D.unlocked[n]) D.unlocked[n] = Date.now(); });
+    P.inv.u--; Store.save(); FX.beep([523, 659, 784, 1047]); FX.vibrate([30, 40, 30]);
+    FX.modal(`<div class="ps-info"><div class="m-hero">${I(u.icon || 'unlock')}</div><h3>${esc(u.name)} é sua!</h3><p class="muted">Liberada para sempre. Já pode usar.</p><button class="btn primary" data-m="ok">Boa!</button></div>`);
+    if (App.tab === 'pass') UI.pass();
+  },
+  // próxima recompensa que vale mostrar (prioriza itens e coisas úteis)
+  nextGood() {
+    const lv = this.level(), prem = this.premium();
+    for (let l = lv + 1; l <= this.MAX; l++) {
+      for (const tr of prem ? ['p', 'f'] : ['f', 'p']) {
+        const r = this.reward(tr, l); if (!r) continue;
+        const i = this.rewardInfo(r);
+        if (i.kind === 'item' || i.useful) return { l, tr, i };
+      }
+    }
+    return null;
   },
   useBoost() {
     const P = this.st(); if (!(P.inv.b > 0) || P.boostNext) return;
@@ -367,6 +410,33 @@ const Pass = {
     return L1[(n - 1) % L1.length];
   },
 
+  /* ---------- cartão do Início (bem visível) ---------- */
+  homeCard() {
+    if (!this.active() && Date.now() > this.win()[1]) return '';
+    const pts = this.points(), lv = this.level(pts), into = pts - (lv - 1) * this.PER_LEVEL, max = lv >= this.MAX, prem = this.premium(), nx = this.nextGood();
+    return `<section class="ps-home tap" data-act="go" data-v="pass">
+      <div class="psh-glow"></div>
+      <div class="psh-top"><span class="psh-k">${this.SEASON.name}${prem ? ' · Premium' : ''}</span><span class="psh-d">faltam ${this.daysLeft()} dias</span></div>
+      <div class="psh-mid">
+        <div class="psh-lv"><small>Nível</small><b class="num">${lv}</b><span class="num">de ${this.MAX}</span></div>
+        <div class="psh-m">${this.mascotNow('md') || this.mascotSvg('egg', 0, 'md')}</div>
+      </div>
+      <div class="psh-bar"><i style="width:${max ? 100 : (into / this.PER_LEVEL) * 100}%"></i></div>
+      ${nx ? `<div class="psh-next"><span class="psh-ni">${nx.i.item && nx.i.item.cat === 'mascot' ? this.mascotSvg(nx.i.item.value === 'dragon' ? 'dragon' : 'egg', 3, 'xs') : I(nx.i.ic)}</span><span class="grow"><small>Próxima recompensa · nível ${nx.l}${nx.tr === 'p' && !prem ? ' · Premium' : ''}</small><b>${esc(nx.i.name)}</b></span>${I('chevronRight', 'xs')}</div>` : ''}
+      ${prem ? '' : `<div class="psh-cta"><span>Passe Premium: Dragão lendário, rastro de chamas e 4 funções para sempre</span><b>${this.price('pass')}</b></div>`}
+    </section>`;
+  },
+  // aviso de estreia, uma vez
+  intro() {
+    const P = this.st(); if (P.introSeen === this.SEASON.id || !this.active()) return;
+    P.introSeen = this.SEASON.id; Store.save();
+    FX.modal(`<div class="ps-intro"><div class="psi-art">${this.mascotSvg('egg', 0)}${this.mascotSvg('dragon', 3)}</div>
+      <h3>Chegou a ${this.SEASON.name}</h3>
+      <p class="muted">50 níveis de recompensas até ${new Date(this.SEASON.end + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}. Você sobe treinando e completando missões, como sempre.</p>
+      <ul class="ps-best"><li>${I('sparkles')}<span><b>Ovo do mascote</b> agora: choca com 10 km</span></li><li>${I('unlock')}<span><b>Testes de funções</b>, escudos e pontos em dobro</span></li><li>${I('crown')}<span><b>Título que evolui</b> ao lado do seu nome</span></li></ul>
+      <button class="btn primary block" data-m="go">Ver a temporada</button><button class="btn ghost block" data-m="no">Depois</button></div>`).then((v) => { if (v === 'go') App.go('pass'); });
+  },
+
   /* ---------- tela ---------- */
   rowCell(track, lv, reached) {
     const r = this.reward(track, lv); if (!r) return '<div class="ps-cell empty"></div>';
@@ -403,6 +473,8 @@ const Pass = {
           <li>${this.mascotSvg('dragon', 3, 'xs')}<span><b>Dragão lendário</b> no nível 50</span></li>
           <li>${I('flame')}<span><b>Rastro de chamas</b> já no primeiro treino</span></li>
           <li>${I('ghost')}<span><b>Fantasma de lobo</b> e <b>narrador de futebol</b></span></li>
+          <li>${I('unlock')}<span><b>4 funções liberadas para sempre</b>, à sua escolha</span></li>
+          <li>${I('play')}<span><b>Sem anúncios</b>: escudo, XP em dobro e testes na hora</span></li>
           <li>${I('flag')}<span><b>Arco de chegada com fogos</b>, temas e molduras exclusivas</span></li>
         </ul>
         <button class="btn primary block" data-act="passBuy" data-v="pass">Comprar Passe Premium · ${this.price('pass')}</button>
@@ -416,6 +488,8 @@ const Pass = {
           <div><span>${I('flame')}</span><b class="num">${P.inv.s || 0}</b><small>Escudo de ofensiva</small><em>usa sozinho</em></div>
           <button data-act="passUse" data-v="z" ${P.inv.z > 0 ? '' : 'disabled'}><span>${I('shield')}</span><b class="num">${P.inv.z || 0}</b><small>Escudo de território</small><em>${P.inv.z > 0 ? 'Usar' : '—'}</em></button>
           <button data-act="passUse" data-v="b" ${P.inv.b > 0 && !P.boostNext ? '' : 'disabled'}><span>${I('zap')}</span><b class="num">${P.inv.b || 0}</b><small>Pontos em dobro</small><em>${P.boostNext ? 'Ativo no próximo treino' : P.inv.b > 0 ? 'Usar' : '—'}</em></button>
+          <button data-act="passUse" data-v="t" ${P.inv.t > 0 ? '' : 'disabled'}><span>${I('timer')}</span><b class="num">${P.inv.t || 0}</b><small>Teste de 7 dias</small><em>${P.inv.t > 0 ? 'Escolher função' : '—'}</em></button>
+          <button data-act="passUse" data-v="u" ${P.inv.u > 0 ? '' : 'disabled'}><span>${I('unlock')}</span><b class="num">${P.inv.u || 0}</b><small>Liberar para sempre</small><em>${P.inv.u > 0 ? 'Escolher função' : 'Premium'}</em></button>
         </div>
         ${owned.length ? `<div class="ps-own">${owned.map((it) => `<button class="${isOn(it) ? 'on' : ''}" data-act="passEquip" data-v="${it.cat}:${it.id}">${it.cat === 'mascot' ? this.mascotSvg(it.value === 'dragon' ? 'dragon' : 'egg', it.value === 'dragon' ? 3 : this.mascotStage(), 'xs') : I(this.itemIcon(it))}<span>${esc(it.name)}</span><em>${isOn(it) ? 'Em uso' : 'Usar'}</em></button>`).join('')}</div>` : ''}
         ${this.owns('sticker-t1') ? `<div class="ps-sticker">${I('award')}<span>Figurinha da ${S.name} conquistada</span></div>` : ''}
@@ -468,7 +542,7 @@ const Pass = {
     try {
       const lv1 = Pass.level();
       r.pass = { pts: Pass.actPts(act), lv0, lv1 };
-      if (Pass.active() && r.pass.pts) setTimeout(() => { FX.toast(lv1 > lv0 ? `${Pass.SEASON.name}: subiu para o nível ${lv1}!` : `+${r.pass.pts} pontos na ${Pass.SEASON.name}`); Pass.grant(); }, 2600);
+      if (Pass.active() && r.pass.pts) setTimeout(() => Pass.grant(), 2600);
     } catch (e) {}
     return r;
   };
@@ -528,7 +602,7 @@ const Pass = {
   App.parents.pass = 'home';
   Object.assign(App.actions, {
     passBuy: (el) => Pass.buy(el.dataset.v),
-    passUse: (el) => (el.dataset.v === 'z' ? Pass.useZone() : Pass.useBoost()),
+    passUse: (el) => ({ z: () => Pass.useZone(), b: () => Pass.useBoost(), t: () => Pass.useTrial(), u: () => Pass.useUnlock() }[el.dataset.v] || (() => {}))(),
     passEquip: (el) => { const [c, id] = el.dataset.v.split(':'); Pass.equip(c, id); UI.pass(); },
     passInfo: (el) => {
       const [tr, l] = el.dataset.v.split(':'), lv = +l, r = Pass.reward(tr, lv), i = Pass.rewardInfo(r);
@@ -539,6 +613,34 @@ const Pass = {
         ${locked ? `<button class="btn primary" data-m="buy">Ver Passe Premium</button>` : `<button class="btn primary" data-m="ok">Fechar</button>`}</div>`).then((v) => { if (v === 'buy') { const b = document.querySelector('.ps-buy'); if (b) b.scrollIntoView({ block: 'start', behavior: 'smooth' }); } });
     },
   });
+
+  // Premium: recompensas dos anúncios sem precisar assistir
+  if (typeof Ads !== 'undefined') {
+    const show = Ads.show.bind(Ads);
+    Ads.show = async function (kind) { if (Pass.premium() && Pass.active()) { FX.toast('Premium: recompensa liberada sem anúncio'); return true; } return show(kind); };
+  }
+  // cartão da temporada no Início, logo depois da semana
+  const home = UI.home.bind(UI);
+  UI.home = function (...a) {
+    const r = home(...a);
+    try { const w = document.querySelector('.v9-week'); if (w && !document.querySelector('.ps-home')) w.insertAdjacentHTML('afterend', Pass.homeCard()); } catch (e) {}
+    if (!Pass._introT) Pass._introT = setTimeout(() => { try { if (App.tab === 'home' && Store.data.profile.onboarded) Pass.intro(); } catch (e) {} }, 2500);
+    return r;
+  };
+  // resumo do treino: quanto rendeu na temporada
+  const sum = UI.summary.bind(UI);
+  UI.summary = function (act, res, isNew, ...rest) {
+    const r = sum(act, res, isNew, ...rest);
+    try {
+      if (isNew && res && res.pass && res.pass.pts && Pass.active()) {
+        const p = res.pass, up = p.lv1 > p.lv0, nx = Pass.nextGood();
+        const html = `<section class="ps-sum tap" data-act="go" data-v="pass"><span class="pss-ic">${Pass.mascotNow('xs') || I('sparkles')}</span><div class="grow"><small>${Pass.SEASON.name}</small><b>${up ? `Subiu para o nível ${p.lv1}!` : `+${p.pts} pontos${act.passBoost ? ' (em dobro)' : ''}`}</b>${nx ? `<small>Próxima: ${esc(nx.i.name)} no nível ${nx.l}</small>` : ''}</div>${I('chevronRight', 'xs')}</section>`;
+        const anchor = document.querySelector('.screen .sum-stats, .screen .stat-grid, .screen .post-stats, .screen > section');
+        if (anchor && !document.querySelector('.ps-sum')) anchor.insertAdjacentHTML('afterend', html);
+      }
+    } catch (e) {}
+    return r;
+  };
 
   // compras e escudos ao abrir e ao entrar na conta
   const al = Cloud.afterLogin.bind(Cloud);
