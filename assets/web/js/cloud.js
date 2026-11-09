@@ -151,6 +151,7 @@ const Cloud = {
     this.me = data;
     this.loadCeo();
     await this.pull();
+    if (this.me && this.me.avatar_cfg && this.me.avatar_cfg.on !== false && !(Store.data.avatar && Store.data.avatar.on)) { const { st, ...cfg } = this.me.avatar_cfg; Store.data.avatar = { ...cfg, on: true }; Store.save(); }
     if (this.me) { if (this.me.photo && !Store.data.profile.photo) { Store.data.profile.photo = this.me.photo; Store.save(); } this.pushProfile(); }
     try { localStorage.setItem('jg_authed', '1'); } catch (e) {}
     if (App.tab === 'gate') { if (App.gateStep !== 'setup') App.afterAuth(); return; }
@@ -238,6 +239,17 @@ const Cloud = {
       const rids = new Set(L.routes.map((g) => g.id)); (C.routes || []).forEach((g) => { if (!rids.has(g.id)) L.routes.push(g); });
       if ((C.xp || 0) > L.xp) { L.xp = C.xp; L.coins = C.coins; L.xpLog = C.xpLog || L.xpLog; L.records = { ...L.records, ...(C.records || {}) }; }
       if (!L.plan && C.plan) L.plan = C.plan;
+      // o que pode sumir do aparelho (atualização, troca de celular) volta da nuvem
+      if ((!L.avatar || !L.avatar.on) && C.avatar && C.avatar.on) L.avatar = C.avatar;
+      else if (L.avatar && C.avatar && C.avatar.own) L.avatar.own = { ...C.avatar.own, ...(L.avatar.own || {}) };
+      if (C.pass) {
+        if (!L.pass) L.pass = C.pass;
+        else { const lp = L.pass, cp = C.pass; lp.got = lp.got || {}; Object.keys(cp.got || {}).forEach((sid) => (lp.got[sid] = { ...(cp.got[sid] || {}), ...(lp.got[sid] || {}) })); lp.ent = { ...(cp.ent || {}), ...(lp.ent || {}) }; lp.eq = { ...(cp.eq || {}), ...(lp.eq || {}) }; if (!lp.inv || !Object.values(lp.inv).some((v) => v > 0)) lp.inv = cp.inv || lp.inv; if (cp.introSeen) lp.introSeen = lp.introSeen || cp.introSeen; }
+      }
+      if (C.trials) L.trials = { ...C.trials, ...(L.trials || {}) };
+      if (C.streakSaves) L.streakSaves = [...new Set([...(C.streakSaves || []), ...(L.streakSaves || [])])].slice(-30);
+      if (C.equipped && !Object.values(L.equipped || {}).some(Boolean)) L.equipped = { ...L.equipped, ...C.equipped };
+      if (C.profile) { const dp = Store.defaults().profile; Object.keys(C.profile).forEach((k) => { if (L.profile[k] === undefined || (L.profile[k] === dp[k] && C.profile[k] !== dp[k] && ['name', 'sports', 'experience', 'goalWeek', 'goalMonth', 'weight', 'age'].includes(k))) L.profile[k] = C.profile[k]; }); }
       L.dailyDoneCount = Math.max(L.dailyDoneCount || 0, C.dailyDoneCount || 0);
       L.profile.onboarded = true;
       this._pulling = false; Store.save(); this.push();
