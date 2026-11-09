@@ -411,22 +411,6 @@ const Pass = {
   },
 
   /* ---------- cartão do Início (bem visível) ---------- */
-  homeCard() {
-    if (!this.active() && Date.now() > this.win()[1]) return '';
-    try { this.grant(true); } catch (e) {}
-    const pts = this.points(), lv = this.level(pts), into = pts - (lv - 1) * this.PER_LEVEL, max = lv >= this.MAX, prem = this.premium(), nx = this.nextGood();
-    return `<section class="ps-home tap" data-act="go" data-v="pass">
-      <div class="psh-glow"></div>
-      <div class="psh-top"><span class="psh-k">${this.SEASON.name}${prem ? ' · Premium' : ''}</span><span class="psh-d">faltam ${this.daysLeft()} dias</span></div>
-      <div class="psh-mid">
-        <div class="psh-lv"><small>Nível</small><b class="num">${lv}</b><span class="num">de ${this.MAX}</span></div>
-        <div class="psh-m">${this.mascotNow('md') || this.mascotSvg('egg', 0, 'md')}</div>
-      </div>
-      <div class="psh-bar"><i style="width:${max ? 100 : (into / this.PER_LEVEL) * 100}%"></i></div>
-      ${nx ? `<div class="psh-next"><span class="psh-ni">${this.art(nx.r)}</span><span class="grow"><small>Próxima recompensa · nível ${nx.l}${nx.tr === 'p' && !prem ? ' · Premium' : ''}</small><b>${esc(nx.i.name)}</b></span>${I('chevronRight', 'xs')}</div>` : ''}
-      ${prem ? '' : `<div class="psh-cta"><span>Passe Premium: Dragão lendário, rastro de chamas e 4 funções para sempre</span><b>${this.price('pass')}</b></div>`}
-    </section>`;
-  },
   // aviso de estreia, uma vez
   intro() {
     const P = this.st(); if (P.introSeen === this.SEASON.id || !this.active()) return;
@@ -490,24 +474,35 @@ const Pass = {
     return svg(`<circle cx="40" cy="40" r="24" fill="#334155"/>`);
   },
 
-  /* ---------- tela ---------- */
+  /* ---------- tela: "Rota do Verão" ----------
+     A temporada é uma prova de 50 km. O nível é o seu número de peito,
+     cada nível é um marco de km na estrada e cada prêmio é uma placa:
+     verde (grátis, como as placas de rodovia) e marrom (premium, como
+     as placas de atrativo turístico). */
+  pins() { return ['tl', 'tr', 'bl', 'br'].map((p) => `<i class="pin ${p}"><svg viewBox="0 0 30 12"><path d="M3 6 H24 a3 3 0 0 0 0 -3 H6" fill="none" stroke="#9AA4B2" stroke-width="1.8" stroke-linecap="round"/><circle cx="3" cy="6" r="2.6" fill="#C8CFD8"/></svg></i>`).join(''); },
+  bib(lv, small) {
+    const S = this.SEASON, name = esc((Store.data.profile.name || 'Atleta').split(' ').slice(0, 2).join(' '));
+    return `<div class="bib ${small ? 'sm' : ''}">${this.pins()}
+      <div class="bib-top"><span>Corrida de Verão</span><span>Temporada 1</span></div>
+      <div class="bib-num num">${lv}</div>
+      <div class="bib-name">${name}</div>
+      <div class="bib-chip"><span>${this.premium() ? 'PREMIUM' : 'KM ' + lv + ' / ' + this.MAX}</span><i></i></div>
+    </div>`;
+  },
   card(track, lv, cur) {
-    const r = this.reward(track, lv); if (!r) return '<div class="pt-card empty"></div>';
-    const i = this.rewardInfo(r), rar = this.RARITY[this.rarity(r)], locked = track === 'p' && !this.premium();
-    const got = (this.st().got[this.SEASON.id] || {})[track + lv], reached = lv <= cur;
-    return `<button class="pt-card ${track} ${got ? 'got' : ''} ${reached ? 'reached' : ''} ${locked ? 'locked' : ''}" style="--r:${rar[1]}" data-act="passPick" data-v="${track}:${lv}">
-      <span class="pt-rar">${rar[0]}</span>
-      <span class="pt-art">${this.art(r)}</span>
-      <span class="pt-name">${esc(i.name)}</span>
-      ${locked ? `<i class="pt-badge lock">${I('lock', 'xs')}</i>` : got ? `<i class="pt-badge ok">${I('check', 'xs')}</i>` : ''}
+    const r = this.reward(track, lv); if (!r) return '<div class="sg empty"></div>';
+    const i = this.rewardInfo(r), locked = track === 'p' && !this.premium(), big = this.rarity(r) === 'l' || this.rarity(r) === 'e';
+    const got = (this.st().got[this.SEASON.id] || {})[track + lv];
+    return `<button class="sg ${track} ${got ? 'got' : ''} ${lv <= cur ? 'reached' : ''} ${locked ? 'locked' : ''} ${big ? 'big' : ''}" data-act="passPick" data-v="${track}:${lv}">
+      <span class="sg-face"><span class="sg-pic">${this.art(r)}</span><span class="sg-name">${esc(i.name)}</span>${got ? '<em class="sg-stamp">PEGO</em>' : locked ? `<em class="sg-lock">${I('lock', 'xs')}</em>` : ''}</span>
+      <span class="sg-post"></span>
     </button>`;
   },
   detail(track, lv) {
-    const r = this.reward(track, lv), i = this.rewardInfo(r), rar = this.RARITY[this.rarity(r)];
+    const r = this.reward(track, lv), i = this.rewardInfo(r);
     const locked = track === 'p' && !this.premium(), cur = this.level(), got = (this.st().got[this.SEASON.id] || {})[track + lv];
-    const state = locked ? (cur >= lv ? 'Libera na hora com o Passe Premium' : `Passe Premium · faltam ${lv - cur} ${lv - cur === 1 ? 'nível' : 'níveis'}`) : got ? 'Você já ganhou' : `Faltam ${lv - cur} ${lv - cur === 1 ? 'nível' : 'níveis'}`;
-    return `<div class="pd-art" style="--r:${rar[1]}">${this.art(r)}</div>
-      <div class="pd-txt"><span class="pd-k" style="--r:${rar[1]}">${rar[0]} · ${track === 'p' ? 'Premium' : 'Grátis'} · nível ${lv}</span><b>${esc(i.name)}</b>${i.desc ? `<p>${esc(i.desc)}</p>` : ''}<span class="pd-st ${got ? 'ok' : locked ? 'lock' : ''}">${got ? I('check', 'xs') : locked ? I('lock', 'xs') : I('clock', 'xs')}${state}</span></div>`;
+    const n = lv - cur, state = got ? 'Já é seu' : locked ? (n <= 0 ? 'Libera na hora com o Premium' : `Premium · faltam ${n} km`) : `Faltam ${n} km`;
+    return `<div class="pd2 ${track}"><div class="pd2-pic">${this.art(r)}</div><div class="pd2-t"><span class="pd2-k">KM ${lv} · ${track === 'p' ? 'Premium' : 'Grátis'}</span><b>${esc(i.name)}</b>${i.desc ? `<p>${esc(i.desc)}</p>` : ''}<span class="pd2-st ${got ? 'ok' : locked ? 'lock' : ''}">${state}</span></div></div>`;
   },
   view() {
     this.st(); this.grant(true);
@@ -515,63 +510,88 @@ const Pass = {
     const P = this.st(), days = this.daysLeft(), S = this.SEASON;
     const owned = this.ITEMS.filter((x) => this.owns(x.id) && x.cat !== 'sticker');
     const isOn = (it) => (['line', 'frame', 'avatar', 'theme', 'finish'].includes(it.cat) ? Store.data.equipped[it.cat] === it.id : P.eq[it.cat] === it.id);
-    const t = this.title(), sel = this._sel || [prem ? 'p' : 'p', Math.min(this.MAX, lv + (lv < this.MAX ? 1 : 0))];
-    const fill = ((lv - 1) / (this.MAX - 1)) * 100;
-    const inv = [['s', 'flame', 'Escudo de ofensiva', 'usa sozinho'], ['z', 'shield', 'Escudo de território', 'Usar'], ['b', 'zap', 'Pontos em dobro', P.boostNext ? 'no próximo treino' : 'Usar'], ['t', 'timer', 'Teste de 7 dias', 'Escolher'], ['u', 'unlock', 'Liberar função', 'Escolher']];
-    return `<main class="screen ps2">
-      <section class="p2-hero">
-        <div class="p2-sky"></div>
-        <div class="p2-top"><span>${this.active() ? `Faltam ${days} dias` : Date.now() < this.win()[0] ? 'Começa em breve' : 'Encerrada'}</span>${prem ? '<b class="p2-prem">PREMIUM</b>' : ''}</div>
-        <h1>${S.name.replace('Temporada de ', 'Temporada<br>de ')}</h1>
-        <div class="p2-masc">${this.mascotNow('lg') || this.mascotSvg('egg', 0, 'lg')}</div>
-        <div class="p2-lv"><div><small>Nível</small><b class="num">${lv}</b></div><div class="grow"><div class="p2-bar"><i style="width:${max ? 100 : (into / this.PER_LEVEL) * 100}%"></i></div><span class="num">${max ? 'Nível máximo' : `${into} de ${this.PER_LEVEL} pontos para o nível ${lv + 1}`}</span></div></div>
-        ${t ? `<div class="p2-title"><span class="pt-chip" style="--c:${t.color}">${esc(t.name)}</span> ${Fmt.num(this.seasonKm())} km na temporada</div>` : `<div class="p2-title">${Fmt.num(this.seasonKm())} km na temporada</div>`}
+    const sel = this._sel || ['p', Math.min(this.MAX, lv + (lv < this.MAX ? 1 : 0))];
+    const inv = [['s', 'Escudo de ofensiva', 'usa sozinho'], ['z', 'Escudo de território', 'Usar'], ['b', 'Pontos em dobro', P.boostNext ? 'no próximo treino' : 'Usar'], ['t', 'Teste de 7 dias', 'Escolher'], ['u', 'Liberar função', 'Escolher']];
+    const end = new Date(S.end + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }).replace('.', '');
+    return `<main class="screen rv">
+      <section class="rv-hero">
+        <div class="rv-sun"></div>
+        <svg class="rv-hills" viewBox="0 0 400 90" preserveAspectRatio="none"><path d="M0 70 C60 30 110 55 160 40 C220 20 260 60 320 38 C360 24 385 40 400 34 V90 H0Z" fill="#F7D79B"/><path d="M0 80 C80 60 140 78 220 64 C290 52 340 72 400 60 V90 H0Z" fill="#EFC27A"/></svg>
+        <div class="rv-hero-in">
+          <div class="rv-head"><span class="rv-k">${this.active() ? `Faltam ${days} dias · até ${end}` : Date.now() < this.win()[0] ? 'A largada é em breve' : 'Prova encerrada'}</span><h1>${S.name}</h1></div>
+          ${this.bib(lv)}
+          <div class="rv-prog"><div class="rv-prog-t"><b class="num">${max ? 'Chegada!' : `${this.PER_LEVEL - into} pts`}</b><span>${max ? 'Você completou os 50 km da temporada' : `para o KM ${lv + 1}`}</span></div><div class="rv-prog-bar"><i style="width:${max ? 100 : (into / this.PER_LEVEL) * 100}%"></i></div></div>
+        </div>
       </section>
 
-      <section class="p2-trackwrap">
-        <div class="p2-lanes"><span class="p2-lane p">${I('crown', 'xs')}Premium</span><span class="p2-lane f">Grátis</span></div>
-        <div class="p2-track" id="psTrack">
-          <div class="p2-rail"><i style="width:calc(${fill}% )"></i></div>
-          ${Array.from({ length: this.MAX }, (_, k) => k + 1).map((l) => `<div class="p2-col ${l <= lv ? 'done' : ''} ${l === lv ? 'cur' : ''}" ${l === lv ? 'id="psCur"' : ''}>
-            ${this.card('p', l, lv)}
-            <span class="p2-node num">${l}</span>
-            ${this.card('f', l, lv)}
-          </div>`).join('')}
+      <section class="rv-road-wrap">
+        <div class="rv-road-scroll" id="psTrack">
+          <div class="rv-road" style="--n:${this.MAX};--done:${lv}">
+            <div class="rv-asphalt"><i class="rv-trail"></i></div>
+            ${Array.from({ length: this.MAX }, (_, k) => k + 1).map((l) => `<div class="rv-col ${l <= lv ? 'done' : ''} ${l === lv ? 'cur' : ''}" ${l === lv ? 'id="psCur"' : ''}>
+              ${this.card('p', l, lv)}
+              <div class="rv-km"><span class="num">${l}</span>${l === lv ? `<div class="rv-me">${this.mascotNow('xs') || this.mascotSvg('egg', 0, 'xs')}</div>` : ''}</div>
+              ${this.card('f', l, lv)}
+            </div>`).join('')}
+            <div class="rv-finish"><span>CHEGADA</span></div>
+          </div>
         </div>
-        <div class="p2-detail" id="psDetail">${this.detail(sel[0], sel[1])}</div>
+        <div class="rv-legend"><span class="lg-p">Placas marrons · Premium</span><span class="lg-f">Placas verdes · Grátis</span></div>
+        <div class="rv-detail" id="psDetail">${this.detail(sel[0], sel[1])}</div>
       </section>
 
-      ${prem ? `<section class="p2-buy on"><div class="grow"><b>Passe Premium ativo</b><small>Sem anúncios e com todas as recompensas premium.</small></div><button class="btn" data-act="passBuy" data-v="skip">+3 níveis · ${this.price('skip')}</button></section>`
-      : `<section class="p2-buy">
-        <div class="p2-buy-art">${this.mascotSvg('dragon', 3, 'md')}</div>
-        <span class="p2-buy-k">PASSE PREMIUM</span>
-        <h2>Libere a trilha de cima inteira</h2>
-        <div class="p2-perks">
-          <div>${this.art(['i', 'line-flame'])}<span>Rastro de chamas no 1º treino</span></div>
-          <div>${this.art(['u', 1])}<span>4 funções para sempre</span></div>
-          <div>${this.art(['i', 'ghost-wolf'])}<span>Fantasma de lobo</span></div>
-          <div>${this.art(['i', 'voice-futebol'])}<span>Narrador de futebol</span></div>
-        </div>
-        <p class="p2-noad">${I('check', 'xs')} Sem anúncios: escudo, XP em dobro e testes na hora</p>
-        <button class="btn p2-cta" data-act="passBuy" data-v="pass"><span>Comprar Passe Premium</span><b><s>${this.PRODUCTS.pass.was}</s> ${this.price('pass')}</b></button>
-        <button class="btn p2-cta2" data-act="passBuy" data-v="plus">Passe + 10 níveis · ${this.price('plus')}</button>
-        <p class="ps-fine">Pagamento único pela Google Play. Vale até o fim da temporada e fica na sua conta. As recompensas dos níveis que você já alcançou chegam na hora.</p>
+      ${prem ? `<section class="rv-kit on"><div class="grow"><b>Inscrição Premium confirmada</b><small>Sem anúncios e com todas as placas marrons liberadas.</small></div><button class="btn" data-act="passBuy" data-v="skip">+3 km · ${this.price('skip')}</button></section>`
+      : `<section class="rv-kit">
+        <div class="kit-tag">INSCRIÇÃO PREMIUM</div>
+        <h2>O kit completo da prova</h2>
+        <p class="kit-sub">Libera as 50 placas marrons. As dos km que você já passou chegam na hora.</p>
+        <ul class="kit-list">
+          <li>${this.art(['i', 'mascot-dragon'])}<div><b>Dragão lendário</b><small>no KM 50, só para quem tem o kit</small></div></li>
+          <li>${this.art(['i', 'line-flame'])}<div><b>Rastro de chamas</b><small>já no seu próximo treino</small></div></li>
+          <li>${this.art(['u', 1])}<div><b>4 funções para sempre</b><small>você escolhe quais</small></div></li>
+          <li>${this.art(['i', 'voice-futebol'])}<div><b>Narrador de futebol e fantasma de lobo</b><small>o treino vira um jogo</small></div></li>
+          <li>${this.art(['b', 1])}<div><b>Sem anúncios</b><small>escudos, XP em dobro e testes na hora</small></div></li>
+        </ul>
+        <button class="btn kit-cta" data-act="passBuy" data-v="pass"><span>Fazer inscrição Premium</span><b><s>${this.PRODUCTS.pass.was}</s>${this.price('pass')}</b></button>
+        <button class="btn kit-cta2" data-act="passBuy" data-v="plus">Inscrição + 10 km na frente · ${this.price('plus')}</button>
+        <p class="ps-fine">Pagamento único pela Google Play, vale até ${end}. Fica salvo na sua conta.</p>
       </section>`}
 
-      <section class="v9-sec">
-        <header class="v9-h"><h2>Seus itens</h2></header>
-        <div class="p2-inv">${inv.map(([k, ic, name, act]) => { const n = P.inv[k] || 0, can = k !== 's' && n > 0 && !(k === 'b' && P.boostNext); return `<${can ? `button data-act="passUse" data-v="${k}"` : 'div'} class="${n ? 'has' : ''}"><span class="p2-ii">${this.art([k, 1])}</span><b class="num">${n}</b><small>${name}</small>${can || k === 's' || (k === 'b' && P.boostNext) ? `<em>${act}</em>` : ''}</${can ? 'button' : 'div'}>`; }).join('')}</div>
-        ${owned.length ? `<h3 class="p2-sub">Visuais da temporada</h3><div class="p2-own">${owned.map((it) => `<button class="${isOn(it) ? 'on' : ''}" data-act="passEquip" data-v="${it.cat}:${it.id}"><span class="p2-oa">${it.cat === 'mascot' && it.value === 'egg' ? this.mascotSvg('egg', this.mascotStage(), 'ps-art') : this.art(['i', it.id])}</span><span class="p2-on">${esc(it.name)}</span><em>${isOn(it) ? 'Em uso' : 'Usar'}</em></button>`).join('')}</div>` : ''}
+      <section class="v9-sec rv-bag">
+        <header class="v9-h"><h2>Sua mochila</h2></header>
+        <div class="p2-inv">${inv.map(([k, name, act]) => { const n = P.inv[k] || 0, can = k !== 's' && n > 0 && !(k === 'b' && P.boostNext); return `<${can ? `button data-act="passUse" data-v="${k}"` : 'div'} class="${n ? 'has' : ''}"><span class="p2-ii">${this.art([k, 1])}</span><b class="num">${n}</b><small>${name}</small>${can || k === 's' || (k === 'b' && P.boostNext) ? `<em>${act}</em>` : ''}</${can ? 'button' : 'div'}>`; }).join('')}</div>
+        ${owned.length ? `<h3 class="p2-sub">Visuais da temporada</h3><div class="rv-own">${owned.map((it) => `<button class="${isOn(it) ? 'on' : ''}" data-act="passEquip" data-v="${it.cat}:${it.id}"><span class="p2-oa">${it.cat === 'mascot' && it.value === 'egg' ? this.mascotSvg('egg', this.mascotStage(), 'ps-art') : this.art(['i', it.id])}</span><span class="p2-on">${esc(it.name)}</span><em>${isOn(it) ? 'Em uso' : 'Usar'}</em></button>`).join('')}</div>` : ''}
         ${this.owns('sticker-t1') ? `<div class="ps-sticker">${this.art(['i', 'sticker-t1'])}<span>Figurinha da ${S.name} conquistada</span></div>` : ''}
       </section>
 
-      <section class="v9-sec ps-how">
-        <header class="v9-h"><h2>Como subir de nível</h2></header>
-        <dl><div><dt>Cada treino</dt><dd class="num">${this.PTS.act} + ${this.PTS.perKm}/km</dd></div><div><dt>Missão diária</dt><dd class="num">${this.PTS.d}</dd></div><div><dt>Missão semanal</dt><dd class="num">${this.PTS.w}</dd></div><div><dt>Missão do mês</dt><dd class="num">${this.PTS.m}</dd></div></dl>
-        <p class="ps-fine">Cada nível precisa de ${this.PER_LEVEL} pontos. Treinos a partir de 1 km ou 10 minutos contam, até 15 km por treino.</p>
+      <section class="v9-sec rv-rules">
+        <header class="v9-h"><h2>Regulamento</h2></header>
+        <ol>
+          <li><b>Cada ${this.PER_LEVEL} pontos = 1 km</b> na rota da temporada.</li>
+          <li><b>Treino:</b> ${this.PTS.act} pontos + ${this.PTS.perKm} por km (vale a partir de 1 km ou 10 minutos, até 15 km).</li>
+          <li><b>Missões:</b> diária ${this.PTS.d}, semanal ${this.PTS.w}, do mês ${this.PTS.m}.</li>
+          <li><b>Pontos em dobro</b> valem para o próximo treino depois de usar.</li>
+          <li>A prova termina em <b>${end}</b>. O que você ganhou continua seu.</li>
+        </ol>
       </section>
     </main>`;
   },
+  /* cartão do Início: o número de peito + a próxima placa */
+  homeCard() {
+    if (!this.active() && Date.now() > this.win()[1]) return '';
+    try { this.grant(true); } catch (e) {}
+    const pts = this.points(), lv = this.level(pts), into = pts - (lv - 1) * this.PER_LEVEL, max = lv >= this.MAX, nx = this.nextGood();
+    return `<section class="rv-home tap" data-act="go" data-v="pass">
+      ${this.bib(lv, true)}
+      <div class="rvh-r">
+        <span class="rvh-k">${this.SEASON.name} · faltam ${this.daysLeft()} dias</span>
+        <div class="rvh-bar"><i style="width:${max ? 100 : (into / this.PER_LEVEL) * 100}%"></i></div>
+        <small class="rvh-pts">${max ? 'Você chegou ao KM 50!' : `${this.PER_LEVEL - into} pts para o KM ${lv + 1}`}</small>
+        ${nx ? `<div class="rvh-next ${nx.tr}"><span class="rvh-pic">${this.art(nx.r)}</span><span class="grow"><small>KM ${nx.l}${nx.tr === 'p' && !this.premium() ? ' · Premium' : ''}</small><b>${esc(nx.i.name)}</b></span></div>` : ''}
+      </div>
+    </section>`;
+  },
+
 };
 
 /* ---------- ligações com o resto do app ---------- */
@@ -671,7 +691,7 @@ const Pass = {
     passPick: (el) => {
       const [tr, l] = el.dataset.v.split(':'); Pass._sel = [tr, +l];
       const d = $('#psDetail'); if (d) { d.innerHTML = Pass.detail(tr, +l); d.classList.remove('pop'); void d.offsetWidth; d.classList.add('pop'); }
-      document.querySelectorAll('.pt-card.sel').forEach((x) => x.classList.remove('sel')); el.classList.add('sel');
+      document.querySelectorAll('.sg.sel').forEach((x) => x.classList.remove('sel')); el.classList.add('sel');
     },
     passInfo: (el) => {
       const [tr, l] = el.dataset.v.split(':'), lv = +l, r = Pass.reward(tr, lv), i = Pass.rewardInfo(r);
@@ -692,7 +712,7 @@ const Pass = {
   const home = UI.home.bind(UI);
   UI.home = function (...a) {
     const r = home(...a);
-    try { const w = document.querySelector('.v9-week'); if (w && !document.querySelector('.ps-home')) w.insertAdjacentHTML('afterend', Pass.homeCard()); } catch (e) {}
+    try { const w = document.querySelector('.v9-week'); if (w && !document.querySelector('.rv-home')) w.insertAdjacentHTML('afterend', Pass.homeCard()); } catch (e) {}
     if (!Pass._introT) Pass._introT = setTimeout(() => { try { if (App.tab === 'home' && Store.data.profile.onboarded) Pass.intro(); } catch (e) {} }, 2500);
     return r;
   };

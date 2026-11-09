@@ -267,6 +267,14 @@ class Push {
             t = '$name curtiu seu treino';
             b = 'Curtiu $tr.';
             break;
+          case 'reply':
+            t = '$name respondeu você';
+            b = '"${it['text'] ?? ''}"';
+            break;
+          case 'clike':
+            t = '$name curtiu seu comentário';
+            b = '"${it['text'] ?? ''}"';
+            break;
           default:
             t = '$name comentou no seu treino';
             b = '"${it['text'] ?? ''}"';
