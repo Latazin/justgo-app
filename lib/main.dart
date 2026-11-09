@@ -321,6 +321,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       ));
     final p = c.platform;
     if (p is AndroidWebViewController) {
+      if (const bool.fromEnvironment('JG_DIAG')) AndroidWebViewController.enableDebugging(true);
       p.setMediaPlaybackRequiresUserGesture(false);
       p.setOnShowFileSelector(_pickFiles);
       p.setGeolocationPermissionsPromptCallbacks(
