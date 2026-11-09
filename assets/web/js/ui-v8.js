@@ -47,7 +47,7 @@ Object.assign(UI, {
     const liked = a.liked ? 'on' : '';
     return `<article class="p8" data-pid="${esc(a.id)}" style="--c:${sp.color}">
       <header class="p8-h"><button class="p8-av" data-act="userOpen" data-v="${a.user_id}">${this.avatarOf(p.name, p.frame, p.avatar, 'md', p.photo)}<i class="p8-sp">${I(sp.icon, 'xs')}</i></button>
-        <div class="p8-who"><b data-act="userOpen" data-v="${a.user_id}">${esc(p.name || 'Atleta')}${UI.vb(a.user_id, p.username)}</b><small>${this.rel(t)}${where}</small></div>${fol}<button class="p8-more" data-act="postMenu" data-v="${esc(a.id)}" data-u="${a.user_id}" aria-label="Mais opções">${I('more')}</button></header>
+        <div class="p8-who"><b data-act="userOpen" data-v="${a.user_id}">${esc(p.name || 'Atleta')}${UI.vb(a.user_id, p.username)}${typeof Pass !== 'undefined' ? Pass.titleChip(a.stats && a.stats.pass) : ''}</b><small>${this.rel(t)}${where}</small></div>${fol}<button class="p8-more" data-act="postMenu" data-v="${esc(a.id)}" data-u="${a.user_id}" aria-label="Mais opções">${I('more')}</button></header>
       <div class="p8-body tap" data-act="raOpen" data-v="${a.id}">
         <span class="p8-tag">${I(sp.icon, 'xs')}${sp.name}</span>
         <h3>${esc(this.actTitle(a))}</h3>${cap ? `<p class="p8-cap">${esc(cap)}</p>` : ''}

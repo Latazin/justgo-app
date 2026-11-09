@@ -65,7 +65,8 @@ const UI = {
     return this._webgl;
   },
   // linha do percurso com contorno (destaca sobre o mapa colorido)
-  routeLine(m, latlngs, color, weight = 5) {
+  routeLine(m, latlngs, color, weight = 5, style = null, act = null) {
+    if (style && typeof Pass !== 'undefined') { const r = Pass.styledLine(m, latlngs, weight, style, act); if (r) return r; }
     const casing = L.polyline(latlngs, { color: '#ffffff', weight: weight + 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(m);
     const line = L.polyline(latlngs, { color, weight, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(m);
     return { line, casing, setLatLngs(ll) { casing.setLatLngs(ll); line.setLatLngs(ll); return this; }, getBounds() { return line.getBounds(); } };
@@ -550,7 +551,7 @@ const UI = {
       this.trainDot = null;
       // recalcula o tamanho depois do layout (o mapa nasce antes de a tela terminar de montar)
       setTimeout(() => { try { map.invalidateSize(); if (App.route) map.fitBounds(L.latLngBounds(App.route.points.map((p) => [p[0], p[1]])), { padding: [18, 18] }); } catch (e) {} }, 250);
-      this.liveLine = this.routeLine(map, [], Shop.lineColor(tr.sport), 5);
+      this.liveLine = this.routeLine(map, [], Shop.lineColor(tr.sport), 5, Shop.lineStyle && Shop.lineStyle() === 'flame' ? 'flame' : null);
       this.ghostDot = null; this.liveMap = map; this.trainStartPin = null;
     }
     this.trainButtons(); this.updateTraining();
@@ -589,7 +590,8 @@ const UI = {
       const g = R.ghost;
       rb.innerHTML = `<div><span class="eyebrow">${R.off ? 'Fora do percurso' : 'Restante'}</span><b class="num ${R.off ? 'bad' : ''}">${Fmt.km(Math.max(0, R.left))} km</b></div>${g ? `<div class="ghost ${g.gap >= 0 ? 'ahead' : 'behind'}">${I('ghost')}<div><span class="eyebrow">Fantasma</span><b class="num">${g.gap >= 0 ? '+' : '−'}${Fmt.time(Math.abs(g.gap))}</b></div></div>` : ''}`;
       if (g && this.liveMap) {
-        if (!this.ghostDot) this.ghostDot = L.circleMarker(g.pos, { radius: 8, color: '#fff', weight: 2, fillColor: '#A78BFA', fillOpacity: 0.9 }).addTo(this.liveMap);
+        const wolf = typeof Pass !== 'undefined' && Pass.equipped('ghost') === 'ghost-wolf';
+        if (!this.ghostDot) this.ghostDot = wolf ? L.marker(g.pos, { icon: L.divIcon({ className: 'wolf-ghost', html: Pass.wolfSvg(), iconSize: [44, 44], iconAnchor: [22, 22] }), interactive: false }).addTo(this.liveMap) : L.circleMarker(g.pos, { radius: 8, color: '#fff', weight: 2, fillColor: '#A78BFA', fillOpacity: 0.9 }).addTo(this.liveMap);
         else this.ghostDot.setLatLng(g.pos);
       }
     }
@@ -761,7 +763,7 @@ const UI = {
     }
     const map = hasMap && this.map('sMap');
     if (map) {
-      const line = this.routeLine(map, Geo.segments(act.points), color, 5);
+      const line = this.routeLine(map, Geo.segments(act.points), color, 5, !act.remote && Shop.lineStyle ? Shop.lineStyle() : null, act);
       this.endpoints(map, act.points[0], act.points[act.points.length - 1]);
       map.fitBounds(line.getBounds(), { padding: [28, 28] });
       setTimeout(() => { try { map.invalidateSize(); map.fitBounds(line.getBounds(), { padding: [28, 28] }); } catch (e) {} }, 300);
@@ -1042,6 +1044,7 @@ const UI = {
       const col = z.mine ? '#1F6BFF' : this.zoneColor(z.owner);
       L.polygon(z.poly, { color: col, weight: 2, fillColor: col, fillOpacity: z.mine ? 0.28 : 0.22, dashArray: z.pending ? '6 6' : null })
         .bindPopup(`<b>${z.pending ? ({ home: 'Sua área · só no seu aparelho', private: 'Sua área · treino "Só eu"', flagged: 'Sua área · treino suspeito' }[z.pending] || 'Sua área (enviando para o mapa…)') : z.mine ? 'Sua área' : 'Área de ' + esc(z.owner_name || 'Atleta')}</b>${z.pending === 'home' ? '<br><small>Encosta na sua zona de casa (Privacidade). Abra o treino para publicar.</small>' : ''}<br>${Zones.areaTxt(z.area)}${z.prev_owner_name ? `<br><small>Roubada de ${esc(z.prev_owner_name)}</small>` : ''}`).addTo(G.zones);
+      if (z.mine && !z.pending && typeof Pass !== 'undefined') { const fm = Pass.flagMarker(z); if (fm) fm.addTo(G.zones); }
     });
     if (lay.acts) Game.acts().filter((a) => a.points && a.points.length > 1 && near(a.points[0])).slice(-60).forEach((a) => L.polyline(Geo.segments(a.points), { color: Shop.lineColor(a.sport), weight: 3, opacity: 0.55, interactive: false }).addTo(G.acts));
     if (lay.routes) Store.data.routes.filter((r) => r.points.length && near(r.points[0])).forEach((r) => L.polyline(r.points.map((p) => [p[0], p[1]]), { color: '#111317', weight: 4, opacity: 0.8, dashArray: r.segment ? '2 8' : null }).bindPopup(`<b>${esc(r.name)}</b><br>${Fmt.km(r.distance)} km`).addTo(G.routes));

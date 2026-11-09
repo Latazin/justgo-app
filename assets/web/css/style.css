@@ -2962,3 +2962,113 @@ button.start { box-shadow: 0 0 0 6px color-mix(in srgb, var(--sport, var(--brand
 button.start::before, button.start::after { display: none !important; }
 button.start span { font-family: var(--display); font-size: 17px; font-weight: 700; letter-spacing: .02em; }
 .v9-kv dd small { display: inline !important; }
+
+/* =====================================================================
+   PASSE DA TEMPORADA — sóbrio: lista de níveis, sem baú nem brilho à toa
+   ===================================================================== */
+.ps { padding-top: 0 !important; }
+.ps-head { background: var(--surface); margin: 0 -16px 8px; padding: 18px 16px 16px; }
+.ps-top { display: flex; align-items: flex-start; gap: 10px; }
+.ps-dates { font-size: 14px; color: var(--text-2); font-weight: 500; }
+.ps-head h1 { margin: 2px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+.ps-badge { background: var(--text); color: var(--surface); font-weight: 700; font-size: 13px; padding: 5px 10px; border-radius: 99px; }
+.ps-lv { display: flex; align-items: flex-end; gap: 10px; margin-top: 10px; position: relative; }
+.ps-lv > b { font-size: 84px; line-height: .82; font-weight: 700 !important; font-style: italic; }
+.ps-lv > span { font-size: 15px; line-height: 1.15; color: var(--text-2); font-weight: 600; padding-bottom: 6px; }
+.ps-masc { margin-left: auto; width: 86px; height: 86px; }
+.ps-masc .mascot { width: 100%; height: 100%; }
+.ps-sub { display: flex; justify-content: space-between; margin-top: 8px; font-size: 14px; color: var(--text-2); }
+.ps-sub .num { font-size: 17px; color: var(--text); }
+.ps-title { margin-top: 12px; font-size: 14px; color: var(--text-2); }
+.pt-chip { display: inline-flex; align-items: center; vertical-align: middle; margin-left: 4px; padding: 1px 8px; border-radius: 99px; font: 700 12px/1.6 var(--font); letter-spacing: 0; color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); white-space: nowrap; }
+
+.ps-buy-h { display: flex; gap: 12px; align-items: flex-start; }
+.ps-buy b { font-size: 19px; font-weight: 700; } .ps-buy small { display: block; color: var(--text-2); font-size: 14px; margin-top: 2px; }
+.ps-price { text-align: right; } .ps-price s { color: var(--text-3); font-size: 14px; } .ps-price b { display: block; font-size: 30px; line-height: 1; color: var(--text); }
+.ps-price small { font-size: 12px !important; color: var(--brand) !important; font-weight: 600; }
+.ps-best { list-style: none; margin: 14px 0; padding: 0; display: grid; gap: 10px; }
+.ps-best li { display: flex; align-items: center; gap: 12px; font-size: 15px; }
+.ps-best li > .ic, .ps-best li > svg { width: 26px; height: 26px; flex: none; color: var(--text); }
+.ps-best b { font-size: 15px; font-weight: 700; }
+.btn.block { display: flex; width: 100%; justify-content: center; margin-top: 8px; }
+.ps-fine { font-size: 12.5px; color: var(--text-3); margin: 10px 0 0; }
+.ps-buy.on { display: flex; align-items: center; gap: 12px; }
+.ps-buy.on .btn { white-space: nowrap; }
+
+.ps-inv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ps-inv > * { display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.ps-inv span .ic { width: 22px; height: 22px; color: var(--text); }
+.ps-inv b { font-size: 26px; line-height: 1.1; }
+.ps-inv small { font-size: 12.5px; color: var(--text-2); line-height: 1.2; }
+.ps-inv em { font-style: normal; font-size: 13px; font-weight: 700; color: var(--brand); margin-top: 6px; }
+.ps-inv > div em { color: var(--text-3); font-weight: 500; }
+.ps-inv button:disabled em { color: var(--text-3); }
+.ps-own { display: flex; gap: 8px; overflow-x: auto; margin: 12px -16px 0; padding: 0 16px 2px; scrollbar-width: none; }
+.ps-own button { flex: none; width: 112px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; text-align: left; }
+.ps-own button.on { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+.ps-own .ic, .ps-own .mascot { width: 26px; height: 26px; color: var(--text); }
+.ps-own span { font-size: 13px; font-weight: 600; line-height: 1.2; min-height: 31px; }
+.ps-own em { font-style: normal; font-size: 12.5px; font-weight: 700; color: var(--brand); }
+.ps-own .on em { color: var(--text-2); }
+.ps-sticker { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-weight: 600; }
+
+.ps-cols { display: grid; grid-template-columns: 1fr 40px 1fr; font-size: 13px; font-weight: 700; color: var(--text-2); padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.ps-cols span:last-child { text-align: right; }
+.ps-row { display: grid; grid-template-columns: 1fr 40px 1fr; align-items: center; gap: 0; padding: 6px 0; border-bottom: 1px solid var(--line); position: relative; }
+.ps-n { text-align: center; font-size: 19px; color: var(--text-3); }
+.ps-row.done .ps-n { color: var(--text); }
+.ps-row.cur { background: color-mix(in srgb, var(--brand) 6%, transparent); margin: 0 -16px; padding: 6px 16px; }
+.ps-row.cur .ps-n { color: var(--brand); }
+.ps-cell { position: relative; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 10px; border-radius: 10px; text-align: left; opacity: .62; }
+.ps-cell.p { flex-direction: row-reverse; text-align: right; }
+.ps-cell.on { opacity: 1; }
+.ps-cell.big { opacity: .9; }
+.ps-cell.big.on, .ps-cell.big .ps-t { opacity: 1; }
+.ps-cell.big .ps-t { font-weight: 700; }
+.ps-cell.p.big { background: color-mix(in srgb, #F5B841 10%, transparent); }
+.ps-ic { flex: none; width: 34px; height: 34px; display: grid; place-items: center; }
+.ps-ic .ic { width: 22px; height: 22px; color: var(--text); }
+.ps-ic .mascot { width: 34px; height: 34px; }
+.ps-t { font-size: 13.5px; font-weight: 600; line-height: 1.2; }
+.ps-lock, .ps-ok { position: absolute; top: 4px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; }
+.ps-cell.f .ps-lock, .ps-cell.f .ps-ok { right: 4px; } .ps-cell.p .ps-lock, .ps-cell.p .ps-ok { left: 4px; }
+.ps-ok { background: var(--ok); color: #fff; } .ps-lock { background: var(--surface-3); color: var(--text-2); }
+.ps-lock .ic, .ps-ok .ic { width: 11px; height: 11px; }
+.ps-how dl { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin: 0; }
+.ps-how dt { font-size: 13px; color: var(--text-2); } .ps-how dd { margin: 0; font-size: 22px; }
+
+.ps-info { text-align: center; } .ps-info .mascot { width: 120px; height: 120px; }
+.ps-tag { display: inline-block; font-size: 12.5px; font-weight: 700; padding: 3px 10px; border-radius: 99px; background: var(--surface-2); color: var(--text-2); margin-top: 6px; }
+.ps-tag.p { background: color-mix(in srgb, #F5B841 18%, transparent); color: #A16207; }
+.ps-state { font-weight: 600; margin: 8px 0 14px; }
+.ps-done { text-align: center; } .ps-done .mascot { width: 140px; height: 140px; }
+.ps-pf { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 12px; padding: 10px 0; border-top: 1px solid var(--line); text-align: left; }
+.ps-pf .mascot { width: 56px; height: 56px; flex: none; }
+.ps-pf b { display: block; font-size: 16px; } .ps-pf small { color: var(--text-2); font-size: 13.5px; }
+
+/* mascote */
+.mascot { display: block; overflow: visible; }
+.mascot.dragon .m-aura { transform-origin: 60px 64px; animation: m-spin 12s linear infinite; }
+.mascot.dragon .m-spark { animation: m-tw 1.6s ease-in-out infinite alternate; }
+@keyframes m-spin { to { transform: rotate(360deg); } }
+@keyframes m-tw { from { opacity: .3; } to { opacity: 1; } }
+
+/* bandeira no território, lobo e chamas */
+.zflag span { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px 3px 6px; border-radius: 6px; background: #0F1B2D; color: #fff; font: 700 12px/1.2 var(--font); white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,.25); transform: translateY(-4px); }
+.zflag .ic { width: 13px; height: 13px; color: #F5B841; }
+.wolf-ghost svg { width: 44px; height: 44px; filter: drop-shadow(0 0 6px rgba(165,180,252,.9)); }
+.flame-spark { animation: flame-run 1.1s linear infinite; }
+@keyframes flame-run { to { stroke-dashoffset: -32; } }
+
+/* arco de chegada */
+.arch-fx { position: fixed; inset: 0; z-index: 9998; display: grid; place-items: center; pointer-events: none; }
+.arch-fx svg { width: min(86vw, 420px); animation: arch-in .6s cubic-bezier(.2,1.4,.4,1) both, arch-out .5s ease 2.6s both; }
+@keyframes arch-in { from { transform: translateY(40px) scale(.6); opacity: 0; } }
+@keyframes arch-out { to { opacity: 0; transform: scale(1.1); } }
+@media (prefers-reduced-motion: reduce) { .mascot.dragon .m-aura, .flame-spark { animation: none; } }
+
+/* tema Oceano (passe) */
+.t-ocean { --bg: #02101F; --surface: #071E33; --surface-2: #0C2A45; --surface-3: #143A5C; --brand: #22D3EE; --brand-ink: #67E8F9; --text-2: #9CC3DB; --text-3: #5F8BA8; --line: rgba(103,232,249,.10); }
+.ps-buy.on { flex-wrap: wrap; }
+.ps-buy.on > .grow { flex: 1 1 100%; }
+.ps-buy.on .btn { width: 100%; justify-content: center; }

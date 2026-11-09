@@ -29,6 +29,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import 'package:workmanager/workmanager.dart';
 
+import 'billing.dart';
 import 'notif.dart';
 
 const kBrand = Color(0xFF1F6BFF);
@@ -37,7 +38,7 @@ const kPort = 47621; // porta fixa: mantém os dados salvos entre aberturas
 // version.json direto do GitHub (sempre fresco) e os arquivos pela CDN jsDelivr
 const kRaw = 'https://raw.githubusercontent.com/Latazin/justgo-app/main/assets/web';
 const kCdn = 'https://cdn.jsdelivr.net/gh/Latazin/justgo-app@main/assets/web';
-const kNativeBuild = 33; // sobe quando o APK ganha recursos novos
+const kNativeBuild = 34; // sobe quando o APK ganha recursos novos
 // AdMob: um bloco de anúncio premiado para cada recompensa
 const kAdUnits = {
   'streak': 'ca-app-pub-4705801610677571/3371244610', // salvar ofensiva
@@ -277,6 +278,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     _setupTts();
     _setupLinks();
     Notif.onAction = _onNotifAction;
+    Billing.onEvent = (ev) => _js('window.Pass && Pass.onBilling(${jsonEncode(ev)})');
+    Billing.init();
     Push.foreground(true);
   }
 
@@ -455,6 +458,26 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         _liveIdx = _trainBuffer.length;
         _liveShow();
         _reply(id, {'ok': true});
+        break;
+      case 'billingQuery':
+      case 'billingBuy':
+      case 'billingFinish':
+      case 'billingRestore':
+        try {
+          final c = m['cmd'];
+          if (c == 'billingQuery') {
+            _reply(id, await Billing.query(List<String>.from(m['ids'] as List)));
+          } else if (c == 'billingBuy') {
+            _reply(id, await Billing.buy('${m['id']}', m['consumable'] == true, m['user'] as String?));
+          } else if (c == 'billingFinish') {
+            _reply(id, await Billing.finish('${m['token']}', m['consumable'] == true));
+          } else {
+            await Billing.restore();
+            _reply(id, {'ok': true});
+          }
+        } catch (e) {
+          _reply(id, {'ok': false, 'error': '$e'});
+        }
         break;
       case 'notifSetup': // token, preferências e dados para lembretes e avisos sociais
       case 'notifAsk':

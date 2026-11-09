@@ -199,7 +199,7 @@ const App = {
     FX.beep([440, 660]);
     if (Pref('voice') && !this.coach) {
       const t = this.mode === 'plan' && Plans.today();
-      FX.say(t && t.session ? `Treino do plano: ${t.session.type}, ${String(t.session.km).replace('.', ',')} quilômetros. Bom treino!` : 'Treino iniciado. Bom treino!');
+      FX.say(t && t.session ? `Treino do plano: ${t.session.type}, ${String(t.session.km).replace('.', ',')} quilômetros. Bom treino!` : typeof Pass !== 'undefined' && Pass.equipped('voice') === 'voice-futebol' ? 'Rola a bola! Começa a partida, e o atleta sai jogando!' : 'Treino iniciado. Bom treino!');
     }
     this.liveTimer = setInterval(() => { Store.saveLive(tr.snapshot()); if (Cloud.liveId) Cloud.liveUpdate(tr); }, 12000);
   },
@@ -230,7 +230,7 @@ const App = {
         if (prev && !Fmt.isSpeed(tr.sport)) { const d = Math.round(t - prev); if (Math.abs(d) >= 3) extra += d < 0 ? ` ${-d} segundos mais rápido que o anterior.` : ` ${d} segundos mais lento que o anterior.`; }
       }
       this._lastSplit = t;
-      FX.say(`Quilômetro ${n}. Tempo total: ${FX.spokenTime(tr.moving / 1000)}.${extra}`);
+      FX.say(typeof Pass !== 'undefined' && Pass.equipped('voice') === 'voice-futebol' ? Pass.narrate(n, tr, t) : `Quilômetro ${n}. Tempo total: ${FX.spokenTime(tr.moving / 1000)}.${extra}`);
     }
     if (Game.has('splits')) FX.toast(`Km ${n}: ${Fmt.time(t)}`);
   },

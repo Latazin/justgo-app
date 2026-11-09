@@ -253,7 +253,7 @@ const Cloud = {
     const row = {
       id: act.id, user_id: this.user.id, sport: act.sport, start: new Date(act.start).toISOString(), distance: act.distance, duration: act.duration,
       elapsed: act.elapsed, title: UI.actTitle(act), route, xp: act.xp || 0, flagged: !!act.flagged,
-      stats: { elev: Geo.elevationGain(act.points), alt: act.altSrc || 'gps', kcal: Game.calories(act), adj: (() => { try { const A = Adjust.compute(act); return A ? { kind: A.kind, real: A.real, gap: A.gap, adj: A.adj, T: A.T, RH: A.RH } : null; } catch (e) { return null; } })(), pool: act.pool || null, weather: act.weather || null, caption: act.caption || null },
+      stats: { elev: Geo.elevationGain(act.points), alt: act.altSrc || 'gps', kcal: Game.calories(act), adj: (() => { try { const A = Adjust.compute(act); return A ? { kind: A.kind, real: A.real, gap: A.gap, adj: A.adj, T: A.T, RH: A.RH } : null; } catch (e) { return null; } })(), pool: act.pool || null, weather: act.weather || null, caption: act.caption || null, pass: typeof Pass !== 'undefined' ? Pass.publicInfo() : null },
     };
     const ph = UI.photosOf(act); if (ph.length || act.photosCleared) row.photos = ph;
     let { error } = await this.sb.from('activities').upsert(row);

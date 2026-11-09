@@ -13,3 +13,6 @@
 -keepattributes *Annotation*
 -keep class dev.fluttercommunity.workmanager.** { *; }
 -dontwarn com.dexterous.**
+# compras na Google Play
+-keep class com.android.billingclient.** { *; }
+-keep class io.flutter.plugins.inapppurchase.** { *; }

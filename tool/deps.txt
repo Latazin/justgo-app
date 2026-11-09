@@ -14,3 +14,5 @@ google_mobile_ads
 flutter_local_notifications:^22.0.0
 workmanager:^0.10.0
 shared_preferences
+in_app_purchase
+in_app_purchase_android
