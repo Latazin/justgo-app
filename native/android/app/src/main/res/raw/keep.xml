@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- o ícone das notificações é usado pelo nome; sem isto o Android remove ele do app -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_justgo,@mipmap/ic_launcher" />

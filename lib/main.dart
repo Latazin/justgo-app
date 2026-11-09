@@ -37,7 +37,7 @@ const kPort = 47621; // porta fixa: mantém os dados salvos entre aberturas
 // version.json direto do GitHub (sempre fresco) e os arquivos pela CDN jsDelivr
 const kRaw = 'https://raw.githubusercontent.com/Latazin/justgo-app/main/assets/web';
 const kCdn = 'https://cdn.jsdelivr.net/gh/Latazin/justgo-app@main/assets/web';
-const kNativeBuild = 30; // sobe quando o APK ganha recursos novos
+const kNativeBuild = 31; // sobe quando o APK ganha recursos novos
 // AdMob: um bloco de anúncio premiado para cada recompensa
 const kAdUnits = {
   'streak': 'ca-app-pub-4705801610677571/3371244610', // salvar ofensiva
@@ -453,18 +453,25 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         _reply(id, {'ok': true});
         break;
       case 'notifSetup': // token, preferências e dados para lembretes e avisos sociais
-        await Push.setup(Map<String, dynamic>.from(m['data'] as Map));
-        _reply(id, {'ok': true});
-        break;
       case 'notifAsk':
-        _reply(id, {'ok': await Notif.ask()});
-        break;
       case 'notifState':
-        _reply(id, {'enabled': await Notif.enabled()});
-        break;
       case 'notifTest':
-        await Notif.show(9600, '${m['title'] ?? 'JustGo'}', '${m['body'] ?? ''}', channel: '${m['channel'] ?? 'social'}');
-        _reply(id, {'ok': true});
+        try {
+          final cmd = m['cmd'];
+          if (cmd == 'notifSetup') {
+            await Push.setup(Map<String, dynamic>.from(m['data'] as Map));
+            _reply(id, {'ok': true});
+          } else if (cmd == 'notifAsk') {
+            _reply(id, {'ok': await Notif.ask(), 'error': Notif.lastError});
+          } else if (cmd == 'notifState') {
+            _reply(id, {'enabled': await Notif.enabled(), 'error': Notif.lastError, 'build': kNativeBuild});
+          } else {
+            await Notif.show(9600, '${m['title'] ?? 'JustGo'}', '${m['body'] ?? ''}', channel: '${m['channel'] ?? 'social'}');
+            _reply(id, {'ok': true});
+          }
+        } catch (e) {
+          _reply(id, {'ok': false, 'enabled': false, 'error': '$e'});
+        }
         break;
       default:
         _reply(id, null);

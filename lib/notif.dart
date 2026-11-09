@@ -46,6 +46,7 @@ class Notif {
   static bool _ready = false;
   static void Function(String action)? onAction;
   static ReceivePort? _rx;
+  static String? lastError;
 
   static Future<void> init({bool main = false}) async {
     if (main && _rx == null) {
@@ -55,15 +56,23 @@ class Notif {
       _rx!.listen((m) => onAction?.call('$m'));
     }
     if (_ready) return;
-    await p.initialize(
-      settings: const InitializationSettings(
-        android: AndroidInitializationSettings('ic_stat_justgo'),
-        iOS: DarwinInitializationSettings(requestAlertPermission: false, requestBadgePermission: false, requestSoundPermission: false),
-      ),
-      onDidReceiveNotificationResponse: (r) => onAction?.call((r.actionId ?? '').isNotEmpty ? r.actionId! : (r.payload ?? 'open')),
-      onDidReceiveBackgroundNotificationResponse: jgNotifBackground,
-    );
-    _ready = true;
+    for (final icon in ['ic_stat_justgo', '@mipmap/ic_launcher']) {
+      try {
+        await p.initialize(
+          settings: InitializationSettings(
+            android: AndroidInitializationSettings(icon),
+            iOS: const DarwinInitializationSettings(requestAlertPermission: false, requestBadgePermission: false, requestSoundPermission: false),
+          ),
+          onDidReceiveNotificationResponse: (r) => onAction?.call((r.actionId ?? '').isNotEmpty ? r.actionId! : (r.payload ?? 'open')),
+          onDidReceiveBackgroundNotificationResponse: jgNotifBackground,
+        );
+        _ready = true;
+        lastError = null;
+        return;
+      } catch (e) {
+        lastError = '$e';
+      }
+    }
   }
 
   // pede a permissão de notificação (Android 13+ e iPhone)

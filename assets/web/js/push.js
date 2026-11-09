@@ -52,10 +52,16 @@ const PushJG = {
     if (v === 'yes') await Native.call('notifAsk', {}, 60000).catch(() => null);
   },
   async test() {
-    const st = await Native.call('notifState', {}, 8000).catch(() => null);
-    if (!st) return FX.toast('Atualize o app pela Play Store para ter notificações');
-    if (!st.enabled) { const r = await Native.call('notifAsk', {}, 60000).catch(() => null); if (!r || !r.ok) return FX.toast('Notificações bloqueadas. Libere nas configurações do Android.'); }
-    await Native.call('notifTest', { title: 'Tudo certo!', body: 'É assim que os avisos do JustGo vão aparecer.' });
+    FX.toast('Enviando notificação de teste…');
+    const st = await Native.call('notifState', {}, 8000);
+    if (!st) return FX.modal(`<h3>Atualize o app</h3><p class="muted">Esta versão do app instalado ainda não tem notificações. Instale a versão mais nova (Play Store ou o APK mais recente).</p><button class="btn primary" data-m="ok">Entendi</button>`);
+    if (st.error) return FX.toast('Erro nas notificações: ' + String(st.error).slice(0, 120));
+    if (!st.enabled) {
+      const r = await Native.call('notifAsk', {}, 60000);
+      if (!r || !r.ok) return FX.modal(`<h3>Notificações bloqueadas</h3><p class="muted">Abra as <b>Configurações do Android → Apps → JustGo → Notificações</b> e ative.</p><button class="btn primary" data-m="ok">Entendi</button>`);
+    }
+    const r = await Native.call('notifTest', { title: 'Tudo certo!', body: 'É assim que os avisos do JustGo vão aparecer.' }, 10000);
+    if (!r || !r.ok) FX.toast('Não consegui mostrar a notificação' + (r && r.error ? ': ' + String(r.error).slice(0, 100) : ''));
   },
 };
 
