@@ -1,0 +1,80 @@
+11-09 17:16:07.695   532   532 V NotificationListeners: enabling notification listener for 0: ComponentInfo{com.google.android.as/com.google.android.apps.miphone.aiai.common.notification.service.AiAiNotificationListenerService}
+11-09 17:16:07.695   532   532 V NotificationListeners: Not registering ComponentInfo{com.google.android.as/com.google.android.apps.miphone.aiai.common.notification.service.AiAiNotificationListenerService} is already bound
+11-09 17:16:07.695   532   532 V NotificationAssistants: enabling notification assistant for 0: ComponentInfo{com.google.android.as/com.google.android.apps.miphone.aiai.common.notification.service.AiAiNotificationAssistantService}
+11-09 17:16:07.695   532   532 V NotificationAssistants: Not registering ComponentInfo{com.google.android.as/com.google.android.apps.miphone.aiai.common.notification.service.AiAiNotificationAssistantService} is already bound
+11-09 17:16:08.301  1750  2490 W A       : Can't format flag AndroidGsaVelourJars__velour_doodle_notifications_jar__name to integer.
+11-09 17:16:09.141  1750  2511 W A       : Can't format flag AndroidGsaVelourJars__velour_doodle_notifications_jar__name to integer.
+11-09 17:16:10.104  4351  4419 I PhenotypeBackgroundRecv: Successfully updated snapshot for com.google.android.libraries.notifications.platform#com.google.android.googlequicksearchbox
+11-09 17:16:10.251  1750  2511 W A       : Can't format flag AndroidGsaVelourJars__velour_doodle_notifications_jar__name to integer.
+11-09 17:16:10.844  2802  5132 I PhenotypeBackgroundRecv: Successfully updated snapshot for com.google.android.libraries.notifications.platform#com.google.android.dialer
+11-09 17:16:10.912  1750  2465 W A       : Can't format flag AndroidGsaVelourJars__velour_doodle_notifications_jar__name to integer.
+11-09 17:16:10.938  1648  1872 W AiAiEcho: LyftNotificationParser Ridesharing ETA not enabled
+11-09 17:16:10.943  1648  1872 W AiAiEcho: SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid
+11-09 17:16:10.976  1648  1872 W AiAiEcho: LyftNotificationParser Ridesharing ETA not enabled
+11-09 17:16:10.983  1648  1872 W AiAiEcho: SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid
+11-09 17:16:11.068  1540  1786 I DataFileManager: DataFileManager.addDataWithoutNotify():166 adding data en-840 delight
+11-09 17:16:11.068  1540  1786 I DataFileManager: DataFileManager.addDataWithoutNotify():162 data en-US already exists
+11-09 17:16:14.196  1616  3047 W Pay     : Active account was null, notification task will be cancelled. [CONTEXT service_id=198 ]
+11-09 17:16:14.201  1616  3047 I Pay     : Requested immediate check to see whether to show pay module downloading complete notification. [CONTEXT service_id=198 ]
+11-09 17:16:14.286  1616  3047 W Pay     : Active account was null, notification task will be cancelled. [CONTEXT service_id=198 ]
+11-09 17:16:14.689  1648  1872 W AiAiEcho: LyftNotificationParser Ridesharing ETA not enabled
+11-09 17:16:14.697  1648  1872 W AiAiEcho: SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid
+11-09 17:16:15.927  1648  1872 W AiAiEcho: LyftNotificationParser Ridesharing ETA not enabled
+11-09 17:16:15.937  1648  1872 W AiAiEcho: SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid
+11-09 17:16:18.302  1648  1872 W AiAiEcho: LyftNotificationParser Ridesharing ETA not enabled
+11-09 17:16:18.309  1648  1872 W AiAiEcho: SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid
+11-09 17:16:18.939   871   871 W FrameTracker: Missed App frame:UNKNOWN: 88, 25426, 0, CUJ=J<NOTIFICATION_SHADE_EXPAND_COLLAPSE::Expand>
+11-09 17:16:18.940   871   871 W FrameTracker: Missed SF frame:UNKNOWN: 88, 25426, 0, CUJ=J<NOTIFICATION_SHADE_EXPAND_COLLAPSE::Expand>
+11-09 17:16:18.943   871   871 W FrameTracker: Missing HWUI jank callback for vsyncId: 25426, CUJ=J<NOTIFICATION_SHADE_EXPAND_COLLAPSE::Expand>
+11-09 17:16:18.944   871   871 W FrameTracker: Missed App frame:UNKNOWN: 88, 25509, 750678936, CUJ=J<NOTIFICATION_SHADE_EXPAND_COLLAPSE::Expand>
+11-09 17:16:18.944   871   871 W FrameTracker: Missed SF frame:UNKNOWN: 88, 25509, 750678936, CUJ=J<NOTIFICATION_SHADE_EXPAND_COLLAPSE::Expand>
+11-09 17:16:19.053  1750  2519 W A       : Can't format flag AndroidGsaVelourJars__velour_doodle_notifications_jar__name to integer.
+11-09 17:16:20.430   532   554 I SideFpsEventHandler: notifyPowerPressed
+11-09 17:16:21.166  1648  1872 W AiAiEcho: LyftNotificationParser Ridesharing ETA not enabled
+11-09 17:16:21.166  1648  1872 W AiAiEcho: SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid
+11-09 17:16:21.317   871   907 V WindowManagerShell: Transition animation finished (aborted=true), notifying core (#7)android.os.BinderProxy@78c77ca@0
+11-09 17:16:21.499  1648  1872 W AiAiEcho: LyftNotificationParser Ridesharing ETA not enabled
+11-09 17:16:21.499  1648  1872 W AiAiEcho: SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid
+11-09 17:16:21.506  1540  1786 I DeviceStatusMonitor: DeviceStatusMonitor.updateCountryInfo():138 updateCountryInfo(), notifyAnyway = false
+11-09 17:16:21.632  1716  2466 I A       : Disconnecting from SysUi, eligibilityNotifier absent [IVR]
+11-09 17:16:21.696  1063  4882 D ActivityAttributionService: notifyActivityAttributionInfo UID=1002 packageName=com.google.android.bluetooth deviceAddress=no_active_device_address
+11-09 17:16:21.738  1429  1875 I NearbySharing: Cancelling in use notification [CONTEXT service_id=194 ]
+11-09 17:16:21.786  1429  1875 I NearbySharing: Cancelling in use notification [CONTEXT service_id=194 ]
+11-09 17:16:23.364   532   532 V ConditionProviders: binding: Intent { act=android.service.notification.ConditionProviderService cmp=com.google.android.gms/com.google.android.location.settings.DrivingConditionProvider (has extras) }
+11-09 17:16:23.689  1540  1785 I DeviceStatusMonitor: DeviceStatusMonitor.updateCountryInfo():138 updateCountryInfo(), notifyAnyway = false
+11-09 17:16:23.793  1716  2481 I A       : Disconnecting from SysUi, eligibilityNotifier absent [IVR]
+11-09 17:16:23.970  1063  4010 D ActivityAttributionService: notifyActivityAttributionInfo UID=1002 packageName=com.google.android.bluetooth deviceAddress=no_active_device_address
+11-09 17:16:24.324  1063  4010 D ActivityAttributionService: notifyActivityAttributionInfo UID=1002 packageName=com.google.android.bluetooth deviceAddress=no_active_device_address
+11-09 17:16:24.629  1648  1872 W AiAiEcho: LyftNotificationParser Ridesharing ETA not enabled
+11-09 17:16:24.637  1648  1872 W AiAiEcho: SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid
+11-09 17:16:24.783  1063  4010 D ActivityAttributionService: notifyActivityAttributionInfo UID=1002 packageName=com.google.android.bluetooth deviceAddress=no_active_device_address
+11-09 17:16:24.927  1429  1875 I NearbySharing: Cancelling in use notification [CONTEXT service_id=194 ]
+11-09 17:16:25.011  1496  1496 V ContactsProvider: Scheduled notifyChange started.
+11-09 17:16:25.996  1750  5149 W BlobLobber: Notification for download id 11 which we didn't know or failed
+11-09 17:16:26.090  1616  5012 W Pay     : Active account was null, notification task will be cancelled. [CONTEXT service_id=198 ]
+11-09 17:16:26.100  1648  1872 W AiAiEcho: LyftNotificationParser Ridesharing ETA not enabled
+11-09 17:16:26.100  1648  1872 W AiAiEcho: SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid
+11-09 17:16:26.518  1616  5012 W Pay     : Active account was null, notification task will be cancelled. [CONTEXT service_id=198 ]
+11-09 17:16:26.518  1616  5012 W Pay     : No account found on the task or the device. Notification task will not be rescheduled. [CONTEXT service_id=198 ]
+11-09 17:16:28.079  1648  1872 W AiAiEcho: LyftNotificationParser Ridesharing ETA not enabled
+11-09 17:16:28.079  1648  1872 W AiAiEcho: SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid
+11-09 17:16:29.268  1648  1872 W AiAiEcho: LyftNotificationParser Ridesharing ETA not enabled
+11-09 17:16:29.268  1648  1872 W AiAiEcho: SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid
+11-09 17:16:29.383  1749  2715 W YouTubeMusic: Could not register for notifications with InnerTube: 
+11-09 17:16:29.509  1749  2715 W YouTubeMusic: Could not register for notifications with InnerTube: 
+11-09 17:16:29.883  4351  4409 I PhenotypeBackgroundRecv: Successfully updated snapshot for com.google.android.libraries.notifications.platform#com.google.android.googlequicksearchbox
+11-09 17:16:30.052  1063  4010 D ActivityAttributionService: notifyActivityAttributionInfo UID=1002 packageName=com.google.android.bluetooth deviceAddress=no_active_device_address
+11-09 17:16:30.146  1063  4010 D ActivityAttributionService: notifyActivityAttributionInfo UID=1002 packageName=com.google.android.bluetooth deviceAddress=no_active_device_address
+11-09 17:16:30.479  1750  2511 W A       : Can't format flag AndroidGsaVelourJars__velour_doodle_notifications_jar__name to integer.
+11-09 17:16:30.583  1749  2715 W YouTubeMusic: Could not register for notifications with InnerTube: 
+11-09 17:16:30.802  2802  5132 I PhenotypeBackgroundRecv: Successfully updated snapshot for com.google.android.libraries.notifications.platform#com.google.android.dialer
+11-09 17:16:30.924  1648  1872 W AiAiEcho: LyftNotificationParser Ridesharing ETA not enabled
+11-09 17:16:30.924  1648  1872 W AiAiEcho: SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid
+11-09 17:16:30.945  1750  2490 W A       : Can't format flag AndroidGsaVelourJars__velour_doodle_notifications_jar__name to integer.
+11-09 17:16:31.973   532  2383 W ActivityManager: Scheduling restart of crashed service com.google.android.gms/.nearby.exposurenotification.WakeUpService in 10999ms for connection
+11-09 17:16:32.011  1063  4882 D ActivityAttributionService: notifyActivityAttributionInfo UID=1002 packageName=com.google.android.bluetooth deviceAddress=no_active_device_address
+11-09 17:16:32.011   532  2383 W ActivityManager: Scheduling restart of crashed service com.google.android.gms/.nearby.exposurenotification.service.ExposureMatchingService in 90960ms for start-requested
+11-09 17:16:32.012   532  2383 W ActivityManager: Scheduling restart of crashed service com.google.android.gms/.nearby.exposurenotification.service.ExposureNotificationInternalService in 210960ms for start-requested
+11-09 17:16:32.016  1063  4010 D ActivityAttributionService: notifyActivityAttributionInfo UID=1002 packageName=com.google.android.bluetooth deviceAddress=no_active_device_address
+11-09 17:16:32.889  1648  1872 W AiAiEcho: LyftNotificationParser Ridesharing ETA not enabled
+11-09 17:16:32.892  1648  1872 W AiAiEcho: SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid

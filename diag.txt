@@ -1,0 +1,248 @@
++ P=br.com.justgo.app
++ adb install -r app.apk
+Performing Streamed Install
+Success
++ adb shell pm grant br.com.justgo.app android.permission.ACCESS_FINE_LOCATION
++ adb shell pm grant br.com.justgo.app android.permission.ACCESS_COARSE_LOCATION
++ adb shell appops set br.com.justgo.app android:mock_location allow
++ adb emu geo fix -46.6333 -23.5505
+OK
++ adb shell monkey -p br.com.justgo.app -c android.intent.category.LAUNCHER 1
+  bash arg: -p
+  bash arg: br.com.justgo.app
+  bash arg: -c
+  bash arg: android.intent.category.LAUNCHER
+  bash arg: 1
+args: [-p, br.com.justgo.app, -c, android.intent.category.LAUNCHER, 1]
+ arg: "-p"
+ arg: "br.com.justgo.app"
+ arg: "-c"
+ arg: "android.intent.category.LAUNCHER"
+ arg: "1"
+data="br.com.justgo.app"
+data="android.intent.category.LAUNCHER"
+Events injected: 1
+## Network stats: elapsed time=199ms (0ms mobile, 0ms wifi, 199ms not connected)
++ sleep 30
++ adb exec-out screencap -p
+++ adb shell pidof br.com.justgo.app
+++ tr -d '\r'
++ PID=3869
+++ adb shell cat /proc/net/unix
+++ grep -o 'webview_devtools_remote_[0-9]*'
+++ head -1
++ SOCK=webview_devtools_remote_3869
++ echo 'pid=3869 sock=webview_devtools_remote_3869'
+pid=3869 sock=webview_devtools_remote_3869
++ adb forward tcp:9222 localabstract:webview_devtools_remote_3869
+9222
++ curl -s localhost:9222/json
++ head -30
+[ {
+   "description": "{\"attached\":false,\"empty\":true,\"never_attached\":true,\"screenX\":0,\"screenY\":0,\"visible\":true}",
+   "devtoolsFrontendUrl": "https://chrome-devtools-frontend.appspot.com/serve_internal_file/@2d54072eb2f350d37f3f304c4ba0fafcddbd7e82/inspector.html?ws=localhost:9222/devtools/page/663540B00604F4B241BC1DB250DD9981",
+   "faviconUrl": "https://pagead2.googlesyndication.com/favicon.ico",
+   "id": "663540B00604F4B241BC1DB250DD9981",
+   "title": "about:blank",
+   "type": "page",
+   "url": "about:blank",
+   "webSocketDebuggerUrl": "ws://localhost:9222/devtools/page/663540B00604F4B241BC1DB250DD9981"
+}, {
+   "description": "{\"attached\":false,\"empty\":true,\"never_attached\":true,\"screenX\":0,\"screenY\":0,\"visible\":true}",
+   "devtoolsFrontendUrl": "https://chrome-devtools-frontend.appspot.com/serve_internal_file/@2d54072eb2f350d37f3f304c4ba0fafcddbd7e82/inspector.html?ws=localhost:9222/devtools/page/E6688758F0592D3D1E36E82CFD9DEF0D",
+   "faviconUrl": "https://pagead2.googlesyndication.com/favicon.ico",
+   "id": "E6688758F0592D3D1E36E82CFD9DEF0D",
+   "title": "about:blank",
+   "type": "page",
+   "url": "about:blank",
+   "webSocketDebuggerUrl": "ws://localhost:9222/devtools/page/E6688758F0592D3D1E36E82CFD9DEF0D"
+}, {
+   "description": "{\"attached\":false,\"empty\":true,\"never_attached\":true,\"screenX\":0,\"screenY\":0,\"visible\":true}",
+   "devtoolsFrontendUrl": "https://chrome-devtools-frontend.appspot.com/serve_internal_file/@2d54072eb2f350d37f3f304c4ba0fafcddbd7e82/inspector.html?ws=localhost:9222/devtools/page/D1B9B8E47508545CB53B9C251EEFD8AF",
+   "faviconUrl": "https://pagead2.googlesyndication.com/favicon.ico",
+   "id": "D1B9B8E47508545CB53B9C251EEFD8AF",
+   "title": "about:blank",
+   "type": "page",
+   "url": "about:blank",
+   "webSocketDebuggerUrl": "ws://localhost:9222/devtools/page/D1B9B8E47508545CB53B9C251EEFD8AF"
+}, {
+   "description": "{\"attached\":false,\"empty\":true,\"never_attached\":true,\"screenX\":0,\"screenY\":0,\"visible\":true}",
+   "devtoolsFrontendUrl": "https://chrome-devtools-frontend.appspot.com/serve_internal_file/@2d54072eb2f350d37f3f304c4ba0fafcddbd7e82/inspector.html?ws=localhost:9222/devtools/page/74EDAE096477C0150F37311670BE342E",
++ J 'JSON.stringify({ver: CONFIG.version, native: Native.on})'
++ python3 tool/diag_cdp.py 'JSON.stringify({ver: CONFIG.version, native: Native.on})'
+{"ver":"2.32.2","native":true}
++ J 'Store.data.profile.onboarded=true; Store.save(); '\''ok'\'''
++ python3 tool/diag_cdp.py 'Store.data.profile.onboarded=true; Store.save(); '\''ok'\'''
+ok
++ echo '=== estado sem permissao'
+=== estado sem permissao
++ J 'Native.call('\''notifState'\'',{},8000).then(r=>JSON.stringify(r))'
++ python3 tool/diag_cdp.py 'Native.call('\''notifState'\'',{},8000).then(r=>JSON.stringify(r))'
+{"enabled":false,"error":null,"build":32}
++ adb shell pm grant br.com.justgo.app android.permission.POST_NOTIFICATIONS
++ J 'Native.call('\''notifState'\'',{},8000).then(r=>JSON.stringify(r))'
++ python3 tool/diag_cdp.py 'Native.call('\''notifState'\'',{},8000).then(r=>JSON.stringify(r))'
+{"enabled":true,"error":null,"build":32}
++ echo '=== teste'
+=== teste
++ J 'Native.call('\''notifTest'\'',{title:'\''Tudo certo!'\'',body:'\''teste'\''},8000).then(r=>JSON.stringify(r))'
++ python3 tool/diag_cdp.py 'Native.call('\''notifTest'\'',{title:'\''Tudo certo!'\'',body:'\''teste'\''},8000).then(r=>JSON.stringify(r))'
+{"ok":true}
++ sleep 3
++ adb shell dumpsys notification --noredact
++ head -40
++ grep -E 'pkg=br.com.justgo.app|android.title|android.text|channel='
+    NotificationRecord(0x0994bcb7: pkg=br.com.justgo.app user=UserHandle{0} id=9600 tag=null importance=4 key=0|br.com.justgo.app|9600|null|10192: Notification(channel=jg_social shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x10 color=0xff1858f0 groupKey=jg_social vis=PRIVATE))
+      icon=Icon(typ=RESOURCE pkg=br.com.justgo.app id=0x7f07007f)
+                android.title=String (Tudo certo!)
+                android.text=String (teste)
+    NotificationRecord(0x0d1ef942: pkg=android user=UserHandle{-1} id=2147483647 tag=ranker_group importance=2 key=-1|android|2147483647|ranker_group|1000|ranker_group: Notification(channel=DEVELOPER shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x702 color=0x00000000 groupKey=ranker_group vis=PRIVATE))
+    NotificationRecord(0x07460690: pkg=android user=UserHandle{-1} id=55 tag=null importance=2 key=-1|android|55|null|1000: Notification(channel=DEVELOPER shortcut=null contentView=null vibrate=null sound=null tick defaults=0x0 flags=0x802 color=0x00000000 vis=PUBLIC))
+                android.title=String (Serial console enabled)
+                android.text=String (Performance is impacted. To disable, check bootloader.)
+    NotificationRecord(0x0230db89: pkg=android user=UserHandle{-1} id=19 tag=null importance=2 key=-1|android|19|null|1000: Notification(channel=PHYSICAL_KEYBOARD shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x810 color=0x00000000 vis=PRIVATE))
+                android.title=String (Configure AT Translated Set 2 keyboard)
+                android.text=String (Tap to select language and layout)
++ echo '=== treino'
+=== treino
++ J 'App.go('\''record'\''); Store.data.profile.countdown=false; App.startTraining().then(()=>'\''started'\'')'
++ python3 tool/diag_cdp.py 'App.go('\''record'\''); Store.data.profile.countdown=false; App.startTraining().then(()=>'\''started'\'')'
+started
+++ seq 1 12
++ for i in $(seq 1 12)
+++ python3 -c 'print(-23.5505+1*0.0002)'
++ adb emu geo fix -46.6333 -23.5503
+OK
++ sleep 2
++ for i in $(seq 1 12)
+++ python3 -c 'print(-23.5505+2*0.0002)'
++ adb emu geo fix -46.6333 -23.5501
+OK
++ sleep 2
++ for i in $(seq 1 12)
+++ python3 -c 'print(-23.5505+3*0.0002)'
++ adb emu geo fix -46.6333 -23.5499
+OK
++ sleep 2
++ for i in $(seq 1 12)
+++ python3 -c 'print(-23.5505+4*0.0002)'
++ adb emu geo fix -46.6333 -23.549699999999998
+OK
++ sleep 2
++ for i in $(seq 1 12)
+++ python3 -c 'print(-23.5505+5*0.0002)'
++ adb emu geo fix -46.6333 -23.5495
+OK
++ sleep 2
++ for i in $(seq 1 12)
+++ python3 -c 'print(-23.5505+6*0.0002)'
++ adb emu geo fix -46.6333 -23.5493
+OK
++ sleep 2
++ for i in $(seq 1 12)
+++ python3 -c 'print(-23.5505+7*0.0002)'
++ adb emu geo fix -46.6333 -23.5491
+OK
++ sleep 2
++ for i in $(seq 1 12)
+++ python3 -c 'print(-23.5505+8*0.0002)'
++ adb emu geo fix -46.6333 -23.5489
+OK
++ sleep 2
++ for i in $(seq 1 12)
+++ python3 -c 'print(-23.5505+9*0.0002)'
++ adb emu geo fix -46.6333 -23.5487
+OK
++ sleep 2
++ for i in $(seq 1 12)
+++ python3 -c 'print(-23.5505+10*0.0002)'
++ adb emu geo fix -46.6333 -23.5485
+OK
++ sleep 2
++ for i in $(seq 1 12)
+++ python3 -c 'print(-23.5505+11*0.0002)'
++ adb emu geo fix -46.6333 -23.5483
+OK
++ sleep 2
++ for i in $(seq 1 12)
+++ python3 -c 'print(-23.5505+12*0.0002)'
++ adb emu geo fix -46.6333 -23.548099999999998
+OK
++ sleep 2
++ J 'JSON.stringify({st: App.tracker && App.tracker.state, d: App.tracker && App.tracker.distance})'
++ python3 tool/diag_cdp.py 'JSON.stringify({st: App.tracker && App.tracker.state, d: App.tracker && App.tracker.distance})'
+{"st":"running","d":215.0509881308102}
++ sleep 6
++ head -60
++ adb shell dumpsys notification --noredact
++ grep -E 'pkg=br.com.justgo.app|android.title|android.text|android.subText|channel=|id=75415'
+    NotificationRecord(0x0994bcb7: pkg=br.com.justgo.app user=UserHandle{0} id=9600 tag=null importance=4 key=0|br.com.justgo.app|9600|null|10192: Notification(channel=jg_social shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x10 color=0xff1858f0 groupKey=jg_social vis=PRIVATE))
+      icon=Icon(typ=RESOURCE pkg=br.com.justgo.app id=0x7f07007f)
+                android.title=String (Tudo certo!)
+                android.subText=null
+                android.text=String (teste)
+    NotificationRecord(0x0f2fda76: pkg=br.com.justgo.app user=UserHandle{0} id=75415 tag=null importance=3 key=0|br.com.justgo.app|75415|null|10192: Notification(channel=jg_treino_ao_vivo shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x6a color=0xff1f6bff category=workout groupKey=silent actions=2 vis=PUBLIC))
+      icon=Icon(typ=RESOURCE pkg=br.com.justgo.app id=0x7f07007f)
+                android.title=String (Corrida · 0,22 km)
+                android.subText=String (Treino em andamento)
+                android.text=String (Ritmo 2:11 /km)
+    NotificationRecord(0x0d1ef942: pkg=android user=UserHandle{-1} id=2147483647 tag=ranker_group importance=2 key=-1|android|2147483647|ranker_group|1000|ranker_group: Notification(channel=DEVELOPER shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x702 color=0x00000000 groupKey=ranker_group vis=PRIVATE))
+    NotificationRecord(0x07460690: pkg=android user=UserHandle{-1} id=55 tag=null importance=2 key=-1|android|55|null|1000: Notification(channel=DEVELOPER shortcut=null contentView=null vibrate=null sound=null tick defaults=0x0 flags=0x802 color=0x00000000 vis=PUBLIC))
+                android.title=String (Serial console enabled)
+                android.text=String (Performance is impacted. To disable, check bootloader.)
+    NotificationRecord(0x0230db89: pkg=android user=UserHandle{-1} id=19 tag=null importance=2 key=-1|android|19|null|1000: Notification(channel=PHYSICAL_KEYBOARD shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x810 color=0x00000000 vis=PRIVATE))
+                android.title=String (Configure AT Translated Set 2 keyboard)
+                android.text=String (Tap to select language and layout)
++ adb exec-out screencap -p
++ adb shell cmd statusbar expand-notifications
++ sleep 2
++ adb exec-out screencap -p
++ adb shell cmd statusbar collapse
++ echo '=== tela de bloqueio'
+=== tela de bloqueio
++ adb shell input keyevent 26
++ sleep 3
++ adb shell input keyevent 224
++ sleep 3
++ adb exec-out screencap -p
++ adb shell dumpsys notification --noredact
++ grep -E id=75415
++ cut -c1-250
+    NotificationRecord(0x0f7352b4: pkg=br.com.justgo.app user=UserHandle{0} id=75415 tag=null importance=3 key=0|br.com.justgo.app|75415|null|10192: Notification(channel=jg_treino_ao_vivo shortcut=null contentView=null vibrate=null sound=null default
++ adb shell input keyevent 82
++ sleep 1
++ echo '=== pausa'
+=== pausa
++ J 'App.actions.pause(); '\''p'\'''
++ python3 tool/diag_cdp.py 'App.actions.pause(); '\''p'\'''
+p
++ sleep 4
++ adb shell dumpsys notification --noredact
++ grep -E 'android.title|android.text'
++ head -10
+                android.title=String (Tudo certo!)
+                android.text=String (teste)
+                android.title=String (Corrida · 0,25 km)
+                android.text=String (Pausado · 0:43)
+                android.title=String (Serial console enabled)
+                android.text=String (Performance is impacted. To disable, check bootloader.)
+                android.title=String (Configure AT Translated Set 2 keyboard)
+                android.text=String (Tap to select language and layout)
++ echo '=== workmanager'
+=== workmanager
++ adb shell dumpsys jobscheduler
++ grep -i br.com.justgo.app
++ head -10
+  JOB androidx.work.systemjobscheduler:u0a192/1: 3f3ccd8 @androidx.work.systemjobscheduler@br.com.justgo.app/androidx.work.impl.background.systemjob.SystemJobService
+    u0a192 tag=*job*/@androidx.work.systemjobscheduler@br.com.justgo.app/androidx.work.impl.background.systemjob.SystemJobService#1
+    Source: uid=u0a192 user=0 pkg=br.com.justgo.app
+      Service: br.com.justgo.app/androidx.work.impl.background.systemjob.SystemJobService
+  #androidx.work.systemjobscheduler:u0a192/1 from u0a192 active: br.com.justgo.app [RUN_ANY_IN_BACKGROUND allowed] RUNNABLE
+  #androidx.work.systemjobscheduler:u0a192/1 from u0a192: br.com.justgo.app RUNNABLE
+  TopAppTimer{<0>br.com.justgo.app} started at 140456 (9413ms ago)
+    <0>br.com.justgo.app
+    <0>br.com.justgo.app: ShrinkableDebits { debit tally: 0, bucket: 0 }
+  0-ComponentInfo{br.com.justgo.app/androidx.work.impl.background.systemjob.SystemJobService}: br.com.justgo.app
++ adb logcat -d
++ grep -iE 'flutter|notif|workmanager|FATAL'
++ tail -80
