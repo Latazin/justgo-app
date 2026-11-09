@@ -1457,6 +1457,14 @@ const UI = {
         <div class="cfg-row col-row"><div class="grow"><b>Esporte ao abrir o Gravar</b></div>${seg('defaultSport', [['', 'Último'], ...Object.entries(CONFIG.sports).map(([k, s]) => [k, s.name])])}</div>
       </div>
 
+      ${Native.on ? `<h3 class="group">Notificações</h3>
+      <div class="list cfg-list">
+        ${sw('notifSocial', 'Seguidores, curtidas e comentários', 'Avisa quando alguém interage com você')}
+        ${sw('notifRemind', 'Lembrete para treinar', 'Um por dia, só se você ainda não treinou')}
+        ${Pref('notifRemind') !== false ? `<div class="cfg-row col-row"><div class="grow"><b>Horário do lembrete</b></div>${seg('notifHour', [['7', 'Manhã'], ['12', 'Almoço'], ['18', 'Fim da tarde'], ['20', 'Noite']])}</div>` : ''}
+        <button class="cfg-row tap" data-act="notifTest">${this.iconBox('bell')}<div class="grow"><b>Testar notificação</b><small>Durante o treino, distância, tempo e ritmo aparecem na tela de bloqueio</small></div>${I('chevronRight', 'chev')}</button>
+      </div>` : ''}
+
       <h3 class="group">Metas</h3>
       <div class="list cfg-list">
         <div class="cfg-row"><div class="grow"><b>Meta semanal</b><small>Aparece no Início</small></div><div class="num-in"><input type="number" min="1" inputmode="numeric" data-set="goalWeek" value="${P.goalWeek}"><span>km</span></div></div>

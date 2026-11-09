@@ -10,6 +10,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:app_links/app_links.dart';
 import 'package:crypto/crypto.dart';
@@ -26,6 +27,9 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
+import 'package:workmanager/workmanager.dart';
+
+import 'notif.dart';
 
 const kBrand = Color(0xFF1F6BFF);
 const kPort = 47621; // porta fixa: mantém os dados salvos entre aberturas
@@ -33,7 +37,7 @@ const kPort = 47621; // porta fixa: mantém os dados salvos entre aberturas
 // version.json direto do GitHub (sempre fresco) e os arquivos pela CDN jsDelivr
 const kRaw = 'https://raw.githubusercontent.com/Latazin/justgo-app/main/assets/web';
 const kCdn = 'https://cdn.jsdelivr.net/gh/Latazin/justgo-app@main/assets/web';
-const kNativeBuild = 29; // sobe quando o APK ganha recursos novos
+const kNativeBuild = 30; // sobe quando o APK ganha recursos novos
 // AdMob: um bloco de anúncio premiado para cada recompensa
 const kAdUnits = {
   'streak': 'ca-app-pub-4705801610677571/3371244610', // salvar ofensiva
@@ -54,6 +58,10 @@ void main() async {
     systemNavigationBarIconBrightness: Brightness.light,
   ));
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  try {
+    await Notif.init(main: true);
+    if (Platform.isAndroid) await Workmanager().initialize(jgWorker);
+  } catch (_) {}
   await WebFiles.init();
   final base = await LocalServer.start();
   runApp(JustGoApp(base: base));
@@ -255,6 +263,9 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int? _updateReady;
   DateTime _lastCheck = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime? _pausedAt;
+  Map<String, dynamic>? _live; // números do treino vindos do app web (para a notificação)
+  int _liveAt = 0, _liveIdx = 0;
+  Timer? _liveTimer;
   final List<Map<String, dynamic>> _trainBuffer = []; // pontos do treino (reenviados ao voltar)
   int _sentUpTo = 0;
 
@@ -265,6 +276,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     _setupWebView();
     _setupTts();
     _setupLinks();
+    Notif.onAction = _onNotifAction;
+    Push.foreground(true);
   }
 
   @override
@@ -361,16 +374,23 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         _trainBuffer.clear();
         _sentUpTo = 0;
         WakelockPlus.enable();
+        _live = null;
+        if (Platform.isAndroid) unawaited(Notif.ask());
         if (await _ensurePermission()) await _startStream(restart: true);
+        _liveTimer?.cancel();
+        _liveTimer = Timer.periodic(const Duration(seconds: 5), (_) => _liveShow());
         _reply(id, {'ok': true});
         break;
       case 'trainStop':
         _training = false;
+        _liveTimer?.cancel();
+        _live = null;
         if (_updateReady != null) Future.delayed(const Duration(seconds: 3), _checkUpdate);
         _trainBuffer.clear();
         WakelockPlus.disable();
         await _startStream(restart: true); // volta ao modo normal (sem notificação)
         if (!_watching) await _stopStream();
+        await Notif.liveOff();
         _reply(id, {'ok': true});
         break;
       case 'say':
@@ -424,8 +444,87 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         await _checkUpdate(force: true);
         _reply(id, {'native': kNativeBuild, 'web': WebFiles.current, 'remote': WebFiles.remoteBuild, 'status': WebFiles.lastStatus, 'ready': _updateReady});
         break;
+      case 'trainLive': // números do treino para a notificação / tela de bloqueio
+        _live = Map<String, dynamic>.from(m);
+        _liveAt = DateTime.now().millisecondsSinceEpoch;
+        _liveIdx = _trainBuffer.length;
+        _liveShow();
+        _reply(id, {'ok': true});
+        break;
+      case 'notifSetup': // token, preferências e dados para lembretes e avisos sociais
+        await Push.setup(Map<String, dynamic>.from(m['data'] as Map));
+        _reply(id, {'ok': true});
+        break;
+      case 'notifAsk':
+        _reply(id, {'ok': await Notif.ask()});
+        break;
+      case 'notifState':
+        _reply(id, {'enabled': await Notif.enabled()});
+        break;
+      case 'notifTest':
+        await Notif.show(9600, '${m['title'] ?? 'JustGo'}', '${m['body'] ?? ''}', channel: '${m['channel'] ?? 'social'}');
+        _reply(id, {'ok': true});
+        break;
       default:
         _reply(id, null);
+    }
+  }
+
+  /* ---------------- notificação do treino ao vivo ---------------- */
+  void _liveShow() {
+    final l = _live;
+    if (!_training || l == null) return;
+    final paused = l['paused'] == true;
+    var dist = (l['dist'] as num? ?? 0).toDouble();
+    var moving = (l['moving'] as num? ?? 0).toInt();
+    if (!paused) {
+      moving += DateTime.now().millisecondsSinceEpoch - _liveAt;
+      // pontos que chegaram com o app minimizado e o app web ainda não somou
+      final from = _liveIdx.clamp(0, _trainBuffer.length);
+      Map<String, dynamic>? prev = from > 0 ? _trainBuffer[from - 1] : null;
+      for (var i = from; i < _trainBuffer.length; i++) {
+        final q = _trainBuffer[i];
+        if (((q['acc'] as num?) ?? 99) > 30) continue;
+        if (prev != null) {
+          final d = _hav(prev, q), dt = (((q['t'] as num) - (prev['t'] as num)) / 1000);
+          if (d >= 1 && dt > 0 && d / dt < 40) dist += d;
+        }
+        prev = q;
+      }
+    }
+    var color = 0xFF1858F0;
+    try {
+      color = int.parse('FF${'${l['color'] ?? ''}'.replaceAll('#', '')}', radix: 16);
+    } catch (_) {}
+    unawaited(Notif.live(sport: '${l['name'] ?? 'Treino'}', meters: dist, movingMs: moving, paused: paused, speed: l['speed'] == true, color: color));
+  }
+
+  double _hav(Map a, Map b) {
+    const r = 6371000.0;
+    final la1 = (a['lat'] as num) * math.pi / 180, la2 = (b['lat'] as num) * math.pi / 180;
+    final dla = la2 - la1, dlo = ((b['lng'] as num) - (a['lng'] as num)) * math.pi / 180;
+    final h = math.sin(dla / 2) * math.sin(dla / 2) + math.cos(la1) * math.cos(la2) * math.sin(dlo / 2) * math.sin(dlo / 2);
+    return 2 * r * math.asin(math.sqrt(h));
+  }
+
+  // toque na notificação ou nos botões dela
+  void _onNotifAction(String a) {
+    switch (a) {
+      case 'pause':
+        _js("App.tracker && App.tracker.state === 'running' && App.actions.pause()");
+        break;
+      case 'resume':
+        _js("App.tracker && App.tracker.state === 'paused' && App.actions.resume()");
+        break;
+      case 'finish':
+        Future.delayed(const Duration(milliseconds: 500), () => _js("App.tracker && (App.tab = 'training', UI.training(), App.finishTraining())"));
+        break;
+      case 'notifs':
+        Future.delayed(const Duration(milliseconds: 700), () => _js("window.Cloud && Cloud.loggedIn() && !App.tracker && App.go('notifs')"));
+        break;
+      case 'record':
+        Future.delayed(const Duration(milliseconds: 700), () => _js("!App.tracker && App.go('record')"));
+        break;
     }
   }
 
@@ -504,7 +603,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           ? const ForegroundNotificationConfig(
               notificationTitle: 'JustGo · treino em andamento',
               notificationText: 'Gravando seu percurso. Toque para voltar ao app.',
-              notificationIcon: AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
+              notificationIcon: AndroidResource(name: 'ic_stat_justgo', defType: 'drawable'),
               enableWakeLock: true,
               setOngoing: true,
             )
@@ -539,7 +638,11 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         _checkUpdate();
       }
     }
-    if (state == AppLifecycleState.paused) _pausedAt = DateTime.now();
+    if (state == AppLifecycleState.paused) {
+      _pausedAt = DateTime.now();
+      Push.foreground(false);
+    }
+    if (state == AppLifecycleState.resumed) Push.foreground(true);
     if (state == AppLifecycleState.resumed && _training && _trainBuffer.isNotEmpty) {
       final from = _sentUpTo.clamp(0, _trainBuffer.length);
       final batch = _trainBuffer.sublist(from > 50 ? from - 50 : 0);

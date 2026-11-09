@@ -74,7 +74,7 @@ const Store = {
 };
 
 /* ---------- Preferências (tela Configurações) ---------- */
-const PREF_DEFAULTS = { spotsOn: true, autoPause: true, voice: false, countdown: true, sounds: true, haptics: true, mapStyle: 'color', keepAwake: true, defaultSport: '', bio: '', city: '' };
+const PREF_DEFAULTS = { spotsOn: true, autoPause: true, voice: false, countdown: true, sounds: true, haptics: true, mapStyle: 'color', keepAwake: true, notifSocial: true, notifRemind: true, notifHour: '18', defaultSport: '', bio: '', city: '' };
 const Pref = (k) => { const P = Store.data && Store.data.profile; return P && P[k] !== undefined ? P[k] : PREF_DEFAULTS[k]; };
 
 /* ---------- Formatação pt-BR ---------- */

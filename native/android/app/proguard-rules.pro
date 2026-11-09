@@ -6,3 +6,10 @@
 -keep class io.flutter.plugins.googlemobileads.** { *; }
 -dontwarn androidx.work.**
 -dontwarn com.google.android.gms.**
+# notificações (flutter_local_notifications usa Gson) e tarefas em segundo plano
+-keep class com.dexterous.** { *; }
+-keep class com.google.gson.** { *; }
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class dev.fluttercommunity.workmanager.** { *; }
+-dontwarn com.dexterous.**

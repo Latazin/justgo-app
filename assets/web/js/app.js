@@ -208,6 +208,14 @@ const App = {
     if (this.coach) this.coach.tick();
     if (this.route && tr.state === 'running') this.routeLive = Routes.live(tr, this.route);
     UI.updateTraining();
+    // notificação do treino (tela de bloqueio): manda os números para a parte nativa
+    if (Native.on && !this.sim) {
+      const n = Date.now(), st = tr.state === 'running' ? 'r' : 'p';
+      if (n - (this._nl || 0) > 3000 || st !== this._nls) {
+        this._nl = n; this._nls = st; const sp = CONFIG.sports[tr.sport] || {};
+        Native.call('trainLive', { name: sp.name || 'Treino', dist: tr.distance, moving: tr.moving, paused: st === 'p', speed: Fmt.isSpeed(tr.sport), color: sp.color || '#1858F0' }, 5000);
+      }
+    }
   },
   onSplit(n, t) {
     const tr = this.tracker;
@@ -497,7 +505,7 @@ const App = {
     else if (t.id === 'privZone') { D.privacy.zone = t.checked; Store.save(); if (t.checked && D.privacy.lat == null) FX.toast('Agora marque onde fica sua casa.'); }
     else if (t.id === 'privEnds') { D.privacy.trimEnds = t.checked; Store.save(); }
     else if (t.name === 'privR') { D.privacy.radius = +t.value; Store.save(); }
-    else if (t.dataset.pref) { P[t.dataset.pref] = t.checked; Store.save(); if (t.dataset.pref === 'spotsOn' && !t.checked) Spots.leave(); FX.toast(t.dataset.pref === 'spotsOn' ? (t.checked ? 'Você volta a aparecer nos pontos' : 'Você está invisível nos pontos') : t.checked ? 'Ativado' : 'Desativado'); }
+    else if (t.dataset.pref) { P[t.dataset.pref] = t.checked; Store.save(); if (/^notif/.test(t.dataset.pref) && window.PushJG) PushJG.sync(); if (t.dataset.pref === 'spotsOn' && !t.checked) Spots.leave(); FX.toast(t.dataset.pref === 'spotsOn' ? (t.checked ? 'Você volta a aparecer nos pontos' : 'Você está invisível nos pontos') : t.checked ? 'Ativado' : 'Desativado'); }
     else if (t.id === 'v3Prog') View3D.seek(+t.value / 1000);
     else if (t.dataset.pro) {
       const k = t.dataset.pro, num = t.type === 'number';
@@ -694,9 +702,11 @@ const App = {
     proOn: () => { Pro.set('on', true); FX.toast('Modo profissional ativado'); App.go('pro'); },
     navProfile: () => { App.sub.profile = 'activities'; App.go('profile'); },
     profTab: (el) => { App.sub.profile = el.dataset.v; UI.profile(); },
+    notifTest: () => PushJG.test(),
     setPref: (el) => {
       const [k, v] = el.dataset.v.split(':'), P = Store.data.profile;
       P[k] = v; if (k === 'theme') { Store.data.equipped.theme = null; Shop.apply(); }
+      if (/^notif/.test(k) && window.PushJG) PushJG.sync();
       Store.save(); UI.settings();
     },
     adjInfo: () => FX.modal(`<h3>Ritmo corrigido</h3><p class="muted">Mostra quanto o seu treino valeria <b>no plano e num dia fresco</b>, para comparar treinos de forma justa.</p>
