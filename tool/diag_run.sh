@@ -34,6 +34,11 @@ adb exec-out screencap -p > 02-treino.png
 adb shell cmd statusbar expand-notifications; sleep 2
 adb exec-out screencap -p > 03-gaveta.png
 adb shell cmd statusbar collapse
+echo "=== tela de bloqueio"
+adb shell input keyevent 26; sleep 3; adb shell input keyevent 224; sleep 3
+adb exec-out screencap -p > 04-bloqueio.png
+adb shell dumpsys notification --noredact | grep -E "id=75415" | cut -c1-250
+adb shell input keyevent 82; sleep 1
 echo "=== pausa"
 J "App.actions.pause(); 'p'"
 sleep 4
