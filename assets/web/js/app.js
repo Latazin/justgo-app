@@ -187,14 +187,14 @@ const App = {
     });
     this.tracker = tr; this.tab = 'training';
     tr.start(); Background.start(tr);
-    if (!this.sim) Native.call('trainStart', { sport: this.sport });
+    if (!this.sim) Native.call('trainStart', { sport: this.sport, awake: !!Pref('keepAwake') });
     if (this.mode === 'interval' && this.preset) this.coach = new Coach(tr, this.preset);
     if (this.mode === 'route' && this.route) this.routeLive = { off: false, left: this.route.distance, ghost: null };
     UI.training(); this.wake();
     if (!this.sim && !Store.data.profile.bgTipSeen) {
       Store.data.profile.bgTipSeen = 1; Store.save();
       const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      setTimeout(() => FX.modal(`<div class="m-ic" style="background:var(--brand-soft);color:var(--brand)">${I('signal')}</div><h3>Pode minimizar</h3><p class="muted">O tempo continua contando com o JustGo em segundo plano, e os controles aparecem na tela de bloqueio. Ao voltar, somamos a distância que você percorreu.</p>${ios ? '<p class="muted small" style="margin-top:10px">No iPhone, o GPS de sites pausa quando o app sai da tela. Para o trajeto sair desenhado certinho no mapa, deixe o JustGo aberto (a tela não apaga sozinha).</p>' : '<p class="muted small" style="margin-top:10px">Dica: para o trajeto sair perfeito no mapa, deixe o JustGo aberto. A tela não apaga sozinha durante o treino.</p>'}<button class="btn primary" data-m="ok" style="margin-top:18px">Entendi</button>`), 600);
+      setTimeout(() => FX.modal(`<div class="m-ic" style="background:var(--brand-soft);color:var(--brand)">${I('signal')}</div><h3>Pode bloquear a tela</h3><p class="muted">O treino continua gravando com a tela apagada. A distância, o tempo e o ritmo aparecem na tela de bloqueio, com os botões Pausar e Finalizar.</p>${ios ? '<p class="muted small" style="margin-top:10px">No iPhone, deixe o JustGo aberto para o trajeto sair completo no mapa.</p>' : '<p class="muted small" style="margin-top:10px">Prefere ver os números grandes o tempo todo? Ligue “Manter tela acesa” em Configurações.</p>'}<button class="btn primary" data-m="ok" style="margin-top:18px">Entendi</button>`), 600);
     }
     FX.beep([440, 660]);
     if (Pref('voice') && !this.coach) {
