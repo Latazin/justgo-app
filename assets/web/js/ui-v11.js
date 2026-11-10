@@ -375,3 +375,179 @@
     </button>`;
   };
 })();
+
+/* =========================================================
+   v11.1 · janelas (folhas de baixo) e melhorias de sistema
+   ========================================================= */
+(() => {
+  /* ---------- janelas: folha presa embaixo, título com ícone, X para fechar, rodapé fixo ---------- */
+  const CANCEL = /^(fechar|cancelar|agora não|agora nao|voltar|não|nao)$/i;
+  FX.modal = function (html) {
+    return new Promise((res) => {
+      const m = $('#modal');
+      m.innerHTML = `<div class="modal-bg"><div class="modal-box mx11"><i class="m-grip"></i>${html}</div></div>`;
+      const box = m.querySelector('.modal-box');
+      // emoji no título vira ícone
+      const h = box.querySelector(':scope > h3');
+      if (h && !box.querySelector(':scope > .m-done, :scope > .m-ic')) {
+        const re = /\s*(\p{Extended_Pictographic}(️|‍\p{Extended_Pictographic})*)\s*/u, mm = h.textContent.match(re);
+        if (mm) { h.innerHTML = h.innerHTML.replace(mm[1], '').replace(/️/g, '').trim(); const ic = document.createElement('div'); ic.className = 'm-ic'; ic.textContent = mm[1]; h.before(ic); }
+      }
+      // cabeçalho: ícone + título (+ texto) lado a lado
+      if (h) {
+        const prev = h.previousElementSibling, head = document.createElement('div');
+        head.className = 'm-head'; h.before(head);
+        if (prev && prev.matches('.m-hero, .m-ic')) head.append(prev);
+        const tx = document.createElement('div'); tx.className = 'm-ht'; head.append(tx); tx.append(h);
+        box.classList.add('has-head');
+      }
+      // botão X quando existe uma opção de cancelar
+      const btns = [...box.querySelectorAll('[data-m]')];
+      const cancel = box.querySelector('[data-m=no]') || btns.find((b) => b.classList.contains('ghost') && CANCEL.test(b.textContent.trim()));
+      if (cancel && !box.querySelector('.cm-menu')) {
+        box.insertAdjacentHTML('afterbegin', `<button class="m-x" data-m="${esc(cancel.dataset.m)}" aria-label="Fechar">${I('x')}</button>`);
+        // "Fechar" sozinho some: o X faz o mesmo
+        if (/^fechar$/i.test(cancel.textContent.trim()) && btns.length > 1) cancel.classList.add('m-off');
+      }
+      // rodapé de botões fixo embaixo da folha
+      const foot = box.querySelector(':scope > .row2:last-child, :scope > .btn:last-child');
+      if (foot) foot.classList.add('m-foot');
+      m.classList.add('show');
+      m.onclick = (e) => {
+        let b = e.target.closest('[data-m]');
+        if (!b && e.target.classList.contains('modal-bg')) b = m.querySelector('[data-m=no]') || m.querySelector('.m-x');
+        if (!b) return;
+        this.form = {};
+        m.querySelectorAll('input[id], textarea[id], select[id]').forEach((el) => { this.form[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
+        m.querySelectorAll('input[type=radio]:checked').forEach((el) => { this.form[el.name] = el.value; });
+        m.classList.remove('show'); m.innerHTML = ''; m.onclick = null;
+        res(b.dataset.m);
+      };
+    });
+  };
+
+  /* ---------- lista de curtidas: cabeçalho com contagem, sem "Fechar" ---------- */
+  const likers0 = App.actions.raLikers;
+  App.actions.raLikers = async (el) => {
+    const p = likers0(el); // a janela abre na hora; o X substitui o "Fechar"
+    const b = $('.lk11 > .btn'); if (b) b.remove();
+    await p;
+    const n = document.querySelectorAll('#lk11L .lk11-r').length, h = $('.lk11 h3');
+    if (h && n) h.innerHTML = `Curtidas <span class="num">${n}</span>`;
+  };
+
+  /* ---------- seu treino: quem curtiu e comentou aparece no resumo ---------- */
+  const sum0 = UI.summary.bind(UI);
+  UI.summary = function (act, ...rest) {
+    const r = sum0(act, ...rest);
+    try {
+      if (act && act.pub && Cloud.loggedIn()) {
+        const id = act.id;
+        Cloud.withReactions([{ id }]).then(([a]) => {
+          if (!a || App.tab !== 'detail' || $('.ms11') || (!a.likes && !a.comments)) return;
+          const anchor = $('.screen.summary .s-map-wrap') || $('.screen.summary .pool-art') || $('.screen.summary > section');
+          if (!anchor) return;
+          const cm = a.lastCm && a.lastCm.text ? `<p class="ms11-cm"><b>${esc((a.lastCm.p || {}).name || 'Atleta')}</b> ${esc(a.lastCm.text.slice(0, 120))}</p>` : '';
+          anchor.insertAdjacentHTML('afterend', `<section class="ms11 tap" data-act="raOpen" data-v="${esc(id)}" data-cm="1">
+            <div class="ms11-top">${a.likerP && a.likerP.length ? V11.stack(a.likerP) : `<span class="k11-h">${I('heart', 'xs')}</span>`}<span class="grow">${a.likes ? V11.likedBy(a.likes, a.likerP, false) : 'Ninguém curtiu ainda'}</span><em>${I('message', 'xs')}<span class="num">${a.comments}</span></em></div>
+            ${cm}<span class="ms11-go">Ver conversa${I('chevronRight', 'xs')}</span></section>`);
+        }).catch(() => {});
+      }
+    } catch (e) {}
+    return r;
+  };
+
+  /* ---------- voltar do treino para onde você estava ---------- */
+  const raOpen0 = App.actions.raOpen, raBack0 = App.actions.raBack;
+  App.actions.raOpen = (el) => {
+    const from = App.tab, det = from === 'detail' && $('.ms11') ? el.dataset.v : null;
+    raOpen0(el);
+    if (App.raFrom && from !== 'ract') { App.raFrom.det = det; App.raFrom.tab = from; }
+  };
+  App.actions.raBack = () => {
+    const f = App.raFrom || {};
+    if (f.tab === 'detail' && f.det) { const a = App.find(f.det); App.raFrom = null; if (a) { App.tab = 'detail'; App.nav = 'home'; return UI.summary(a, null, false); } }
+    if (f.tab === 'profile' || f.tab === 'home') { App.raFrom = null; return App.go(f.tab); }
+    return raBack0();
+  };
+
+  /* ---------- toque duplo na foto/mapa do post = curtir ---------- */
+  let tapT = 0, tapTimer = null;
+  document.addEventListener('click', (e) => {
+    const media = e.target.closest && e.target.closest('.p8-media');
+    if (!media || e.target.closest('button, a')) return;
+    e.stopPropagation(); e.preventDefault();
+    const now = Date.now(), post = media.closest('.p8');
+    if (now - tapT < 320) {
+      clearTimeout(tapTimer); tapT = 0;
+      const btn = post && post.querySelector('.p8-like');
+      if (btn && btn.dataset.on !== '1') App.actions.like(btn);
+      const r = media.getBoundingClientRect(), hrt = document.createElement('span');
+      hrt.className = 'dt11'; hrt.innerHTML = I('heart');
+      hrt.style.left = `${(e.clientX || r.left + r.width / 2) - r.left}px`; hrt.style.top = `${(e.clientY || r.top + r.height / 2) - r.top}px`;
+      media.style.position = 'relative'; media.append(hrt); setTimeout(() => hrt.remove(), 900);
+      return;
+    }
+    tapT = now;
+    tapTimer = setTimeout(() => { tapT = 0; App.actions.raOpen(media); }, 300);
+  }, true);
+
+  /* ---------- @menção: sugere quem está na conversa ---------- */
+  const people = () => {
+    const M = new Map();
+    document.querySelectorAll('#raCm .cm3').forEach((c) => {
+      const b = c.querySelector('.cm3-h b'), av = c.querySelector('.cm3-av');
+      if (b && av) M.set(av.dataset.v, b.childNodes[0] ? b.childNodes[0].textContent.trim() : b.textContent.trim());
+    });
+    const own = $('.ra3-who b'); const ob = $('.ra3-av');
+    if (own && ob) M.set(ob.dataset.v, own.childNodes[0] ? own.childNodes[0].textContent.trim() : own.textContent.trim());
+    if (Cloud.user) M.delete(Cloud.user.id);
+    return [...M.entries()].map(([id, name]) => ({ id, name }));
+  };
+  document.addEventListener('input', (e) => {
+    if (!e.target || e.target.id !== 'raText') return;
+    const t = e.target, before = t.value.slice(0, t.selectionStart), mt = before.match(/(^|\s)@([\wÀ-ÿ.]{0,20})$/);
+    let box = $('#mn11');
+    if (!mt) { if (box) box.remove(); return; }
+    const q = mt[2].toLowerCase(), L = people().filter((p) => p.name.toLowerCase().includes(q)).slice(0, 5);
+    if (!L.length) { if (box) box.remove(); return; }
+    if (!box) { const c = t.closest('.composer'); if (!c) return; c.insertAdjacentHTML('afterbegin', '<div id="mn11" class="mn11"></div>'); box = $('#mn11'); }
+    box.innerHTML = L.map((p) => { const pp = (UI._people || {})[p.id] || {}; return `<button data-act="mn11Pick" data-v="${esc(p.name.split(' ')[0])}">${UI.avatarOf(p.name, null, pp.avatar, 'xs', pp.photo)}<span>${esc(p.name)}</span></button>`; }).join('');
+  });
+  App.actions.mn11Pick = (el) => {
+    const t = $('#raText'); if (!t) return;
+    const pos = t.selectionStart || t.value.length, before = t.value.slice(0, pos).replace(/@([\wÀ-ÿ.]{0,20})$/, `@${el.dataset.v} `);
+    t.value = before + t.value.slice(pos); t.focus(); t.setSelectionRange(before.length, before.length);
+    t.dispatchEvent(new Event('input', { bubbles: true })); const b = $('#mn11'); if (b) b.remove();
+  };
+
+  /* ---------- seu perfil: alternar entre lista e mural de treinos ---------- */
+  const pfKey = 'justgo_pf_view';
+  const pfView = () => { try { return localStorage.getItem(pfKey) || 'list'; } catch (e) { return 'list'; } };
+  const prof0 = UI.profile.bind(UI);
+  UI.profile = function (...a) {
+    const r = prof0(...a);
+    try {
+      const tab = ['activities', 'stats', 'achievements', 'more'].includes(App.sub.profile) ? App.sub.profile : 'activities';
+      const tabs = $('.pf2-screen > .subtabs'), list = [...Store.data.activities].sort((x, y) => y.start - x.start);
+      if (tab !== 'activities' || !tabs || !list.length) return r;
+      const v = pfView();
+      tabs.insertAdjacentHTML('afterend', `<div class="pv11"><span>${list.length} ${list.length === 1 ? 'treino' : 'treinos'}</span><div class="pv11-sw"><button class="${v === 'list' ? 'on' : ''}" data-act="pfView" data-v="list" aria-label="Lista">${I('list', 'xs')}</button><button class="${v === 'grid' ? 'on' : ''}" data-act="pfView" data-v="grid" aria-label="Mural">${I('map', 'xs')}</button></div></div>`);
+      if (v === 'grid') {
+        const sw = $('.pv11'); let n = sw.nextElementSibling; while (n) { const nx = n.nextElementSibling; n.remove(); n = nx; }
+        sw.insertAdjacentHTML('afterend', `<div class="up3-grid pf11-grid">${list.slice(0, 60).map((x) => UI.myTile(x)).join('')}</div>${list.length > 60 ? `<button class="btn ghost" data-act="go" data-v="history">Ver todas as ${list.length} atividades</button>` : ''}`);
+      }
+    } catch (e) { console.warn(e); }
+    return r;
+  };
+  App.actions.pfView = (el) => { try { localStorage.setItem(pfKey, el.dataset.v); } catch (e) {} const y = window.scrollY; UI.profile(); window.scrollTo(0, y); };
+  UI.myTile = function (a) {
+    const sp = CONFIG.sports[a.sport] || CONFIG.sports.run, r = V11.routePath(a.points || [], 10, 10, 140, 80), avg = a.duration ? a.distance / a.duration : 0;
+    return `<button class="up3-t" data-act="detail" data-v="${esc(a.id)}" style="--c:${sp.color}">
+      <span class="up3-art">${r ? `<svg viewBox="0 0 160 100" aria-hidden="true"><path d="${r.d}"/><circle cx="${r.e[0]}" cy="${r.e[1]}" r="3.6"/></svg>` : `<span class="up3-noart">${I(sp.icon)}</span>`}<i>${I(sp.icon, 'xs')}</i></span>
+      <b class="num">${Fmt.km(a.distance)}<small> km</small></b>
+      <small class="num">${Fmt.pace(a.sport, avg)} ${Fmt.paceUnit(a.sport)} · ${Fmt.time(a.duration)}</small>
+      <em>${esc(this.actTitle(a))} · ${esc(this.rel ? this.rel(a.start) : Fmt.date(a.start))}</em>
+    </button>`;
+  };
+})();

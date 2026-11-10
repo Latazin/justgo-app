@@ -3676,3 +3676,79 @@ button.start span { font-family: var(--display); font-size: 17px; font-weight: 7
 /* temas escuros */
 [data-theme="dark"] .pf3-tags > span.ok, [data-theme="midnight"] .pf3-tags > span.ok, [data-theme="graphite"] .pf3-tags > span.ok { color: #4ADE9B; }
 [data-theme="dark"] .ra3-3d { background: rgba(0, 0, 0, .75); }
+
+/* =========================================================
+   v11.1 · janelas: folha presa embaixo, cabeçalho com ícone,
+   X para fechar e rodapé fixo (vale para todas)
+   ========================================================= */
+.modal-bg { padding: 0 !important; background: rgba(6, 10, 20, .56) !important; align-items: flex-end !important; }
+.modal-box.mx11 { position: relative; max-width: 560px !important; width: 100%; max-height: 90vh; border-radius: 22px 22px 0 0 !important; padding: 8px 20px calc(18px + env(safe-area-inset-bottom)) !important; box-shadow: 0 -18px 40px -24px rgba(0, 0, 0, .5) !important; animation: mx11up .3s cubic-bezier(.2, .9, .25, 1) !important; }
+@keyframes mx11up { from { transform: translateY(100%); } }
+@media (min-width: 640px) { .modal-bg { align-items: center !important; } .modal-box.mx11 { border-radius: 22px !important; padding-bottom: 18px !important; } }
+.mx11 > .m-grip { display: block !important; width: 38px; height: 4px; margin: 0 auto 10px; border-radius: 4px; background: var(--line-2); }
+.mx11 .m-x { position: absolute; top: 14px; right: 14px; z-index: 3; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: var(--text-2); background: var(--surface-2); }
+.mx11 .m-x .ic { width: 17px; height: 17px; stroke-width: 2.4; }
+.mx11 .m-off { display: none !important; }
+/* cabeçalho */
+.mx11 .m-head { display: flex; align-items: center; gap: 14px; min-height: 40px; margin: 6px 0 4px; padding-right: 42px; }
+.mx11 .m-head .m-hero, .mx11 .m-head .m-ic { flex: none; width: 48px !important; height: 48px !important; margin: 0 !important; border-radius: 14px !important; font-size: 24px !important; color: var(--brand); background: var(--brand-soft) !important; box-shadow: none !important; }
+.mx11 .m-head .m-hero .ic { width: 23px; height: 23px; stroke-width: 2.1; }
+.mx11 .m-head .m-hero.bad { color: #DC2626; background: color-mix(in srgb, #EF4444 13%, transparent) !important; }
+.mx11 .m-head .m-hero[style*="--c"] { color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent) !important; }
+.mx11 .m-ht { min-width: 0; }
+.mx11 .m-head h3, .mx11 > h3 { margin: 0 !important; text-align: left !important; font-family: var(--display); font-size: 26px !important; font-weight: 700 !important; letter-spacing: -.005em !important; line-height: 1.05 !important; }
+.mx11 .m-head h3 .num { margin-left: 6px; font-size: 20px; color: var(--text-3); }
+.mx11.has-head > p.muted, .mx11.has-head > .muted, .mx11 > p { text-align: left !important; max-width: none !important; margin: 10px 0 0 !important; font-size: 15px; line-height: 1.5; color: var(--text-2); }
+.mx11 > .form { margin-top: 16px !important; }
+/* rodapé fixo */
+.mx11 .m-foot { position: sticky; bottom: calc(-18px - env(safe-area-inset-bottom)); z-index: 2; margin: 18px -20px calc(-18px - env(safe-area-inset-bottom)) !important; padding: 12px 20px calc(14px + env(safe-area-inset-bottom)) !important; background: var(--surface); border-top: 1px solid var(--line); }
+.mx11 > .row2.m-foot { flex-direction: row !important; gap: 10px !important; }
+.mx11 > .row2.m-foot > * { flex: 1 !important; width: auto !important; }
+.mx11 > .row2.m-foot > .btn:not(.ghost) { flex: 1.6 !important; }
+.mx11 > .row2.m-foot .btn { height: 50px !important; border-radius: 14px !important; font-size: 15.5px !important; box-shadow: none !important; }
+.mx11 > .row2.m-foot .btn.ghost { background: var(--surface) !important; border: 1.5px solid var(--line-2) !important; color: var(--text) !important; height: 50px !important; border-radius: 14px !important; }
+.mx11 > .btn.m-foot { position: static; display: flex; width: 100%; height: 50px !important; margin: 18px 0 0 !important; padding: 0 16px !important; border-radius: 14px !important; border-top: 0; box-shadow: none !important; }
+.mx11 > .btn.ghost.m-foot { color: var(--text) !important; font-weight: 750; border: 1.5px solid var(--line-2) !important; background: var(--surface) !important; }
+.mx11 .btn.danger { background: #DC2626 !important; }
+/* listas dentro das janelas: linhas com divisória, sem caixinhas */
+.mx11 .col { gap: 0 !important; }
+.mx11 .col > .btn.ghost { justify-content: flex-start; height: 56px; border-radius: 0 !important; border: 0 !important; border-bottom: 1px solid var(--line) !important; background: none !important; font-size: 16px; padding: 0 4px; }
+.mx11 .col > .btn.ghost .ic { color: var(--brand); }
+.lk11 h3 { font-family: var(--display); font-size: 26px; font-weight: 700; margin: 6px 0 6px !important; }
+.lk11 h3 .num { margin-left: 6px; font-size: 20px; color: var(--text-3); }
+#lk11L { margin: 0 -20px !important; max-height: 62vh; }
+.lk11-r { padding: 10px 20px !important; border-bottom: 1px solid var(--line); }
+.lk11-r:last-child { border-bottom: 0; }
+.lk11-r .btn.sm { height: 34px; border-radius: 99px; padding: 0 14px; }
+/* menu de ações (comentário, post): lista com ícones */
+.mx11 .cm-menu { display: grid; margin: 0 -20px; }
+.mx11 .cm-menu button { display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 22px; font-size: 16px; font-weight: 650; color: var(--text); border-bottom: 1px solid var(--line); text-align: left; background: none; border-radius: 0; }
+.mx11 .cm-menu button .ic { width: 20px; height: 20px; color: var(--text-2); }
+.mx11 .cm-menu button[data-m="del"], .mx11 .cm-menu button[data-m="del"] .ic { color: #DC2626; }
+.mx11 .cm-menu .cancel { justify-content: center; border-bottom: 0; color: var(--text-2); }
+
+/* seu treino: curtidas e comentários */
+.ms11 { margin: 14px 0 0; padding: 14px 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+.ms11-top { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-2); }
+.ms11-top b { color: var(--text); }
+.ms11-top em { display: inline-flex; align-items: center; gap: 4px; font-style: normal; font-weight: 700; color: var(--text-2); }
+.ms11-top em .ic { width: 15px; height: 15px; }
+.ms11-cm { margin: 10px 0 0; font-size: 14px; line-height: 1.4; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ms11-cm b { color: var(--text); }
+.ms11-go { display: inline-flex; align-items: center; gap: 2px; margin-top: 8px; font-size: 13.5px; font-weight: 750; color: var(--brand-ink); }
+/* toque duplo: coração */
+.dt11 { position: absolute; z-index: 600; width: 96px; height: 96px; margin: -48px 0 0 -48px; pointer-events: none; color: #fff; filter: drop-shadow(0 6px 16px rgba(239, 68, 68, .55)); animation: dt11 .85s cubic-bezier(.2, 1.4, .4, 1) forwards; }
+.dt11 .ic { width: 100%; height: 100%; fill: #EF4444; stroke: #fff; stroke-width: 1.4; }
+@keyframes dt11 { 0% { transform: scale(.2); opacity: 0; } 25% { transform: scale(1.1); opacity: 1; } 45% { transform: scale(.95); } 75% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.15) translateY(-20px); opacity: 0; } }
+/* sugestões de @menção */
+.mn11 { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 0 0 8px; }
+.mn11 button { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px 0 4px; border-radius: 99px; font-size: 13.5px; font-weight: 700; color: var(--text); background: var(--surface-2); }
+.mn11 .avatar.xs { width: 26px; height: 26px; font-size: 11px; --b: 0px; }
+/* seu perfil: lista ou mural */
+.pv11 { display: flex; align-items: center; justify-content: space-between; margin: 14px 0 10px; }
+.pv11 > span { font-size: 13px; font-weight: 700; color: var(--text-3); }
+.pv11-sw { display: flex; padding: 3px; border-radius: 12px; background: var(--surface-2); }
+.pv11-sw button { width: 40px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--text-3); }
+.pv11-sw button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+.pv11-sw .ic { width: 16px; height: 16px; }
+[data-theme="dark"] .pv11-sw button.on, [data-theme="midnight"] .pv11-sw button.on, [data-theme="graphite"] .pv11-sw button.on { background: var(--surface-3); }
