@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "605384639801",
+    "project_id": "justgo-5c8c3",
+    "storage_bucket": "justgo-5c8c3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:605384639801:android:547153676fb8c3ca6994e8",
+        "android_client_info": {
+          "package_name": "br.com.justgo.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDcj8tfdFnPzfW_xZ2C6CiFyXv9_U1MC3I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
