@@ -16,3 +16,6 @@ workmanager:^0.10.0
 shared_preferences
 in_app_purchase
 in_app_purchase_android
+firebase_core
+firebase_messaging
+app_settings

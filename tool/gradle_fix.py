@@ -15,3 +15,21 @@ if 'isCoreLibraryDesugaringEnabled' not in s:
     s += '\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n'
 open(p, 'w').write(s)
 print('ID do app:', APP_ID, '· regras do R8 aplicadas')
+
+# avisos instantâneos (Firebase): só liga se o google-services.json estiver no projeto
+import os
+if os.path.exists('android/app/google-services.json'):
+    st = 'android/settings.gradle.kts'
+    t = open(st).read()
+    if 'com.google.gms.google-services' not in t:
+        t, n = re.subn(r'(plugins \{\n)', r'\1    id("com.google.gms.google-services") version "4.4.2" apply false\n', t, count=1)
+        if not n: raise SystemExit('plugins de settings.gradle.kts nao encontrado')
+        open(st, 'w').write(t)
+    s = open(p).read()
+    if 'com.google.gms.google-services' not in s:
+        s, n = re.subn(r'(plugins \{\n)', r'\1    id("com.google.gms.google-services")\n', s, count=1)
+        if not n: raise SystemExit('plugins do app nao encontrado')
+        open(p, 'w').write(s)
+    print('Firebase ligado (google-services.json encontrado)')
+else:
+    print('Sem google-services.json: avisos pela checagem de 15 min')

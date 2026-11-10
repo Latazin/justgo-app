@@ -13,6 +13,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:app_links/app_links.dart';
+import 'package:app_settings/app_settings.dart';
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -30,6 +31,7 @@ import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'billing.dart';
+import 'fcm.dart';
 import 'notif.dart';
 
 const kBrand = Color(0xFF1F6BFF);
@@ -38,7 +40,7 @@ const kPort = 47621; // porta fixa: mantém os dados salvos entre aberturas
 // version.json direto do GitHub (sempre fresco) e os arquivos pela CDN jsDelivr
 const kRaw = 'https://raw.githubusercontent.com/Latazin/justgo-app/main/assets/web';
 const kCdn = 'https://cdn.jsdelivr.net/gh/Latazin/justgo-app@main/assets/web';
-const kNativeBuild = 36; // sobe quando o APK ganha recursos novos
+const kNativeBuild = 37; // sobe quando o APK ganha recursos novos
 // AdMob: um bloco de anúncio premiado para cada recompensa
 const kAdUnits = {
   'streak': 'ca-app-pub-4705801610677571/3371244610', // salvar ofensiva
@@ -62,6 +64,9 @@ void main() async {
   try {
     await Notif.init(main: true);
     if (Platform.isAndroid) await Workmanager().initialize(jgWorker);
+  } catch (_) {}
+  try {
+    await Fcm.init().timeout(const Duration(seconds: 8));
   } catch (_) {}
   await WebFiles.init();
   final base = await LocalServer.start();
@@ -283,6 +288,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     _setupTts();
     _setupLinks();
     Notif.onAction = _onNotifAction;
+    Fcm.onForeground = (t, b, go) => _js('window.PushJG && PushJG.inApp && PushJG.inApp(${jsonEncode({'title': t, 'body': b, 'go': go})})');
     Billing.onEvent = (ev) => _js('window.Pass && Pass.onBilling(${jsonEncode(ev)})');
     Billing.init();
     Push.foreground(true);
@@ -488,15 +494,20 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       case 'notifAsk':
       case 'notifState':
       case 'notifTest':
+      case 'notifSettings':
         try {
           final cmd = m['cmd'];
           if (cmd == 'notifSetup') {
             await Push.setup(Map<String, dynamic>.from(m['data'] as Map));
-            _reply(id, {'ok': true});
+            unawaited(Fcm.register());
+            _reply(id, {'ok': true, 'fcmOn': Fcm.on});
           } else if (cmd == 'notifAsk') {
             _reply(id, {'ok': await Notif.ask(), 'error': Notif.lastError});
           } else if (cmd == 'notifState') {
-            _reply(id, {'enabled': await Notif.enabled(), 'error': Notif.lastError, 'build': kNativeBuild});
+            _reply(id, {'enabled': await Notif.enabled(), 'error': Notif.lastError, 'build': kNativeBuild, 'fcm': Fcm.on, 'fcmError': Fcm.error});
+          } else if (cmd == 'notifSettings') {
+            await AppSettings.openAppSettings(type: AppSettingsType.notification);
+            _reply(id, {'ok': true});
           } else {
             await Notif.show(9600, '${m['title'] ?? 'JustGo'}', '${m['body'] ?? ''}', channel: '${m['channel'] ?? 'social'}');
             _reply(id, {'ok': true});
@@ -565,6 +576,14 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       case 'record':
         Future.delayed(const Duration(milliseconds: 700), () => _js("!App.tracker && App.go('record')"));
         break;
+      default:
+        // avisos instantâneos: abre o treino ("ra:id") ou o perfil ("user:id")
+        final i = a.indexOf(':');
+        if (i < 0) break;
+        final k = a.substring(0, i), v = jsonEncode(a.substring(i + 1));
+        final act = k == 'ra' ? 'raOpen' : k == 'user' ? 'userOpen' : null;
+        if (act == null) break;
+        Future.delayed(const Duration(milliseconds: 700), () => _js("window.Cloud && Cloud.loggedIn() && !App.tracker && App.actions.$act({dataset:{v:$v,cm:'1'}})"));
     }
   }
 

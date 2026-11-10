@@ -244,6 +244,7 @@ class Push {
       await sp.setString('jg_since', '${j['now']}');
       final items = (j['items'] as List?) ?? [];
       if (items.isEmpty || sp.getBool('jg_social') == false) return;
+      if (sp.getBool('jg_fcmOk') == true) return; // avisos já chegaram na hora pelo Firebase
       // app aberto na tela: o sininho já mostra
       final fg = sp.getInt('jg_fg') ?? 0;
       if (fg > 0 && DateTime.now().millisecondsSinceEpoch - fg < 20 * 60000) return;
