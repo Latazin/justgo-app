@@ -9,6 +9,8 @@
    Carrega depois de comments.js (substitui partes de ui.js, ui-social*.js,
    ui-v8.js e comments.js).
    ========================================================= */
+// celular com pouca memória: menos sombras e animações (fica mais leve)
+try { if ((navigator.deviceMemory && navigator.deviceMemory <= 4) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)) document.documentElement.classList.add('lite'); } catch (e) {}
 (() => {
   const SP = (k) => CONFIG.sports[k] || CONFIG.sports.run;
   const T = (t) => (typeof t === 'string' ? Date.parse(t) : t);
@@ -478,7 +480,7 @@
     if (!media || e.target.closest('button, a')) return;
     e.stopPropagation(); e.preventDefault();
     const now = Date.now(), post = media.closest('.p8');
-    if (now - tapT < 320) {
+    if (now - tapT < 260) {
       clearTimeout(tapTimer); tapT = 0;
       const btn = post && post.querySelector('.p8-like');
       if (btn && btn.dataset.on !== '1') App.actions.like(btn);
@@ -489,7 +491,7 @@
       return;
     }
     tapT = now;
-    tapTimer = setTimeout(() => { tapT = 0; App.actions.raOpen(media); }, 300);
+    tapTimer = setTimeout(() => { tapT = 0; App.actions.raOpen(media); }, 230);
   }, true);
 
   /* ---------- @menção: sugere quem está na conversa ---------- */
