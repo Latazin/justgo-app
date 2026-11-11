@@ -1,0 +1,39 @@
+{
+  "name": "JustGo",
+  "identifier": "com.justgo.source",
+  "subtitle": "Corrida, pedal e natação com território",
+  "iconURL": "https://raw.githubusercontent.com/Latazin/justgo-app/build-output-ios/icon.png",
+  "tintColor": "#1F6BFF",
+  "apps": [
+    {
+      "name": "JustGo",
+      "bundleIdentifier": "com.justgo.justgo",
+      "developerName": "JustGo",
+      "subtitle": "Domine sua cidade",
+      "localizedDescription": "Grave corridas, pedais e natação com GPS, conquiste territórios no mapa, desafie os amigos e reviva seus treinos em 3D.",
+      "iconURL": "https://raw.githubusercontent.com/Latazin/justgo-app/build-output-ios/icon.png",
+      "tintColor": "#1F6BFF",
+      "category": "lifestyle",
+      "versions": [
+        {
+          "version": "2.8.0",
+          "date": "2026-11-11",
+          "localizedDescription": "Nova versão do JustGo.",
+          "downloadURL": "https://raw.githubusercontent.com/Latazin/justgo-app/build-output-ios/JustGo.ipa",
+          "size": 12017703,
+          "minOSVersion": "15.0"
+        }
+      ],
+      "appPermissions": {
+        "entitlements": [],
+        "privacy": {
+          "NSLocationWhenInUseUsageDescription": "Gravar o percurso dos treinos.",
+          "NSLocationAlwaysAndWhenInUseUsageDescription": "Continuar gravando com a tela bloqueada.",
+          "NSCameraUsageDescription": "Fotos dos treinos.",
+          "NSPhotoLibraryUsageDescription": "Fotos de perfil e dos treinos."
+        }
+      }
+    }
+  ],
+  "news": []
+}
