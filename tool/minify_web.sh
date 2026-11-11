@@ -3,7 +3,7 @@
 # O código-fonte (repositório justgo) continua legível; só a cópia sai enxuta.
 # Precisa de esbuild e lightningcss em ~/.jgmin (npm i esbuild lightningcss-cli).
 set -e
-B="$HOME/.jgmin/node_modules/.bin"
+B="$HOME/.jgmin/node_modules/.bin"; [ -x "$B/esbuild" ] || B="/home/claude/.jgmin/node_modules/.bin"
 W="$(dirname "$0")/../assets/web"
 if [ ! -x "$B/esbuild" ] || [ ! -x "$B/lightningcss" ]; then echo "minify: ferramentas ausentes, publicando sem compactar"; exit 0; fi
 before=$(cat "$W"/css/*.css "$W"/js/*.js | wc -c)

@@ -1,347 +1,86 @@
-/* =========================================================
-   JustGo — TELAS SOCIAIS E DE CONTA
-   Feed, rankings, clubes, desafios, perfis públicos, login
-   ========================================================= */
-Object.assign(UI, {
-  /* ---------- conta / nuvem ---------- */
-  account() {
-    let body;
-    if (!Cloud.configured()) {
-      body = `<div class="hero-ic">${I('cloud')}</div><h2 class="center">Nuvem e social</h2>
-        <p class="muted center lead">Para login, sincronização entre aparelhos, amigos, clubes, rankings e território disputado, conecte um projeto gratuito do Supabase.</p>
+Object.assign(UI,{account(){let body;if(!Cloud.configured())body=`<div class="hero-ic">${I("cloud")}</div><h2 class="center">Nuvem e social</h2>
+        <p class="muted center lead">Para login, sincroniza\xE7\xE3o entre aparelhos, amigos, clubes, rankings e territ\xF3rio disputado, conecte um projeto gratuito do Supabase.</p>
         <section class="card steps"><ol>
-          <li>Crie um projeto em <b>supabase.com</b> (plano grátis).</li>
+          <li>Crie um projeto em <b>supabase.com</b> (plano gr\xE1tis).</li>
           <li>Em <b>SQL Editor</b>, cole o arquivo <code>supabase/schema.sql</code> e clique em Run.</li>
-          <li>Em <b>Authentication → Providers</b>, deixe E-mail ligado e, se quiser, ative o Google.</li>
-          <li>Em <b>Authentication → URL Configuration</b>, coloque o endereço do seu site do Netlify.</li>
-          <li>Em <b>Project Settings → API</b>, copie a URL e a chave <i>anon public</i> para <code>js/config.js</code>.</li>
+          <li>Em <b>Authentication \u2192 Providers</b>, deixe E-mail ligado e, se quiser, ative o Google.</li>
+          <li>Em <b>Authentication \u2192 URL Configuration</b>, coloque o endere\xE7o do seu site do Netlify.</li>
+          <li>Em <b>Project Settings \u2192 API</b>, copie a URL e a chave <i>anon public</i> para <code>js/config.js</code>.</li>
         </ol></section>
-        <p class="muted small center">Enquanto isso, tudo funciona neste aparelho: treinos, missões, desbloqueios, loja e card compartilhável.</p>`;
-    } else if (!Cloud.ready) {
-      body = '<div class="loading">Conectando…</div>';
-    } else if (!Cloud.loggedIn()) {
-      const mode = App.authMode || 'signin', st = Cloud.settings || {};
-      const g = `<svg viewBox="0 0 24 24" class="ic"><path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2.1-1.9 3.3-4.8 3.3-8z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.8c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.1a6.6 6.6 0 0 1 0-4.2V7.1H2.1a11 11 0 0 0 0 9.8z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.1 7.1l3.7 2.8C6.7 7.3 9.1 5.4 12 5.4z"/></svg>`;
-      body = `<div class="auth"><div class="auth-hero"></div>
-        <div class="auth-head">${MARK('lg')}<h2>${mode === 'signup' ? 'Crie sua conta' : 'Entre no JustGo'}</h2><p class="muted">${mode === 'signup' ? 'Leva 10 segundos. Seus treinos ficam salvos na nuvem.' : 'Bom te ver de novo. Bora treinar?'}</p></div>
-        <button class="btn google" data-act="loginGoogle">${g}Continuar com Google</button>
+        <p class="muted small center">Enquanto isso, tudo funciona neste aparelho: treinos, miss\xF5es, desbloqueios, loja e card compartilh\xE1vel.</p>`;else if(!Cloud.ready)body='<div class="loading">Conectando\u2026</div>';else if(Cloud.loggedIn())if(!Cloud.me||!Cloud.me.username)body=`<h2>Complete seu perfil p\xFAblico</h2><p class="muted lead">\xC9 assim que seus amigos v\xE3o te encontrar.</p>
+        <section class="card form">
+          <label class="field"><span>Nome de usu\xE1rio</span><input id="pfUser" placeholder="ex.: lucas.corre" value="${esc(Cloud.me&&Cloud.me.username||"")}"></label>
+          <label class="field"><span>Nome</span><input id="pfName" value="${esc(Store.data.profile.name)}"></label>
+          <label class="field"><span>Cidade</span><input id="pfCity" placeholder="ex.: Vit\xF3ria" value="${esc(Cloud.me&&Cloud.me.city||"")}"></label>
+          <button class="btn primary" data-act="profileSave">Salvar perfil</button>
+        </section>`;else{const me=Cloud.me;body=`<section class="prof">${this.avatar("lg")}<h1>${esc(me.name)}${UI.vb(me.id,me.username)}</h1><small>@${esc(me.username)}${me.city?" \xB7 "+esc(me.city):""}</small><small>${esc(Cloud.user.email||"")}</small></section>
+        <div class="list">
+          <button class="row tap" data-act="syncNow">${this.iconBox("refresh")}<div class="grow"><b>Sincronizar agora</b><small>${Cloud.lastSync?"\xDAltima sincroniza\xE7\xE3o \xE0s "+new Date(Cloud.lastSync).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"Envia e recebe seus dados"}</small></div></button>
+          <button class="row tap" data-act="publishAll">${this.iconBox("upload")}<div class="grow"><b>Publicar treinos antigos</b><small>Leva o hist\xF3rico deste aparelho para o feed e os rankings</small></div></button>
+          <button class="row tap" data-act="userOpen" data-v="${Cloud.user.id}">${this.iconBox("user")}<div class="grow"><b>Ver meu perfil p\xFAblico</b><small>Como os outros te veem</small></div>${I("chevronRight","chev")}</button>
+          <div id="modRow"></div>
+          <button class="row tap" data-act="legal" data-v="privacy">${this.iconBox("shield")}<div class="grow"><b>Pol\xEDtica de privacidade</b><small>Como usamos seus dados</small></div>${I("chevronRight","chev")}</button>
+          <button class="row tap" data-act="legal" data-v="terms">${this.iconBox("shield")}<div class="grow"><b>Termos de uso</b><small>Regras do JustGo</small></div>${I("chevronRight","chev")}</button>
+          <button class="row tap danger" data-act="logout">${this.iconBox("logout")}<div class="grow"><b>Sair da conta</b><small>Seus dados continuam neste aparelho</small></div></button>
+          <button class="row tap danger" data-act="deleteAccount">${this.iconBox("trash")}<div class="grow"><b>Excluir minha conta</b><small>Apaga a conta e todos os dados, para sempre</small></div></button>
+        </div>
+        <section class="card form"><label class="field"><span>Cidade (para o ranking local)</span><input id="pfCity2" value="${esc(me.city||"")}"></label><button class="btn ghost" data-act="citySave">Salvar cidade</button></section>`}else{const mode=App.authMode||"signin",st=Cloud.settings||{};body=`<div class="auth"><div class="auth-hero"></div>
+        <div class="auth-head">${MARK("lg")}<h2>${mode==="signup"?"Crie sua conta":"Entre no JustGo"}</h2><p class="muted">${mode==="signup"?"Leva 10 segundos. Seus treinos ficam salvos na nuvem.":"Bom te ver de novo. Bora treinar?"}</p></div>
+        <button class="btn google" data-act="loginGoogle"><svg viewBox="0 0 24 24" class="ic"><path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2.1-1.9 3.3-4.8 3.3-8z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.8c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.1a6.6 6.6 0 0 1 0-4.2V7.1H2.1a11 11 0 0 0 0 9.8z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.1 7.1l3.7 2.8C6.7 7.3 9.1 5.4 12 5.4z"/></svg>Continuar com Google</button>
         <div class="or"><span>ou com e-mail</span></div>
-        ${this.tabsBar([['signin', 'Entrar'], ['signup', 'Criar conta']], mode, 'authMode')}
+        ${this.tabsBar([["signin","Entrar"],["signup","Criar conta"]],mode,"authMode")}
         <form id="authForm" class="form" autocomplete="on">
           <label class="field"><span>E-mail</span><input id="authEmail" type="email" inputmode="email" autocomplete="email" placeholder="voce@email.com" required></label>
-          <label class="field pw"><span>Senha</span><input id="authPass" type="password" autocomplete="${mode === 'signup' ? 'new-password' : 'current-password'}" placeholder="${mode === 'signup' ? 'Mínimo de 6 caracteres' : 'Sua senha'}" minlength="6" required><button type="button" class="pw-eye" data-act="pwToggle" aria-label="Mostrar senha">${I('eyeOff')}</button></label>
+          <label class="field pw"><span>Senha</span><input id="authPass" type="password" autocomplete="${mode==="signup"?"new-password":"current-password"}" placeholder="${mode==="signup"?"M\xEDnimo de 6 caracteres":"Sua senha"}" minlength="6" required><button type="button" class="pw-eye" data-act="pwToggle" aria-label="Mostrar senha">${I("eyeOff")}</button></label>
           <div class="auth-err" id="authErr" hidden></div>
-          <button type="submit" class="btn primary lg" id="authBtn">${mode === 'signup' ? 'Criar conta' : 'Entrar'}</button>
+          <button type="submit" class="btn primary lg" id="authBtn">${mode==="signup"?"Criar conta":"Entrar"}</button>
         </form>
-        ${mode === 'signin' ? '<button class="link center-link" data-act="forgot">Esqueci minha senha</button>' : '<p class="muted small center">Ao criar a conta, seus treinos deste aparelho vão junto.</p>'}
-      </div>`;
-    } else if (!Cloud.me || !Cloud.me.username) {
-      body = `<h2>Complete seu perfil público</h2><p class="muted lead">É assim que seus amigos vão te encontrar.</p>
-        <section class="card form">
-          <label class="field"><span>Nome de usuário</span><input id="pfUser" placeholder="ex.: lucas.corre" value="${esc((Cloud.me && Cloud.me.username) || '')}"></label>
-          <label class="field"><span>Nome</span><input id="pfName" value="${esc(Store.data.profile.name)}"></label>
-          <label class="field"><span>Cidade</span><input id="pfCity" placeholder="ex.: Vitória" value="${esc((Cloud.me && Cloud.me.city) || '')}"></label>
-          <button class="btn primary" data-act="profileSave">Salvar perfil</button>
-        </section>`;
-    } else {
-      const me = Cloud.me;
-      body = `<section class="prof">${this.avatar('lg')}<h1>${esc(me.name)}${UI.vb(me.id, me.username)}</h1><small>@${esc(me.username)}${me.city ? ' · ' + esc(me.city) : ''}</small><small>${esc(Cloud.user.email || '')}</small></section>
-        <div class="list">
-          <button class="row tap" data-act="syncNow">${this.iconBox('refresh')}<div class="grow"><b>Sincronizar agora</b><small>${Cloud.lastSync ? 'Última sincronização às ' + new Date(Cloud.lastSync).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Envia e recebe seus dados'}</small></div></button>
-          <button class="row tap" data-act="publishAll">${this.iconBox('upload')}<div class="grow"><b>Publicar treinos antigos</b><small>Leva o histórico deste aparelho para o feed e os rankings</small></div></button>
-          <button class="row tap" data-act="userOpen" data-v="${Cloud.user.id}">${this.iconBox('user')}<div class="grow"><b>Ver meu perfil público</b><small>Como os outros te veem</small></div>${I('chevronRight', 'chev')}</button>
-          <div id="modRow"></div>
-          <button class="row tap" data-act="legal" data-v="privacy">${this.iconBox('shield')}<div class="grow"><b>Política de privacidade</b><small>Como usamos seus dados</small></div>${I('chevronRight', 'chev')}</button>
-          <button class="row tap" data-act="legal" data-v="terms">${this.iconBox('shield')}<div class="grow"><b>Termos de uso</b><small>Regras do JustGo</small></div>${I('chevronRight', 'chev')}</button>
-          <button class="row tap danger" data-act="logout">${this.iconBox('logout')}<div class="grow"><b>Sair da conta</b><small>Seus dados continuam neste aparelho</small></div></button>
-          <button class="row tap danger" data-act="deleteAccount">${this.iconBox('trash')}<div class="grow"><b>Excluir minha conta</b><small>Apaga a conta e todos os dados, para sempre</small></div></button>
-        </div>
-        <section class="card form"><label class="field"><span>Cidade (para o ranking local)</span><input id="pfCity2" value="${esc(me.city || '')}"></label><button class="btn ghost" data-act="citySave">Salvar cidade</button></section>`;
-    }
-    this.render(`${this.back('profile', 'Conta')}<main class="screen account">${body}</main>`);
-  },
-
-  /* ---------- aba Social ---------- */
-  social() {
-    const sub = App.sub.social;
-    const tabs = this.tabsBar([['discover', 'Descobrir'], ['feed', 'Seguindo'], ['rank', 'Rankings'], ['torch', 'Tocha'], ['clubs', 'Clubes'], ['challenges', 'Desafios']], sub, 'subTab');
-    const searchBtn = Cloud.loggedIn() ? `<button class="icon-btn" data-act="go" data-v="search" title="Buscar atletas">${I('search')}</button>` : '';
-    if (!Cloud.loggedIn()) {
-      return this.render(`${this.header('Social')}<main class="screen">
+        ${mode==="signin"?'<button class="link center-link" data-act="forgot">Esqueci minha senha</button>':'<p class="muted small center">Ao criar a conta, seus treinos deste aparelho v\xE3o junto.</p>'}
+      </div>`}this.render(`${this.back("profile","Conta")}<main class="screen account">${body}</main>`)},social(){const sub=App.sub.social,tabs=this.tabsBar([["discover","Descobrir"],["feed","Seguindo"],["rank","Rankings"],["torch","Tocha"],["clubs","Clubes"],["challenges","Desafios"]],sub,"subTab"),searchBtn=Cloud.loggedIn()?`<button class="icon-btn" data-act="go" data-v="search" title="Buscar atletas">${I("search")}</button>`:"";if(!Cloud.loggedIn())return this.render(`${this.header("Social")}<main class="screen">
         <section class="social-hero"><h2>Treine com a sua galera</h2><p>Siga amigos, curta e comente treinos, crie clubes, entre nos rankings da sua cidade e desafie quem quiser.</p></section>
-        <button class="btn primary lg" data-act="go" data-v="account">${Cloud.configured() ? 'Entrar ou criar conta' : 'Como ativar o social'}</button>
-        ${this.sectionHead('Já funciona sem conta')}
-        <div class="list"><div class="row">${this.iconBox('share')}<div class="grow"><b>Card para Instagram e WhatsApp</b><small>Abra qualquer atividade e toque em Compartilhar</small></div></div>
-        <div class="row">${this.iconBox('signal')}<div class="grow"><b>Enviar localização ao contato de confiança</b><small>Botão no topo da tela de treino</small></div></div></div>
-      </main>`);
-    }
-    if (!Cloud.me || !Cloud.me.username) return App.go('account');
-    this.render(`${this.header('Social', searchBtn)}<main class="screen">${tabs}<div id="socialBody"><div class="loading">Carregando…</div></div></main>`);
-    const fill = (html) => { const el = $('#socialBody'); if (el) el.innerHTML = html; };
-    const fail = (e) => { console.error(e); fill(`<div class="notice bad">${I('alert')}<div><b>Não foi possível carregar</b><small>${esc(e.message || 'Verifique a conexão e o schema do Supabase.')}</small></div></div>`); };
-    if (sub === 'feed') this.socialFeed().then(fill).catch(fail);
-    if (sub === 'discover') this.socialDiscover().then(fill).catch(fail);
-    if (sub === 'rank') this.socialRank().then(fill).catch(fail);
-    if (sub === 'clubs') this.socialClubs().then(fill).catch(fail);
-    if (sub === 'challenges') this.socialChallenges().then(fill).catch(fail);
-    if (sub === 'torch') this.socialTorch().then(fill).catch(fail);
-  },
-  // um treino com dado estranho não derruba a lista inteira
-  safePost(a, opts) { try { return this.remotePost(a, opts); } catch (e) { console.warn('post', a && a.id, e); return ''; } },
-  remotePost(a, opts = {}) {
-    const p = a.profiles || {}, name = esc(p.name || 'Atleta');
-    const fol = opts.follow ? `<button class="react follow-btn" data-act="followHere" data-v="${a.user_id}">${I('plus')}Seguir</button>` : '';
-    const footer = `<div class="post-foot"><button class="react ${a.liked ? 'on' : ''}" data-act="like" data-v="${a.id}" data-on="${a.liked ? 1 : 0}">${I('heart')}<span class="num">${a.likes || 0}</span></button><button class="react" data-act="raOpen" data-cm="1" data-v="${a.id}">${I('message')}<span class="num">${a.comments || 0}</span></button>${fol}</div>`;
-    return this.postCard({ ...a, mode: null }, `<span data-act="userOpen" data-v="${a.user_id}">${name}</span>`, { route: a.route, avatar: this.avatarOf(p.name, p.frame, p.avatar, 'sm', p.photo), tap: 'raOpen', footer: opts.noFoot ? '' : footer, color: (CONFIG.sports[a.sport] || CONFIG.sports.run).color });
-  },
-  async socialFeed() {
-    const list = await Cloud.feed();
-    if (!list.length) return `<div class="empty">${I('users')}<h3>Seu feed está vazio</h3><p>Siga amigos para ver os treinos deles aqui. Seus próprios treinos também aparecem.</p>${Cloud.lastErr ? `<p class="muted small">Erro do servidor: ${esc(Cloud.lastErr)}</p>` : ''}<button class="btn primary" data-act="go" data-v="search">Buscar atletas</button></div>`;
-    return list.map((a) => this.safePost(a)).join('');
-  },
-  async socialDiscover() {
-    const list = await Cloud.discover();
-    if (!list.length) return `<div class="empty">${I('compass')}<h3>Nada por aqui ainda</h3><p>Quando outros atletas publicarem treinos, eles aparecem aqui para você descobrir e seguir.</p>${Cloud.lastErr ? `<p class="muted small">Erro do servidor: ${esc(Cloud.lastErr)}</p>` : ''}</div>`;
-    const city = Cloud.me && Cloud.me.city;
-    return `<p class="muted small disc-note">${I('compass', 'xs')} Treinos públicos de todos os atletas${city ? ` · primeiro de ${esc(city)}` : ''}</p>${list.map((a) => this.safePost(a, { follow: !(Cloud._fol && Cloud._fol.has(a.user_id)) })).join('')}`;
-  },
-  async socialRank() {
-    const R = App.rank || (App.rank = { period: 'week', scope: 'all', sport: null });
-    const since = new Date(); since.setHours(0, 0, 0, 0);
-    if (R.period === 'week') since.setTime(Game.weekStart(Date.now())); else if (R.period === 'month') since.setDate(1); else since.setMonth(0, 1);
-    const rows = await Cloud.leaderboard({ since, sport: R.sport, scope: R.scope });
-    const pill = (k, v, n, cur) => `<button class="pill-btn ${cur === v ? 'on' : ''}" data-act="rank" data-v="${k}:${v}">${n}</button>`;
-    return `<div class="choice sport-filter">${pill('period', 'week', 'Semana', R.period)}${pill('period', 'month', 'Mês', R.period)}${pill('period', 'year', 'Ano', R.period)}</div>
-      <div class="choice sport-filter">${pill('scope', 'all', 'Geral', R.scope)}${pill('scope', 'friends', 'Amigos', R.scope)}${pill('scope', 'city', Cloud.me.city ? esc(Cloud.me.city) : 'Minha cidade', R.scope)}</div>
-      <div class="choice sport-filter">${pill('sport', '', 'Todos', R.sport || '')}${Object.entries(CONFIG.sports).map(([k, s]) => pill('sport', k, s.name, R.sport || '')).join('')}</div>
-      ${R.scope === 'city' && !Cloud.me.city ? '<p class="muted small">Cadastre sua cidade em Perfil → Conta.</p>' : this.board(rows, (v) => Fmt.num(v) + ' km')}`;
-  },
-  async socialClubs() {
-    const clubs = await Cloud.myClubs();
-    return `<div class="row2"><button class="btn primary" data-act="clubCreate">${I('plus')}Criar clube</button><button class="btn ghost" data-act="clubJoin">${I('link')}Entrar com código</button></div>
-      ${clubs.length ? `<div class="list">${clubs.map((c) => `<button class="row tap" data-act="clubOpen" data-v="${c.id}">${this.iconBox('users', 'var(--brand)')}<div class="grow"><b>${esc(c.name)}</b><small>Meta coletiva: ${c.goal_km} km/mês · código ${esc(c.invite_code)}</small></div>${I('chevronRight', 'chev')}</button>`).join('')}</div>`
-        : `<div class="empty">${I('users')}<h3>Nenhum clube ainda</h3><p>Crie o clube da empresa, da igreja ou da assessoria e compartilhe o código.</p></div>`}`;
-  },
-  /* ---------- clube ---------- */
-  async club(id) {
-    this._clubId = id;
-    const tab = App.clubTab || 'rank';
-    this.render(`${this.back('social', 'Clube')}<main class="screen"><div id="clubBody" class="loading">Carregando…</div></main>`);
-    try {
-      const d = this._club && this._club.c.id === id && Date.now() - this._clubAt < 30000 ? this._club : await Cloud.clubFull(id);
-      this._club = d; this._clubAt = Date.now();
-      const pct = (d.total / (d.c.goal_km || 1)) * 100, top = d.wboard[0], me = Cloud.user.id;
-      const mo = new Date(), days = new Date(mo.getFullYear(), mo.getMonth() + 1, 0).getDate() - mo.getDate() + 1;
-      const tabs = this.tabsBar([['rank', 'Ranking'], ['members', `Membros · ${d.members.length}`], ['feed', 'Atividades']], tab, 'clubTab');
-      let body = '';
-      if (tab === 'members') body = `<div class="list">${d.members.map((m) => { const p = m.profiles || {}; return `<div class="row tap" data-act="userOpen" data-v="${m.user_id}">${this.avatarOf(p.name, p.frame, p.avatar, 'sm', p.photo)}<div class="grow"><b>${esc(p.name || 'Atleta')}${UI.vb(m.user_id, p.username)}${m.user_id === me ? ' (você)' : ''}</b><small>${p.username ? '@' + esc(p.username) : ''}${p.city ? ' · ' + esc(p.city) : ''}</small></div>${m.role === 'admin' ? '<span class="badge">Admin</span>' : ''}<b class="num">${Fmt.num(m.km)} km</b></div>`; }).join('')}</div>`;
-      else if (tab === 'feed') body = d.acts.length ? d.acts.map((a) => this.safePost(a)).join('') : `<div class="empty compact">${I('activity')}<p>Os treinos dos membros aparecem aqui.</p></div>`;
-      else body = `${this.board(d.board, (v) => Fmt.num(v) + ' km')}`;
-      $('#clubBody').outerHTML = `<section class="club-hero"><span class="eyebrow">${d.members.length} membro${d.members.length > 1 ? 's' : ''} · código ${esc(d.c.invite_code)}</span><h2>${esc(d.c.name)}</h2>${d.c.description ? `<p class="muted">${esc(d.c.description)}</p>` : ''}
-          <div class="club-goal"><div class="row-t"><b class="num">${Fmt.num(d.total)} <small>de ${d.c.goal_km} km no mês</small></b><small class="num">${Math.min(100, Math.round(pct))}%</small></div>${this.bar(pct, 'brand')}<small>${pct >= 100 ? 'Meta do mês batida! 🎉'.replace(' 🎉', '') : `Faltam ${Fmt.num(Math.max(0, d.c.goal_km - d.total))} km · ${days} dia${days > 1 ? 's' : ''} para acabar o mês`}</small></div>
-          <div class="club-acts"><button class="btn primary sm" data-act="clubInvite">${I('userPlus')}Convidar</button><button class="btn ghost sm" data-act="copy" data-v="${esc(d.c.invite_code)}">${I('copy')}Copiar código</button>${d.admin ? `<button class="btn ghost sm" data-act="clubEdit">${I('settings')}Editar</button>` : `<button class="btn ghost sm" data-act="clubLeave">${I('logout')}Sair</button>`}</div></section>
-        ${top ? `<section class="club-star"><div class="cs-ic">${I('crown')}</div><div class="grow"><span class="eyebrow">Destaque da semana</span><b>${esc(top.name)}</b><small class="num">${Fmt.num(Number(top.value))} km desde segunda</small></div></section>` : ''}
-        ${tabs}${body}`;
-    } catch (e) { console.error(e); const el = $('#clubBody'); if (el) el.textContent = 'Não foi possível abrir o clube.'; }
-  },
-
-  /* ---------- desafio em detalhe ---------- */
-  async challenge(id) {
-    this.render(`${this.back('social', 'Desafio')}<main class="screen"><div id="chalBody" class="loading">Carregando…</div></main>`);
-    try {
-      const { c, acts } = await Cloud.challengeDetail(id), me = Cloud.user.id;
-      const P = [c.from_user === me ? c.a : c.b, c.from_user === me ? c.b : c.a].map((p, i) => ({ p: p || { name: 'Atleta' }, id: i === 0 ? me : (c.from_user === me ? c.to_user : c.from_user) }));
-      P.forEach((x) => { const l = acts.filter((a) => a.user_id === x.id); x.km = l.reduce((s, a) => s + a.distance, 0) / 1000; x.n = l.length; x.t = l.reduce((s, a) => s + a.duration, 0); });
-      const end = new Date(c.ends_at).getTime(), start = new Date(c.starts_at).getTime(), over = Date.now() > end;
-      const left = Math.max(0, Math.ceil((end - Date.now()) / 864e5)), tot = P[0].km + P[1].km || 1;
-      const lead = P[0].km === P[1].km ? null : P[0].km > P[1].km ? 0 : 1;
-      const spn = c.sport ? CONFIG.sports[c.sport].name : 'Qualquer esporte';
-      // km por dia de cada um
-      const nd = Math.max(1, Math.round((end - start) / 864e5)), perDay = P.map(() => Array(nd).fill(0));
-      acts.forEach((a) => { const i = Math.min(nd - 1, Math.floor((Date.parse(a.start) - start) / 864e5)); const k = a.user_id === me ? 0 : 1; if (i >= 0) perDay[k][i] += a.distance / 1000; });
-      const maxD = Math.max(0.1, ...perDay.flat());
-      const status = over ? (lead == null ? 'Empate!' : lead === 0 ? 'Você venceu! 🏆'.replace(' 🏆', '') : `${esc(P[1].p.name)} venceu`) : lead == null ? 'Empatados' : lead === 0 ? `Você está na frente por ${Fmt.num(P[0].km - P[1].km)} km` : `${esc(P[1].p.name)} está na frente por ${Fmt.num(P[1].km - P[0].km)} km`;
-      $('#chalBody').outerHTML = `<section class="duel"><span class="eyebrow">${spn} · ${c.days} dias · ${over ? 'encerrado' : `termina em ${left} dia${left === 1 ? '' : 's'}`}</span>
-          <div class="duel-row">${P.map((x, i) => `<div class="duel-side ${lead === i ? 'lead' : ''}">${this.avatarOf(x.p.name, x.p.frame, x.p.avatar, 'lg', x.p.photo)}<b>${i === 0 ? 'Você' : esc(x.p.name)}</b><span class="num duel-km">${Fmt.num(x.km)}<small> km</small></span><small>${x.n} treino${x.n === 1 ? '' : 's'} · ${Fmt.time(x.t)}</small></div>${i === 0 ? '<div class="duel-vs">×</div>' : ''}`).join('')}</div>
-          <div class="duel-bar"><i style="width:${(P[0].km / tot) * 100}%"></i></div><p class="duel-status">${status}</p></section>
-        ${this.sectionHead('Dia a dia')}<section class="card duel-days">${perDay[0].map((_, i) => `<div class="dd"><div class="dd-bars"><i class="me" style="height:${Math.max(perDay[0][i] ? 6 : 2, (perDay[0][i] / maxD) * 100)}%"></i><i class="op" style="height:${Math.max(perDay[1][i] ? 6 : 2, (perDay[1][i] / maxD) * 100)}%"></i></div><small>${new Date(start + i * 864e5).toLocaleDateString('pt-BR', { weekday: 'short' }).slice(0, 3)}</small></div>`).join('')}<div class="dd-leg"><span><i class="me"></i>Você</span><span><i class="op"></i>${esc(P[1].p.name)}</span></div></section>
-        ${this.sectionHead('Treinos do desafio')}${acts.length ? `<div class="list">${acts.map((a) => { const mine = a.user_id === me, sp = CONFIG.sports[a.sport] || CONFIG.sports.run; return `<div class="row">${this.iconBox(sp.icon, sp.color)}<div class="grow"><b>${esc(a.title || sp.name)}</b><small>${mine ? 'Você' : esc(P[1].p.name)} · ${Fmt.date(Date.parse(a.start))}</small></div><b class="num">${Fmt.km(a.distance)} km</b></div>`; }).join('')}</div>` : `<div class="empty compact">${I('activity')}<p>Nenhum treino ainda. Quem sair primeiro sai na frente!</p></div>`}`;
-    } catch (e) { console.error(e); const el = $('#chalBody'); if (el) el.textContent = 'Não foi possível abrir o desafio.'; }
-  },
-
-  /* ---------- notificações ---------- */
-  async notifs() {
-    this.render(`${this.back(App.backTo2 || 'home', 'Notificações')}<main class="screen"><div id="nBody" class="loading">Carregando…</div></main>`);
-    let seen = 0; try { seen = +localStorage.getItem(Cloud.seenKey()) || 0; } catch (e) {}
-    const list = await Cloud.refreshNotifs(true); Cloud.markSeen();
-    const fol = new Set(await Cloud.following().catch(() => []));
-    const ago = (t) => { if (!t) return ''; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'agora' : m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`; };
-    const txt = (n) => ({ torch: 'passou a Tocha para você! 🔥 Você tem 48 h para treinar e passar adiante', follow: fol.has(n.u.id) ? 'seguiu você · agora vocês são amigos' : 'começou a seguir você', like: `curtiu ${n.title ? `“${esc(n.title)}”` : 'seu treino'}`, comment: `comentou: “${esc((n.text || '').slice(0, 80))}”`, chal: 'desafiou você', chalOn: 'desafio aceito: valendo!', chalOk: 'aceitou seu desafio', zone: `roubou sua área de ${Zones.areaTxt(n.area || 0)}` })[n.k];
-    const act = (n) => n.k === 'torch' ? `data-act="torchOpen" data-v="${n.id}"` : n.k === 'follow' ? `data-act="userOpen" data-v="${n.u.id}"` : n.k === 'like' || n.k === 'comment' ? `data-act="comments" data-v="${n.act}"` : n.k === 'zone' ? 'data-act="go" data-v="mapa"' : n.k === 'chal' ? 'data-act="sub" data-v="social:challenges"' : `data-act="chalOpen" data-v="${n.id}"`;
-    const ic = { torch: 'flame', follow: 'userPlus', like: 'heart', comment: 'message', chal: 'swords', chalOn: 'swords', chalOk: 'swords', zone: 'flag' };
-    const el = $('#nBody'); if (!el) return;
-    el.outerHTML = list.length ? `<div class="list notif-list">${list.map((n) => `<div class="row tap notif ${n.t > seen ? 'new' : ''}" ${act(n)}><div class="n-av">${this.avatarOf(n.u.name, n.u.frame, n.u.avatar, 'sm', n.u.photo)}<i class="n-ic n-${n.k}">${I(ic[n.k], 'xs')}</i></div><div class="grow"><p><b>${esc(n.u.name || 'Atleta')}${UI.vb(n.u.id, n.u.username)}</b> ${txt(n)}</p><small>${ago(n.t)}</small></div>${n.k === 'follow' && fol.has(n.u.id) ? `<span class="badge friend">${I('users', 'xs')} Amigos</span>` : ''}${n.k === 'follow' && !fol.has(n.u.id) ? `<button class="chip-btn sm primary-chip" data-act="followHere" data-v="${n.u.id}">Seguir de volta</button>` : ''}</div>`).join('')}</div>`
-      : `<div class="empty">${I('bell')}<h3>Nenhuma notificação</h3><p>Quando alguém seguir você, curtir ou comentar seus treinos, aparece aqui.</p></div>`;
-  },
-  bellBadge() {
-    const b = $('#bellBadge'); if (!b) return;
-    const n = Cloud.unread || 0; b.hidden = !n; b.textContent = n > 9 ? '9+' : n;
-  },
-
-  /* ---------- seguidores / seguindo ---------- */
-  async followList(which, uid) {
-    const id = uid || Cloud.user.id;
-    this.render(`${this.back(uid && uid !== Cloud.user.id ? 'social' : 'profile', which === 'followers' ? 'Seguidores' : which === 'friends' ? 'Amigos' : 'Seguindo')}<main class="screen"><div id="flBody" class="loading">Carregando…</div></main>`);
-    try {
-      const [rows, fol, fw] = await Promise.all([Cloud.followList(id, which), Cloud.following(), Cloud.followers()]);
-      const el = $('#flBody'); if (!el) return;
-      el.outerHTML = rows.length ? `<div class="list">${rows.map((r) => `<div class="row"><span class="tap" data-act="userOpen" data-v="${r.id}">${this.avatarOf(r.name, r.frame, r.avatar, 'sm', r.photo)}</span><div class="grow tap" data-act="userOpen" data-v="${r.id}"><b>${esc(r.name)}${UI.vb(r.id, r.username)}</b><small>${r.username ? '@' + esc(r.username) : ''}${r.city ? ' · ' + esc(r.city) : ''}</small></div>${r.id === Cloud.user.id ? '' : fol.includes(r.id) && fw.includes(r.id) ? `<span class="badge friend">${I('users', 'xs')} Amigos</span>` : fol.includes(r.id) ? '<span class="badge">Seguindo</span>' : `<button class="chip-btn sm primary-chip" data-act="followHere" data-v="${r.id}">${fw.includes(r.id) ? 'Seguir de volta' : 'Seguir'}</button>`}</div>`).join('')}</div>`
-        : `<div class="empty">${I('users')}<h3>${which === 'followers' ? 'Ainda sem seguidores' : which === 'friends' ? 'Ainda sem amigos' : 'Você ainda não segue ninguém'}</h3>${which === 'friends' ? '<p>Amigo é quem vocês dois se seguem. Siga de volta quem segue você!</p>' : ''}<p>${which === 'followers' ? 'Publique seus treinos para mais gente encontrar você.' : 'Veja o Descobrir no Social para encontrar atletas.'}</p></div>`;
-    } catch (e) { const el = $('#flBody'); if (el) el.textContent = 'Não foi possível carregar.'; }
-  },
-
-  hoursLeft(d) { const h = (Date.parse(d) - Date.now()) / 3600e3; return h <= 0 ? 'prazo vencido' : h < 1 ? `${Math.max(1, Math.round(h * 60))} min` : `${Math.floor(h)} h`; },
-  torchLit(t) { return t.deadline && Date.parse(t.deadline) > Date.now(); },
-  async socialTorch() {
-    let list = [];
-    try { list = await Cloud.torchList(); } catch (e) { if (/torch|relation|does not exist/i.test(String(e && e.message))) return `<div class="notice warn">${I('alert')}<div><b>Tocha ainda não configurada</b><small>Rode o SQL da Tocha no Supabase para liberar.</small></div></div>`; throw e; }
-    const me = Cloud.user.id, hold = list.filter((t) => t.holder === me && this.torchLit(t));
-    const intro = `<section class="card torch-hero"><div class="th-flame">${I('flame')}</div><div class="grow"><b>Tocha JustGo</b><small>Treine, acenda a Tocha e passe para um amigo. Ele tem <b>48 h</b> para treinar e passar adiante. Quanto mais longe ela for, mais km a corrente soma. Se alguém deixar o prazo vencer, ela apaga.</small></div></section>`;
-    const holdHtml = hold.map((t) => `<button class="card torch-hold tap" data-act="torchOpen" data-v="${t.id}"><div class="th-flame on">${I('flame')}</div><div class="grow"><b>A Tocha está com você! 🔥</b><small>Faltam <b>${this.hoursLeft(t.deadline)}</b>. Treine e passe para um amigo pela tela do treino.</small></div>${I('chevronRight', 'chev')}</button>`).join('');
-    const row = (t) => { const lit = this.torchLit(t); return `<button class="row tap" data-act="torchOpen" data-v="${t.id}"><div class="th-ic ${lit ? 'on' : ''}">${I('flame')}</div><div class="grow"><b>Tocha de ${esc((t.creator && t.creator.name) || 'Atleta')}</b><small>${t.legs} ${t.legs === 1 ? 'pessoa' : 'pessoas'} · ${Fmt.num(t.total_m / 1000)} km · ${lit ? `com ${t.holder === me ? 'você' : esc((t.holderP && t.holderP.name || '').split(' ')[0] || 'um amigo')} · ${this.hoursLeft(t.deadline)}` : 'apagou'}</small></div>${I('chevronRight', 'chev')}</button>`; };
-    return `${holdHtml}${intro}<button class="btn primary" data-act="torchNew">${I('flame')}Acender uma Tocha</button>
-      ${list.length ? `${this.sectionHead('Suas Tochas')}<div class="list">${list.map(row).join('')}</div>` : `<div class="empty compact">${I('flame')}<p>Você ainda não participou de nenhuma Tocha.</p></div>`}`;
-  },
-  async torch(id) {
-    this.render(`${this.back('social', 'Tocha')}<main class="screen"><div id="tBody" class="loading">Carregando…</div></main>`);
-    let d = null; try { d = await Cloud.torchDetail(id); } catch (e) {}
-    const el = $('#tBody'); if (!el) return;
-    if (!d) { el.outerHTML = '<p class="muted">Tocha não encontrada.</p>'; return; }
-    const { t, legs } = d, lit = this.torchLit(t), me = Cloud.user.id;
-    el.outerHTML = `<section class="torch-big ${lit ? 'on' : ''}"><div class="tb-flame">${I('flame')}</div><h1 class="num">${Fmt.num(t.total_m / 1000)} km</h1><p>${t.legs} ${t.legs === 1 ? 'pessoa' : 'pessoas'} na corrente · começou com ${esc((t.creator && t.creator.name) || 'Atleta')}</p>
-        <span class="badge ${lit ? 'live' : ''}">${lit ? `${I('flame', 'xs')} Acesa · com ${t.holder === me ? 'você' : esc(t.holderP ? t.holderP.name : 'um amigo')} · faltam ${this.hoursLeft(t.deadline)}` : 'Apagou'}</span></section>
-      ${t.holder === me && lit ? `<div class="notice">${I('flame')}<div><b>É a sua vez!</b><small>Faça um treino (qualquer esporte) e, na tela do treino, toque em "Tocha" para passar a um amigo.</small></div></div>` : ''}
-      ${this.sectionHead('A corrente')}
-      <div class="torch-chain">${legs.map((l, i) => `<div class="tc-leg"><div class="tc-dot">${i + 1}</div><div class="grow">${this.avatarOf(l.p && l.p.name, l.p && l.p.frame, l.p && l.p.avatar, 'xs', l.p && l.p.photo)}<b data-act="userOpen" data-v="${l.user_id}">${esc((l.p && l.p.name) || 'Atleta')}</b><small>${I(SPORT_IC[l.sport] || 'run', 'xs')} ${Fmt.km(l.distance)} km · ${new Date(l.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</small></div></div>`).join('')}
-        ${lit ? `<div class="tc-leg now"><div class="tc-dot">${I('flame', 'xs')}</div><div class="grow"><b>${t.holder === me ? 'Você' : esc(t.holderP ? t.holderP.name : 'Um amigo')}</b><small>está com a Tocha agora</small></div></div>` : ''}</div>`;
-  },
-  async socialChallenges() {
-    const list = await Cloud.challenges(), me = Cloud.user.id;
-    const row = (c) => {
-      const mine = c.from_user === me, other = mine ? c.b : c.a, spn = c.sport ? CONFIG.sports[c.sport].name.toLowerCase() : 'qualquer esporte';
-      const title = `${mine ? 'Você' : esc(c.a && c.a.name)} × ${mine ? esc(c.b && c.b.name) : 'você'}`;
-      let right = '', sub = `${c.days} dias · ${spn}`;
-      if (c.status === 'pending') right = mine ? '<span class="badge">Aguardando</span>' : `<div class="rr-act"><button class="chip-btn sm" data-act="chalAnswer" data-v="${c.id}:1">Aceitar</button><button class="chip-btn sm ghost-btn" data-act="chalAnswer" data-v="${c.id}:0">Recusar</button></div>`;
-      else if (c.status === 'declined') right = '<span class="badge">Recusado</span>';
-      else {
-        const a = c.scores[me] || 0, b = c.scores[mine ? c.to_user : c.from_user] || 0;
-        sub += c.over ? ' · encerrado' : ` · termina ${new Date(c.ends_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
-        right = `<div class="vs num"><b class="${a >= b ? 'win' : ''}">${Fmt.num(a)}</b><span>×</span><b class="${b > a ? 'win' : ''}">${Fmt.num(b)}</b><small>km</small></div>`;
-        if (c.over) sub += a > b ? ' · você venceu!' : a < b ? ` · ${esc(other && other.name)} venceu` : ' · empate';
-      }
-      const open = c.status === 'active';
-      return `<div class="row ${open ? 'tap' : ''}" ${open ? `data-act="chalOpen" data-v="${c.id}"` : ''}>${this.iconBox('swords', 'var(--brand)')}<div class="grow"><b>${title}</b><small>${sub}</small></div>${right}${open ? I('chevronRight', 'chev') : ''}</div>`;
-    };
-    return `<button class="btn primary" data-act="chalNew">${I('swords')}Novo desafio</button>
-      ${list.length ? `<div class="list">${list.map(row).join('')}</div>` : `<div class="empty">${I('swords')}<h3>Nenhum desafio</h3><p>Desafie um amigo que você segue: quem fizer mais km no período vence.</p></div>`}`;
-  },
-
-  /* ---------- busca e perfil público ---------- */
-  search() {
-    this.render(`${this.back('social', 'Buscar atletas')}<main class="screen"><label class="field search-f">${I('search')}<input id="searchQ" placeholder="Nome ou @usuário" autocomplete="off"></label><div id="searchRes"></div></main>`);
-    setTimeout(() => $('#searchQ') && $('#searchQ').focus(), 50);
-  },
-  async searchResults(q) {
-    const el = $('#searchRes'); if (!el) return;
-    if (q.length < 2) { el.innerHTML = ''; return; }
-    const [rows, fol] = await Promise.all([Cloud.search(q), Cloud.following()]);
-    if ($('#searchQ') && $('#searchQ').value.trim() !== q) return;
-    el.innerHTML = rows.length ? `<div class="list">${rows.filter((r) => r.id !== Cloud.user.id).map((r) => { const f = fol.includes(r.id); return `<div class="row"><span data-act="userOpen" data-v="${r.id}" class="tap">${this.avatarOf(r.name, r.frame, r.avatar, 'sm', r.photo)}</span><div class="grow tap" data-act="userOpen" data-v="${r.id}"><b>${esc(r.name)}${UI.vb(r.id, r.username)}</b><small>@${esc(r.username || '')}${r.city ? ' · ' + esc(r.city) : ''} · nível ${r.level}</small></div><button class="chip-btn sm ${f ? '' : 'primary-chip'}" data-act="${f ? 'unfollow' : 'follow'}" data-v="${r.id}">${f ? 'Seguindo' : 'Seguir'}</button></div>`; }).join('')}</div>` : '<p class="muted">Ninguém encontrado.</p>';
-  },
-  async user(id) {
-    this._uid = id;
-    this.render(`${this.back('social', 'Perfil')}<main class="screen"><div id="userBody" class="loading">Carregando…</div></main>`);
-    try {
-      const [d, fs] = await Promise.all([Cloud.profileOf(id), Cloud.friendState(id)]);
-      const p = d.p, f = fs.iFollow, self = id === Cloud.user.id;
-      const L0 = CONFIG.leagues.find((x) => x.id === p.league) || CONFIG.leagues[0];
-      $('#userBody').outerHTML = `<section class="prof">${this.avatarOf(p.name, p.frame, p.avatar, 'lg', p.photo)}<h1>${esc(p.name)}${UI.vb(p.id, p.username)}</h1><small>@${esc(p.username || '')}${p.city ? ' · ' + esc(p.city) : ''} · nível ${p.level}</small>
-        <span class="league-pill" style="--lc:${L0.color}">${I('crown', 'xs')} Liga ${L0.name}</span>
-        <div class="prof-stats"><div><b class="num">${Fmt.num(p.total_km, 0)}</b><small>Km totais</small></div><div><b class="num">${p.medals}</b><small>Medalhas</small></div><div><b class="num">${d.followers}</b><small>Seguidores</small></div><div><b class="num">${p.xp}</b><small>XP</small></div></div></section>
-        ${p.avatar_cfg && p.avatar_cfg.on !== false && p.avatar_pow ? `<div class="av-other"><div class="avo-art">${Avatar.svg(p.avatar_cfg, { pose: 'stand', mood: 'happy', w: 86, still: true, stage: p.avatar_stage || 0, stats: p.avatar_cfg.st || { vel: 1, res: 1, for: 1, con: 1 } })}</div><div class="grow"><small class="eyebrow">Atleta</small><b>${esc((Avatar.STAGES[p.avatar_stage || 0] || [0, ''])[1])} · poder ${p.avatar_pow}</b>${p.avatar_cfg.st ? `<div class="avh-attrs">${Avatar.ATTR.map(([k, n, ic, c]) => `<div style="--c:${c}">${I(ic, 'xs')}<i><i style="width:${p.avatar_cfg.st[k]}%"></i></i><b class="num">${p.avatar_cfg.st[k]}</b></div>`).join('')}</div>` : ''}</div></div>` : ''}
-        ${self ? '' : `${fs.followsMe && !fs.friends ? `<p class="fr-hint">${I('userPlus', 'xs')} ${esc((p.name || '').split(' ')[0])} segue você. Siga de volta para virarem amigos!</p>` : ''}<div class="row2"><button class="btn ${f ? 'ghost' : 'primary'}" data-act="${f ? 'unfollow' : 'follow'}" data-v="${id}">${fs.friends ? `${I('users')} Amigos` : f ? 'Seguindo' : fs.followsMe ? 'Seguir de volta' : 'Seguir'}</button><button class="btn ghost" data-act="chalNew" data-v="${id}" ${fs.friends ? '' : 'data-nf="1"'}>${I('swords')}Desafiar</button></div>`}
-        ${this.sectionHead('Atividades recentes')}${d.acts.length ? d.acts.map((a) => this.safePost(a, { noFoot: true })).join('') : '<p class="muted">Nenhuma atividade pública.</p>'}`;
-    } catch (e) { $('#userBody').textContent = 'Perfil não encontrado.'; }
-  },
-  /* ---------- treino de outra pessoa: mapa, números, curtidas e comentários ---------- */
-  async remote(id, toComments) {
-    this.render(`<header class="top sub"><div class="top-l"><button class="back" data-act="raBack" aria-label="Voltar">${I('chevronLeft')}</button><b class="ttl">Treino</b></div><div class="top-r"></div></header>
-      <main class="screen summary" id="raBody"><div class="loading">Carregando…</div></main>`);
-    let a = null; try { a = await Cloud.activityOne(id); } catch (e) { console.warn(e); }
-    const body = $('#raBody'); if (!body || App.tab !== 'ract') return;
-    if (!a) { body.innerHTML = `<div class="empty">${I('lock')}<h3>Treino indisponível</h3><p>Ele pode ter sido apagado ou deixado privado.</p></div>`; return; }
-    const p = a.profiles || {}, me = Cloud.user && Cloud.user.id, self = a.user_id === me, fol = Cloud._fol ? Cloud._fol.has(a.user_id) : null;
-    const start = typeof a.start === 'string' ? Date.parse(a.start) : a.start, sp = CONFIG.sports[a.sport] || CONFIG.sports.run;
-    const avg = a.duration ? a.distance / a.duration : 0, speed = Fmt.isSpeed(a.sport);
-    const route = (a.route || []).filter((q) => q && q[0] != null), hasMap = route.length > 1;
-    const more = [['Tempo total', Fmt.time(a.elapsed || a.duration)]];
-    if (a.stats && a.stats.elev != null) more.push(['Ganho de elevação', `${a.stats.elev} m`]);
-    if (a.duration && a.distance && !speed && a.sport !== 'swim') more.push(['Velocidade média', `${Fmt.num(avg * 3.6)} km/h`]);
-    if (a.stats && a.stats.weather && a.stats.weather.temp != null) more.push(['Clima', `${Math.round(a.stats.weather.temp)}°C`]);
-    if (a.xp) more.push(['XP ganho', `+${a.xp}`]);
-    body.innerHTML = `
-      <div class="post-h">${this.avatarOf(p.name, p.frame, p.avatar, 'sm', p.photo)}<div class="grow"><b data-act="userOpen" data-v="${a.user_id}">${esc(p.name || 'Atleta')}${UI.vb(a.user_id, p.username)}</b><small>${I(SPORT_IC[a.sport], 'xs')} ${sp.name} · ${Fmt.date(start)}</small></div>
-        ${self || fol === null || fol ? '' : `<button class="chip-btn sm" data-act="raFollow" data-v="${a.user_id}">${I('plus')}Seguir</button>`}</div>
+        <button class="btn primary lg" data-act="go" data-v="account">${Cloud.configured()?"Entrar ou criar conta":"Como ativar o social"}</button>
+        ${this.sectionHead("J\xE1 funciona sem conta")}
+        <div class="list"><div class="row">${this.iconBox("share")}<div class="grow"><b>Card para Instagram e WhatsApp</b><small>Abra qualquer atividade e toque em Compartilhar</small></div></div>
+        <div class="row">${this.iconBox("signal")}<div class="grow"><b>Enviar localiza\xE7\xE3o ao contato de confian\xE7a</b><small>Bot\xE3o no topo da tela de treino</small></div></div></div>
+      </main>`);if(!Cloud.me||!Cloud.me.username)return App.go("account");this.render(`${this.header("Social",searchBtn)}<main class="screen">${tabs}<div id="socialBody"><div class="loading">Carregando\u2026</div></div></main>`);const fill=html=>{const el=$("#socialBody");el&&(el.innerHTML=html)},fail=e=>{console.error(e),fill(`<div class="notice bad">${I("alert")}<div><b>N\xE3o foi poss\xEDvel carregar</b><small>${esc(e.message||"Verifique a conex\xE3o e o schema do Supabase.")}</small></div></div>`)};sub==="feed"&&this.socialFeed().then(fill).catch(fail),sub==="discover"&&this.socialDiscover().then(fill).catch(fail),sub==="rank"&&this.socialRank().then(fill).catch(fail),sub==="clubs"&&this.socialClubs().then(fill).catch(fail),sub==="challenges"&&this.socialChallenges().then(fill).catch(fail),sub==="torch"&&this.socialTorch().then(fill).catch(fail)},safePost(a,opts){try{return this.remotePost(a,opts)}catch(e){return console.warn("post",a&&a.id,e),""}},remotePost(a,opts={}){const p=a.profiles||{},name=esc(p.name||"Atleta"),fol=opts.follow?`<button class="react follow-btn" data-act="followHere" data-v="${a.user_id}">${I("plus")}Seguir</button>`:"",footer=`<div class="post-foot"><button class="react ${a.liked?"on":""}" data-act="like" data-v="${a.id}" data-on="${a.liked?1:0}">${I("heart")}<span class="num">${a.likes||0}</span></button><button class="react" data-act="raOpen" data-cm="1" data-v="${a.id}">${I("message")}<span class="num">${a.comments||0}</span></button>${fol}</div>`;return this.postCard({...a,mode:null},`<span data-act="userOpen" data-v="${a.user_id}">${name}</span>`,{route:a.route,avatar:this.avatarOf(p.name,p.frame,p.avatar,"sm",p.photo),tap:"raOpen",footer:opts.noFoot?"":footer,color:(CONFIG.sports[a.sport]||CONFIG.sports.run).color})},async socialFeed(){const list=await Cloud.feed();return list.length?list.map(a=>this.safePost(a)).join(""):`<div class="empty">${I("users")}<h3>Seu feed est\xE1 vazio</h3><p>Siga amigos para ver os treinos deles aqui. Seus pr\xF3prios treinos tamb\xE9m aparecem.</p>${Cloud.lastErr?`<p class="muted small">Erro do servidor: ${esc(Cloud.lastErr)}</p>`:""}<button class="btn primary" data-act="go" data-v="search">Buscar atletas</button></div>`},async socialDiscover(){const list=await Cloud.discover();if(!list.length)return`<div class="empty">${I("compass")}<h3>Nada por aqui ainda</h3><p>Quando outros atletas publicarem treinos, eles aparecem aqui para voc\xEA descobrir e seguir.</p>${Cloud.lastErr?`<p class="muted small">Erro do servidor: ${esc(Cloud.lastErr)}</p>`:""}</div>`;const city=Cloud.me&&Cloud.me.city;return`<p class="muted small disc-note">${I("compass","xs")} Treinos p\xFAblicos de todos os atletas${city?` \xB7 primeiro de ${esc(city)}`:""}</p>${list.map(a=>this.safePost(a,{follow:!(Cloud._fol&&Cloud._fol.has(a.user_id))})).join("")}`},async socialRank(){const R=App.rank||(App.rank={period:"week",scope:"all",sport:null}),since=new Date;since.setHours(0,0,0,0),R.period==="week"?since.setTime(Game.weekStart(Date.now())):R.period==="month"?since.setDate(1):since.setMonth(0,1);const rows=await Cloud.leaderboard({since,sport:R.sport,scope:R.scope}),pill=(k,v,n,cur)=>`<button class="pill-btn ${cur===v?"on":""}" data-act="rank" data-v="${k}:${v}">${n}</button>`;return`<div class="choice sport-filter">${pill("period","week","Semana",R.period)}${pill("period","month","M\xEAs",R.period)}${pill("period","year","Ano",R.period)}</div>
+      <div class="choice sport-filter">${pill("scope","all","Geral",R.scope)}${pill("scope","friends","Amigos",R.scope)}${pill("scope","city",Cloud.me.city?esc(Cloud.me.city):"Minha cidade",R.scope)}</div>
+      <div class="choice sport-filter">${pill("sport","","Todos",R.sport||"")}${Object.entries(CONFIG.sports).map(([k,s])=>pill("sport",k,s.name,R.sport||"")).join("")}</div>
+      ${R.scope==="city"&&!Cloud.me.city?'<p class="muted small">Cadastre sua cidade em Perfil \u2192 Conta.</p>':this.board(rows,v=>Fmt.num(v)+" km")}`},async socialClubs(){const clubs=await Cloud.myClubs();return`<div class="row2"><button class="btn primary" data-act="clubCreate">${I("plus")}Criar clube</button><button class="btn ghost" data-act="clubJoin">${I("link")}Entrar com c\xF3digo</button></div>
+      ${clubs.length?`<div class="list">${clubs.map(c=>`<button class="row tap" data-act="clubOpen" data-v="${c.id}">${this.iconBox("users","var(--brand)")}<div class="grow"><b>${esc(c.name)}</b><small>Meta coletiva: ${c.goal_km} km/m\xEAs \xB7 c\xF3digo ${esc(c.invite_code)}</small></div>${I("chevronRight","chev")}</button>`).join("")}</div>`:`<div class="empty">${I("users")}<h3>Nenhum clube ainda</h3><p>Crie o clube da empresa, da igreja ou da assessoria e compartilhe o c\xF3digo.</p></div>`}`},async club(id){this._clubId=id;const tab=App.clubTab||"rank";this.render(`${this.back("social","Clube")}<main class="screen"><div id="clubBody" class="loading">Carregando\u2026</div></main>`);try{const d=this._club&&this._club.c.id===id&&Date.now()-this._clubAt<3e4?this._club:await Cloud.clubFull(id);this._club=d,this._clubAt=Date.now();const pct=d.total/(d.c.goal_km||1)*100,top=d.wboard[0],me=Cloud.user.id,mo=new Date,days=new Date(mo.getFullYear(),mo.getMonth()+1,0).getDate()-mo.getDate()+1,tabs=this.tabsBar([["rank","Ranking"],["members",`Membros \xB7 ${d.members.length}`],["feed","Atividades"]],tab,"clubTab");let body="";tab==="members"?body=`<div class="list">${d.members.map(m=>{const p=m.profiles||{};return`<div class="row tap" data-act="userOpen" data-v="${m.user_id}">${this.avatarOf(p.name,p.frame,p.avatar,"sm",p.photo)}<div class="grow"><b>${esc(p.name||"Atleta")}${UI.vb(m.user_id,p.username)}${m.user_id===me?" (voc\xEA)":""}</b><small>${p.username?"@"+esc(p.username):""}${p.city?" \xB7 "+esc(p.city):""}</small></div>${m.role==="admin"?'<span class="badge">Admin</span>':""}<b class="num">${Fmt.num(m.km)} km</b></div>`}).join("")}</div>`:tab==="feed"?body=d.acts.length?d.acts.map(a=>this.safePost(a)).join(""):`<div class="empty compact">${I("activity")}<p>Os treinos dos membros aparecem aqui.</p></div>`:body=`${this.board(d.board,v=>Fmt.num(v)+" km")}`,$("#clubBody").outerHTML=`<section class="club-hero"><span class="eyebrow">${d.members.length} membro${d.members.length>1?"s":""} \xB7 c\xF3digo ${esc(d.c.invite_code)}</span><h2>${esc(d.c.name)}</h2>${d.c.description?`<p class="muted">${esc(d.c.description)}</p>`:""}
+          <div class="club-goal"><div class="row-t"><b class="num">${Fmt.num(d.total)} <small>de ${d.c.goal_km} km no m\xEAs</small></b><small class="num">${Math.min(100,Math.round(pct))}%</small></div>${this.bar(pct,"brand")}<small>${pct>=100?"Meta do m\xEAs batida! \u{1F389}".replace(" \u{1F389}",""):`Faltam ${Fmt.num(Math.max(0,d.c.goal_km-d.total))} km \xB7 ${days} dia${days>1?"s":""} para acabar o m\xEAs`}</small></div>
+          <div class="club-acts"><button class="btn primary sm" data-act="clubInvite">${I("userPlus")}Convidar</button><button class="btn ghost sm" data-act="copy" data-v="${esc(d.c.invite_code)}">${I("copy")}Copiar c\xF3digo</button>${d.admin?`<button class="btn ghost sm" data-act="clubEdit">${I("settings")}Editar</button>`:`<button class="btn ghost sm" data-act="clubLeave">${I("logout")}Sair</button>`}</div></section>
+        ${top?`<section class="club-star"><div class="cs-ic">${I("crown")}</div><div class="grow"><span class="eyebrow">Destaque da semana</span><b>${esc(top.name)}</b><small class="num">${Fmt.num(Number(top.value))} km desde segunda</small></div></section>`:""}
+        ${tabs}${body}`}catch(e){console.error(e);const el=$("#clubBody");el&&(el.textContent="N\xE3o foi poss\xEDvel abrir o clube.")}},async challenge(id){this.render(`${this.back("social","Desafio")}<main class="screen"><div id="chalBody" class="loading">Carregando\u2026</div></main>`);try{const{c,acts}=await Cloud.challengeDetail(id),me=Cloud.user.id,P=[c.from_user===me?c.a:c.b,c.from_user===me?c.b:c.a].map((p,i)=>({p:p||{name:"Atleta"},id:i===0?me:c.from_user===me?c.to_user:c.from_user}));P.forEach(x=>{const l=acts.filter(a=>a.user_id===x.id);x.km=l.reduce((s,a)=>s+a.distance,0)/1e3,x.n=l.length,x.t=l.reduce((s,a)=>s+a.duration,0)});const end=new Date(c.ends_at).getTime(),start=new Date(c.starts_at).getTime(),over=Date.now()>end,left=Math.max(0,Math.ceil((end-Date.now())/864e5)),tot=P[0].km+P[1].km||1,lead=P[0].km===P[1].km?null:P[0].km>P[1].km?0:1,spn=c.sport?CONFIG.sports[c.sport].name:"Qualquer esporte",nd=Math.max(1,Math.round((end-start)/864e5)),perDay=P.map(()=>Array(nd).fill(0));acts.forEach(a=>{const i=Math.min(nd-1,Math.floor((Date.parse(a.start)-start)/864e5)),k=a.user_id===me?0:1;i>=0&&(perDay[k][i]+=a.distance/1e3)});const maxD=Math.max(.1,...perDay.flat()),status=over?lead==null?"Empate!":lead===0?"Voc\xEA venceu! \u{1F3C6}".replace(" \u{1F3C6}",""):`${esc(P[1].p.name)} venceu`:lead==null?"Empatados":lead===0?`Voc\xEA est\xE1 na frente por ${Fmt.num(P[0].km-P[1].km)} km`:`${esc(P[1].p.name)} est\xE1 na frente por ${Fmt.num(P[1].km-P[0].km)} km`;$("#chalBody").outerHTML=`<section class="duel"><span class="eyebrow">${spn} \xB7 ${c.days} dias \xB7 ${over?"encerrado":`termina em ${left} dia${left===1?"":"s"}`}</span>
+          <div class="duel-row">${P.map((x,i)=>`<div class="duel-side ${lead===i?"lead":""}">${this.avatarOf(x.p.name,x.p.frame,x.p.avatar,"lg",x.p.photo)}<b>${i===0?"Voc\xEA":esc(x.p.name)}</b><span class="num duel-km">${Fmt.num(x.km)}<small> km</small></span><small>${x.n} treino${x.n===1?"":"s"} \xB7 ${Fmt.time(x.t)}</small></div>${i===0?'<div class="duel-vs">\xD7</div>':""}`).join("")}</div>
+          <div class="duel-bar"><i style="width:${P[0].km/tot*100}%"></i></div><p class="duel-status">${status}</p></section>
+        ${this.sectionHead("Dia a dia")}<section class="card duel-days">${perDay[0].map((_,i)=>`<div class="dd"><div class="dd-bars"><i class="me" style="height:${Math.max(perDay[0][i]?6:2,perDay[0][i]/maxD*100)}%"></i><i class="op" style="height:${Math.max(perDay[1][i]?6:2,perDay[1][i]/maxD*100)}%"></i></div><small>${new Date(start+i*864e5).toLocaleDateString("pt-BR",{weekday:"short"}).slice(0,3)}</small></div>`).join("")}<div class="dd-leg"><span><i class="me"></i>Voc\xEA</span><span><i class="op"></i>${esc(P[1].p.name)}</span></div></section>
+        ${this.sectionHead("Treinos do desafio")}${acts.length?`<div class="list">${acts.map(a=>{const mine=a.user_id===me,sp=CONFIG.sports[a.sport]||CONFIG.sports.run;return`<div class="row">${this.iconBox(sp.icon,sp.color)}<div class="grow"><b>${esc(a.title||sp.name)}</b><small>${mine?"Voc\xEA":esc(P[1].p.name)} \xB7 ${Fmt.date(Date.parse(a.start))}</small></div><b class="num">${Fmt.km(a.distance)} km</b></div>`}).join("")}</div>`:`<div class="empty compact">${I("activity")}<p>Nenhum treino ainda. Quem sair primeiro sai na frente!</p></div>`}`}catch(e){console.error(e);const el=$("#chalBody");el&&(el.textContent="N\xE3o foi poss\xEDvel abrir o desafio.")}},async notifs(){this.render(`${this.back(App.backTo2||"home","Notifica\xE7\xF5es")}<main class="screen"><div id="nBody" class="loading">Carregando\u2026</div></main>`);let seen=0;try{seen=+localStorage.getItem(Cloud.seenKey())||0}catch{}const list=await Cloud.refreshNotifs(!0);Cloud.markSeen();const fol=new Set(await Cloud.following().catch(()=>[])),ago=t=>{if(!t)return"";const m=Math.round((Date.now()-t)/6e4);return m<1?"agora":m<60?`${m} min`:m<1440?`${Math.round(m/60)} h`:`${Math.round(m/1440)} d`},txt=n=>({torch:"passou a Tocha para voc\xEA! \u{1F525} Voc\xEA tem 48 h para treinar e passar adiante",follow:fol.has(n.u.id)?"seguiu voc\xEA \xB7 agora voc\xEAs s\xE3o amigos":"come\xE7ou a seguir voc\xEA",like:`curtiu ${n.title?`\u201C${esc(n.title)}\u201D`:"seu treino"}`,comment:`comentou: \u201C${esc((n.text||"").slice(0,80))}\u201D`,chal:"desafiou voc\xEA",chalOn:"desafio aceito: valendo!",chalOk:"aceitou seu desafio",zone:`roubou sua \xE1rea de ${Zones.areaTxt(n.area||0)}`})[n.k],act=n=>n.k==="torch"?`data-act="torchOpen" data-v="${n.id}"`:n.k==="follow"?`data-act="userOpen" data-v="${n.u.id}"`:n.k==="like"||n.k==="comment"?`data-act="comments" data-v="${n.act}"`:n.k==="zone"?'data-act="go" data-v="mapa"':n.k==="chal"?'data-act="sub" data-v="social:challenges"':`data-act="chalOpen" data-v="${n.id}"`,ic={torch:"flame",follow:"userPlus",like:"heart",comment:"message",chal:"swords",chalOn:"swords",chalOk:"swords",zone:"flag"},el=$("#nBody");el&&(el.outerHTML=list.length?`<div class="list notif-list">${list.map(n=>`<div class="row tap notif ${n.t>seen?"new":""}" ${act(n)}><div class="n-av">${this.avatarOf(n.u.name,n.u.frame,n.u.avatar,"sm",n.u.photo)}<i class="n-ic n-${n.k}">${I(ic[n.k],"xs")}</i></div><div class="grow"><p><b>${esc(n.u.name||"Atleta")}${UI.vb(n.u.id,n.u.username)}</b> ${txt(n)}</p><small>${ago(n.t)}</small></div>${n.k==="follow"&&fol.has(n.u.id)?`<span class="badge friend">${I("users","xs")} Amigos</span>`:""}${n.k==="follow"&&!fol.has(n.u.id)?`<button class="chip-btn sm primary-chip" data-act="followHere" data-v="${n.u.id}">Seguir de volta</button>`:""}</div>`).join("")}</div>`:`<div class="empty">${I("bell")}<h3>Nenhuma notifica\xE7\xE3o</h3><p>Quando algu\xE9m seguir voc\xEA, curtir ou comentar seus treinos, aparece aqui.</p></div>`)},bellBadge(){const b=$("#bellBadge");if(!b)return;const n=Cloud.unread||0;b.hidden=!n,b.textContent=n>9?"9+":n},async followList(which,uid){const id=uid||Cloud.user.id;this.render(`${this.back(uid&&uid!==Cloud.user.id?"social":"profile",which==="followers"?"Seguidores":which==="friends"?"Amigos":"Seguindo")}<main class="screen"><div id="flBody" class="loading">Carregando\u2026</div></main>`);try{const[rows,fol,fw]=await Promise.all([Cloud.followList(id,which),Cloud.following(),Cloud.followers()]),el=$("#flBody");if(!el)return;el.outerHTML=rows.length?`<div class="list">${rows.map(r=>`<div class="row"><span class="tap" data-act="userOpen" data-v="${r.id}">${this.avatarOf(r.name,r.frame,r.avatar,"sm",r.photo)}</span><div class="grow tap" data-act="userOpen" data-v="${r.id}"><b>${esc(r.name)}${UI.vb(r.id,r.username)}</b><small>${r.username?"@"+esc(r.username):""}${r.city?" \xB7 "+esc(r.city):""}</small></div>${r.id===Cloud.user.id?"":fol.includes(r.id)&&fw.includes(r.id)?`<span class="badge friend">${I("users","xs")} Amigos</span>`:fol.includes(r.id)?'<span class="badge">Seguindo</span>':`<button class="chip-btn sm primary-chip" data-act="followHere" data-v="${r.id}">${fw.includes(r.id)?"Seguir de volta":"Seguir"}</button>`}</div>`).join("")}</div>`:`<div class="empty">${I("users")}<h3>${which==="followers"?"Ainda sem seguidores":which==="friends"?"Ainda sem amigos":"Voc\xEA ainda n\xE3o segue ningu\xE9m"}</h3>${which==="friends"?"<p>Amigo \xE9 quem voc\xEAs dois se seguem. Siga de volta quem segue voc\xEA!</p>":""}<p>${which==="followers"?"Publique seus treinos para mais gente encontrar voc\xEA.":"Veja o Descobrir no Social para encontrar atletas."}</p></div>`}catch{const el=$("#flBody");el&&(el.textContent="N\xE3o foi poss\xEDvel carregar.")}},hoursLeft(d){const h=(Date.parse(d)-Date.now())/36e5;return h<=0?"prazo vencido":h<1?`${Math.max(1,Math.round(h*60))} min`:`${Math.floor(h)} h`},torchLit(t){return t.deadline&&Date.parse(t.deadline)>Date.now()},async socialTorch(){let list=[];try{list=await Cloud.torchList()}catch(e){if(/torch|relation|does not exist/i.test(String(e&&e.message)))return`<div class="notice warn">${I("alert")}<div><b>Tocha ainda n\xE3o configurada</b><small>Rode o SQL da Tocha no Supabase para liberar.</small></div></div>`;throw e}const me=Cloud.user.id,hold=list.filter(t=>t.holder===me&&this.torchLit(t)),intro=`<section class="card torch-hero"><div class="th-flame">${I("flame")}</div><div class="grow"><b>Tocha JustGo</b><small>Treine, acenda a Tocha e passe para um amigo. Ele tem <b>48 h</b> para treinar e passar adiante. Quanto mais longe ela for, mais km a corrente soma. Se algu\xE9m deixar o prazo vencer, ela apaga.</small></div></section>`,holdHtml=hold.map(t=>`<button class="card torch-hold tap" data-act="torchOpen" data-v="${t.id}"><div class="th-flame on">${I("flame")}</div><div class="grow"><b>A Tocha est\xE1 com voc\xEA! \u{1F525}</b><small>Faltam <b>${this.hoursLeft(t.deadline)}</b>. Treine e passe para um amigo pela tela do treino.</small></div>${I("chevronRight","chev")}</button>`).join(""),row=t=>{const lit=this.torchLit(t);return`<button class="row tap" data-act="torchOpen" data-v="${t.id}"><div class="th-ic ${lit?"on":""}">${I("flame")}</div><div class="grow"><b>Tocha de ${esc(t.creator&&t.creator.name||"Atleta")}</b><small>${t.legs} ${t.legs===1?"pessoa":"pessoas"} \xB7 ${Fmt.num(t.total_m/1e3)} km \xB7 ${lit?`com ${t.holder===me?"voc\xEA":esc((t.holderP&&t.holderP.name||"").split(" ")[0]||"um amigo")} \xB7 ${this.hoursLeft(t.deadline)}`:"apagou"}</small></div>${I("chevronRight","chev")}</button>`};return`${holdHtml}${intro}<button class="btn primary" data-act="torchNew">${I("flame")}Acender uma Tocha</button>
+      ${list.length?`${this.sectionHead("Suas Tochas")}<div class="list">${list.map(row).join("")}</div>`:`<div class="empty compact">${I("flame")}<p>Voc\xEA ainda n\xE3o participou de nenhuma Tocha.</p></div>`}`},async torch(id){this.render(`${this.back("social","Tocha")}<main class="screen"><div id="tBody" class="loading">Carregando\u2026</div></main>`);let d=null;try{d=await Cloud.torchDetail(id)}catch{}const el=$("#tBody");if(!el)return;if(!d){el.outerHTML='<p class="muted">Tocha n\xE3o encontrada.</p>';return}const{t,legs}=d,lit=this.torchLit(t),me=Cloud.user.id;el.outerHTML=`<section class="torch-big ${lit?"on":""}"><div class="tb-flame">${I("flame")}</div><h1 class="num">${Fmt.num(t.total_m/1e3)} km</h1><p>${t.legs} ${t.legs===1?"pessoa":"pessoas"} na corrente \xB7 come\xE7ou com ${esc(t.creator&&t.creator.name||"Atleta")}</p>
+        <span class="badge ${lit?"live":""}">${lit?`${I("flame","xs")} Acesa \xB7 com ${t.holder===me?"voc\xEA":esc(t.holderP?t.holderP.name:"um amigo")} \xB7 faltam ${this.hoursLeft(t.deadline)}`:"Apagou"}</span></section>
+      ${t.holder===me&&lit?`<div class="notice">${I("flame")}<div><b>\xC9 a sua vez!</b><small>Fa\xE7a um treino (qualquer esporte) e, na tela do treino, toque em "Tocha" para passar a um amigo.</small></div></div>`:""}
+      ${this.sectionHead("A corrente")}
+      <div class="torch-chain">${legs.map((l,i)=>`<div class="tc-leg"><div class="tc-dot">${i+1}</div><div class="grow">${this.avatarOf(l.p&&l.p.name,l.p&&l.p.frame,l.p&&l.p.avatar,"xs",l.p&&l.p.photo)}<b data-act="userOpen" data-v="${l.user_id}">${esc(l.p&&l.p.name||"Atleta")}</b><small>${I(SPORT_IC[l.sport]||"run","xs")} ${Fmt.km(l.distance)} km \xB7 ${new Date(l.created_at).toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}</small></div></div>`).join("")}
+        ${lit?`<div class="tc-leg now"><div class="tc-dot">${I("flame","xs")}</div><div class="grow"><b>${t.holder===me?"Voc\xEA":esc(t.holderP?t.holderP.name:"Um amigo")}</b><small>est\xE1 com a Tocha agora</small></div></div>`:""}</div>`},async socialChallenges(){const list=await Cloud.challenges(),me=Cloud.user.id,row=c=>{const mine=c.from_user===me,other=mine?c.b:c.a,spn=c.sport?CONFIG.sports[c.sport].name.toLowerCase():"qualquer esporte",title=`${mine?"Voc\xEA":esc(c.a&&c.a.name)} \xD7 ${mine?esc(c.b&&c.b.name):"voc\xEA"}`;let right="",sub=`${c.days} dias \xB7 ${spn}`;if(c.status==="pending")right=mine?'<span class="badge">Aguardando</span>':`<div class="rr-act"><button class="chip-btn sm" data-act="chalAnswer" data-v="${c.id}:1">Aceitar</button><button class="chip-btn sm ghost-btn" data-act="chalAnswer" data-v="${c.id}:0">Recusar</button></div>`;else if(c.status==="declined")right='<span class="badge">Recusado</span>';else{const a=c.scores[me]||0,b=c.scores[mine?c.to_user:c.from_user]||0;sub+=c.over?" \xB7 encerrado":` \xB7 termina ${new Date(c.ends_at).toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}`,right=`<div class="vs num"><b class="${a>=b?"win":""}">${Fmt.num(a)}</b><span>\xD7</span><b class="${b>a?"win":""}">${Fmt.num(b)}</b><small>km</small></div>`,c.over&&(sub+=a>b?" \xB7 voc\xEA venceu!":a<b?` \xB7 ${esc(other&&other.name)} venceu`:" \xB7 empate")}const open=c.status==="active";return`<div class="row ${open?"tap":""}" ${open?`data-act="chalOpen" data-v="${c.id}"`:""}>${this.iconBox("swords","var(--brand)")}<div class="grow"><b>${title}</b><small>${sub}</small></div>${right}${open?I("chevronRight","chev"):""}</div>`};return`<button class="btn primary" data-act="chalNew">${I("swords")}Novo desafio</button>
+      ${list.length?`<div class="list">${list.map(row).join("")}</div>`:`<div class="empty">${I("swords")}<h3>Nenhum desafio</h3><p>Desafie um amigo que voc\xEA segue: quem fizer mais km no per\xEDodo vence.</p></div>`}`},search(){this.render(`${this.back("social","Buscar atletas")}<main class="screen"><label class="field search-f">${I("search")}<input id="searchQ" placeholder="Nome ou @usu\xE1rio" autocomplete="off"></label><div id="searchRes"></div></main>`),setTimeout(()=>$("#searchQ")&&$("#searchQ").focus(),50)},async searchResults(q){const el=$("#searchRes");if(!el)return;if(q.length<2){el.innerHTML="";return}const[rows,fol]=await Promise.all([Cloud.search(q),Cloud.following()]);$("#searchQ")&&$("#searchQ").value.trim()!==q||(el.innerHTML=rows.length?`<div class="list">${rows.filter(r=>r.id!==Cloud.user.id).map(r=>{const f=fol.includes(r.id);return`<div class="row"><span data-act="userOpen" data-v="${r.id}" class="tap">${this.avatarOf(r.name,r.frame,r.avatar,"sm",r.photo)}</span><div class="grow tap" data-act="userOpen" data-v="${r.id}"><b>${esc(r.name)}${UI.vb(r.id,r.username)}</b><small>@${esc(r.username||"")}${r.city?" \xB7 "+esc(r.city):""} \xB7 n\xEDvel ${r.level}</small></div><button class="chip-btn sm ${f?"":"primary-chip"}" data-act="${f?"unfollow":"follow"}" data-v="${r.id}">${f?"Seguindo":"Seguir"}</button></div>`}).join("")}</div>`:'<p class="muted">Ningu\xE9m encontrado.</p>')},async user(id){this._uid=id,this.render(`${this.back("social","Perfil")}<main class="screen"><div id="userBody" class="loading">Carregando\u2026</div></main>`);try{const[d,fs]=await Promise.all([Cloud.profileOf(id),Cloud.friendState(id)]),p=d.p,f=fs.iFollow,self=id===Cloud.user.id,L0=CONFIG.leagues.find(x=>x.id===p.league)||CONFIG.leagues[0];$("#userBody").outerHTML=`<section class="prof">${this.avatarOf(p.name,p.frame,p.avatar,"lg",p.photo)}<h1>${esc(p.name)}${UI.vb(p.id,p.username)}</h1><small>@${esc(p.username||"")}${p.city?" \xB7 "+esc(p.city):""} \xB7 n\xEDvel ${p.level}</small>
+        <span class="league-pill" style="--lc:${L0.color}">${I("crown","xs")} Liga ${L0.name}</span>
+        <div class="prof-stats"><div><b class="num">${Fmt.num(p.total_km,0)}</b><small>Km totais</small></div><div><b class="num">${p.medals}</b><small>Medalhas</small></div><div><b class="num">${d.followers}</b><small>Seguidores</small></div><div><b class="num">${p.xp}</b><small>XP</small></div></div></section>
+        ${p.avatar_cfg&&p.avatar_cfg.on!==!1&&p.avatar_pow?`<div class="av-other"><div class="avo-art">${Avatar.svg(p.avatar_cfg,{pose:"stand",mood:"happy",w:86,still:!0,stage:p.avatar_stage||0,stats:p.avatar_cfg.st||{vel:1,res:1,for:1,con:1}})}</div><div class="grow"><small class="eyebrow">Atleta</small><b>${esc((Avatar.STAGES[p.avatar_stage||0]||[0,""])[1])} \xB7 poder ${p.avatar_pow}</b>${p.avatar_cfg.st?`<div class="avh-attrs">${Avatar.ATTR.map(([k,n,ic,c])=>`<div style="--c:${c}">${I(ic,"xs")}<i><i style="width:${p.avatar_cfg.st[k]}%"></i></i><b class="num">${p.avatar_cfg.st[k]}</b></div>`).join("")}</div>`:""}</div></div>`:""}
+        ${self?"":`${fs.followsMe&&!fs.friends?`<p class="fr-hint">${I("userPlus","xs")} ${esc((p.name||"").split(" ")[0])} segue voc\xEA. Siga de volta para virarem amigos!</p>`:""}<div class="row2"><button class="btn ${f?"ghost":"primary"}" data-act="${f?"unfollow":"follow"}" data-v="${id}">${fs.friends?`${I("users")} Amigos`:f?"Seguindo":fs.followsMe?"Seguir de volta":"Seguir"}</button><button class="btn ghost" data-act="chalNew" data-v="${id}" ${fs.friends?"":'data-nf="1"'}>${I("swords")}Desafiar</button></div>`}
+        ${this.sectionHead("Atividades recentes")}${d.acts.length?d.acts.map(a=>this.safePost(a,{noFoot:!0})).join(""):'<p class="muted">Nenhuma atividade p\xFAblica.</p>'}`}catch{$("#userBody").textContent="Perfil n\xE3o encontrado."}},async remote(id,toComments){this.render(`<header class="top sub"><div class="top-l"><button class="back" data-act="raBack" aria-label="Voltar">${I("chevronLeft")}</button><b class="ttl">Treino</b></div><div class="top-r"></div></header>
+      <main class="screen summary" id="raBody"><div class="loading">Carregando\u2026</div></main>`);let a=null;try{a=await Cloud.activityOne(id)}catch(e){console.warn(e)}const body=$("#raBody");if(!body||App.tab!=="ract")return;if(!a){body.innerHTML=`<div class="empty">${I("lock")}<h3>Treino indispon\xEDvel</h3><p>Ele pode ter sido apagado ou deixado privado.</p></div>`;return}const p=a.profiles||{},me=Cloud.user&&Cloud.user.id,self=a.user_id===me,fol=Cloud._fol?Cloud._fol.has(a.user_id):null,start=typeof a.start=="string"?Date.parse(a.start):a.start,sp=CONFIG.sports[a.sport]||CONFIG.sports.run,avg=a.duration?a.distance/a.duration:0,speed=Fmt.isSpeed(a.sport),route=(a.route||[]).filter(q=>q&&q[0]!=null),hasMap=route.length>1,more=[["Tempo total",Fmt.time(a.elapsed||a.duration)]];if(a.stats&&a.stats.elev!=null&&more.push(["Ganho de eleva\xE7\xE3o",`${a.stats.elev} m`]),a.duration&&a.distance&&!speed&&a.sport!=="swim"&&more.push(["Velocidade m\xE9dia",`${Fmt.num(avg*3.6)} km/h`]),a.stats&&a.stats.weather&&a.stats.weather.temp!=null&&more.push(["Clima",`${Math.round(a.stats.weather.temp)}\xB0C`]),a.xp&&more.push(["XP ganho",`+${a.xp}`]),body.innerHTML=`
+      <div class="post-h">${this.avatarOf(p.name,p.frame,p.avatar,"sm",p.photo)}<div class="grow"><b data-act="userOpen" data-v="${a.user_id}">${esc(p.name||"Atleta")}${UI.vb(a.user_id,p.username)}</b><small>${I(SPORT_IC[a.sport],"xs")} ${sp.name} \xB7 ${Fmt.date(start)}</small></div>
+        ${self||fol===null||fol?"":`<button class="chip-btn sm" data-act="raFollow" data-v="${a.user_id}">${I("plus")}Seguir</button>`}</div>
       <h1 class="act-title">${esc(this.actTitle(a))}</h1>
-      <div class="big-stats"><div><span class="eyebrow">Distância</span><b class="num">${Fmt.km(a.distance)}</b><small>km</small></div><div><span class="eyebrow">${Fmt.paceLabel(a.sport, true)}</span><b class="num">${Fmt.pace(a.sport, avg)}</b><small>${Fmt.paceUnit(a.sport)}</small></div><div><span class="eyebrow">Tempo</span><b class="num">${Fmt.time(a.duration)}</b></div></div>
-      ${a.stats && a.stats.adj ? this.adjCard(a.stats.adj, a.sport) : ''}
-      ${this.photosOf(a).length ? `<section class="act-photos ro">${this.photosOf(a).map((u) => `<div class="ap"><img src="${esc(u)}" loading="lazy" alt="Foto do treino" data-act="photoView" data-v="${esc(u)}"></div>`).join('')}</section>` : ''}
-      ${hasMap ? `<div class="s-map-wrap"><div id="raMap" class="s-map"></div><button class="map3d-btn" data-act="view3d" data-v="${a.id}">${I('box3d')}Ver em 3D</button></div>` : a.stats && a.stats.pool ? `<div class="pool-art">${I('swim')}<b class="num">${Fmt.km(a.distance)} km</b><small>Natação na piscina</small></div>` : ''}
-      <div class="ra-react"><button class="react ${a.liked ? 'on' : ''}" data-act="like" data-v="${a.id}" data-on="${a.liked ? 1 : 0}">${I('heart')}<span class="num">${a.likes || 0}</span></button>
-        <button class="react" data-act="raFocus">${I('message')}<span class="num" id="raCmN">${a.comments || 0}</span></button>${self ? '' : `<button class="react" data-act="userOpen" data-v="${a.user_id}">${I('user')}Ver perfil</button>`}</div>
-      <section class="card kvl">${more.map(([l, v]) => `<div><span>${l}</span><b class="num">${v}</b></div>`).join('')}</section>
-      ${this.sectionHead('Comentários')}
-      <div id="raCm" class="ra-cm"><div class="loading">Carregando…</div></div>
-      ${this.composer('raText', 'raComment', a.id)}`;
-    if (hasMap) {
-      const m = this.map('raMap');
-      if (m) {
-        const pts = route.map((q) => (q[4] ? [q[0], q[1], 0, null, 1] : [q[0], q[1], 0]));
-        const line = this.routeLine(m, Geo.segments(pts), Shop.lineColor(a.sport), 5);
-        this.endpoints(m, pts[0], pts[pts.length - 1]);
-        const fit = () => { try { m.invalidateSize(); m.fitBounds(line.getBounds(), { padding: [28, 28] }); } catch (e) {} };
-        fit(); setTimeout(fit, 300);
-      }
-    }
-    await this.raComments(a.id);
-    if (toComments) { const t = $('#raText'); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-  },
-  async raComments(id) {
-    const el = $('#raCm'); if (!el) return;
-    let list = []; try { list = await Cloud.comments(id); } catch (e) {}
-    const me = Cloud.user && Cloud.user.id;
-    el.innerHTML = list.length ? list.map((c) => { const p = c.profiles || {}; return `<div class="ra-c">${this.avatarOf(p.name, p.frame, p.avatar, 'sm', p.photo)}<div class="grow"><div class="ra-c-h"><b data-act="userOpen" data-v="${c.user_id}">${esc(p.name || 'Atleta')}${UI.vb(c.user_id, p.username)}</b><small>${this.ago(Date.parse(c.created_at))}</small></div><p>${esc(c.text)}</p></div>${c.user_id === me ? `<button class="icon-btn sm" data-act="raDelCm" data-v="${c.id}" data-a="${id}" aria-label="Apagar">${I('trash')}</button>` : ''}</div>`; }).join('')
-      : `<p class="muted small">Ninguém comentou ainda. Seja o primeiro!</p>`;
-    const n = $('#raCmN'); if (n) n.textContent = list.length;
-  },
-  ago(t) {
-    const s = (Date.now() - t) / 1000;
-    if (!isFinite(s)) return '';
-    if (s < 60) return 'agora'; if (s < 3600) return `${Math.floor(s / 60)} min`; if (s < 86400) return `${Math.floor(s / 3600)} h`;
-    if (s < 7 * 86400) return `${Math.floor(s / 86400)} d`;
-    return new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-  },
-  // caixa de comentário (estilo app de rede social): avatar, campo que cresce, envio por ícone e reações rápidas
-  composer(id, act, aid, quick = true) {
-    return `<div class="composer">${quick ? `<div class="cp-quick">${['🔥 Que treino!', '👏 Parabéns!', '💪 Monstro!', '🚀 Voando!'].map((q) => `<button class="cp-chip" data-act="cpQuick" data-t="${id}" data-v="${q}">${q}</button>`).join('')}</div>` : ''}
-      <div class="cp-row">${this.avatar('sm')}<div class="cp-box"><textarea id="${id}" class="cp-in" rows="1" maxlength="500" placeholder="Adicione um comentário…"></textarea>
-      <button class="cp-send" ${act.startsWith('m:') ? `data-m="${act.slice(2)}"` : `data-act="${act}" data-v="${aid}"`} aria-label="Enviar">${I('send')}</button></div></div></div>`;
-  },
-  async commentsSheet(id) {
-    const list = await Cloud.comments(id);
-    const me = Cloud.user && Cloud.user.id;
-    const v = await FX.modal(`<h3>Comentários</h3><div class="comments">${list.length ? list.map((c) => { const p = c.profiles || {}; return `<div class="ra-c">${this.avatarOf(p.name, p.frame, p.avatar, 'sm', p.photo)}<div class="grow"><div class="ra-c-h"><b>${esc(p.name || 'Atleta')}${UI.vb(c.user_id, p.username)}</b><small>${this.ago(Date.parse(c.created_at))}</small>${c.user_id !== me ? `<button class="ra-c-rep" data-act="report" data-k="comment" data-v="${c.id}" data-u="${c.user_id}" aria-label="Denunciar comentário">${I('flag', 'xs')}</button>` : ''}</div><p>${esc(c.text)}</p></div></div>`; }).join('') : '<div class="cm-empty">' + I('message') + '<b>Nenhum comentário ainda</b><small>Seja o primeiro a dar os parabéns!</small></div>'}</div>
-      ${this.composer('cmText', 'm:send', id)}`);
-    return v;
-  },
-});
+      <div class="big-stats"><div><span class="eyebrow">Dist\xE2ncia</span><b class="num">${Fmt.km(a.distance)}</b><small>km</small></div><div><span class="eyebrow">${Fmt.paceLabel(a.sport,!0)}</span><b class="num">${Fmt.pace(a.sport,avg)}</b><small>${Fmt.paceUnit(a.sport)}</small></div><div><span class="eyebrow">Tempo</span><b class="num">${Fmt.time(a.duration)}</b></div></div>
+      ${a.stats&&a.stats.adj?this.adjCard(a.stats.adj,a.sport):""}
+      ${this.photosOf(a).length?`<section class="act-photos ro">${this.photosOf(a).map(u=>`<div class="ap"><img src="${esc(u)}" loading="lazy" alt="Foto do treino" data-act="photoView" data-v="${esc(u)}"></div>`).join("")}</section>`:""}
+      ${hasMap?`<div class="s-map-wrap"><div id="raMap" class="s-map"></div><button class="map3d-btn" data-act="view3d" data-v="${a.id}">${I("box3d")}Ver em 3D</button></div>`:a.stats&&a.stats.pool?`<div class="pool-art">${I("swim")}<b class="num">${Fmt.km(a.distance)} km</b><small>Nata\xE7\xE3o na piscina</small></div>`:""}
+      <div class="ra-react"><button class="react ${a.liked?"on":""}" data-act="like" data-v="${a.id}" data-on="${a.liked?1:0}">${I("heart")}<span class="num">${a.likes||0}</span></button>
+        <button class="react" data-act="raFocus">${I("message")}<span class="num" id="raCmN">${a.comments||0}</span></button>${self?"":`<button class="react" data-act="userOpen" data-v="${a.user_id}">${I("user")}Ver perfil</button>`}</div>
+      <section class="card kvl">${more.map(([l,v])=>`<div><span>${l}</span><b class="num">${v}</b></div>`).join("")}</section>
+      ${this.sectionHead("Coment\xE1rios")}
+      <div id="raCm" class="ra-cm"><div class="loading">Carregando\u2026</div></div>
+      ${this.composer("raText","raComment",a.id)}`,hasMap){const m=this.map("raMap");if(m){const pts=route.map(q=>q[4]?[q[0],q[1],0,null,1]:[q[0],q[1],0]),line=this.routeLine(m,Geo.segments(pts),Shop.lineColor(a.sport),5);this.endpoints(m,pts[0],pts[pts.length-1]);const fit=()=>{try{m.invalidateSize(),m.fitBounds(line.getBounds(),{padding:[28,28]})}catch{}};fit(),setTimeout(fit,300)}}if(await this.raComments(a.id),toComments){const t=$("#raText");t&&t.scrollIntoView({behavior:"smooth",block:"center"})}},async raComments(id){const el=$("#raCm");if(!el)return;let list=[];try{list=await Cloud.comments(id)}catch{}const me=Cloud.user&&Cloud.user.id;el.innerHTML=list.length?list.map(c=>{const p=c.profiles||{};return`<div class="ra-c">${this.avatarOf(p.name,p.frame,p.avatar,"sm",p.photo)}<div class="grow"><div class="ra-c-h"><b data-act="userOpen" data-v="${c.user_id}">${esc(p.name||"Atleta")}${UI.vb(c.user_id,p.username)}</b><small>${this.ago(Date.parse(c.created_at))}</small></div><p>${esc(c.text)}</p></div>${c.user_id===me?`<button class="icon-btn sm" data-act="raDelCm" data-v="${c.id}" data-a="${id}" aria-label="Apagar">${I("trash")}</button>`:""}</div>`}).join(""):'<p class="muted small">Ningu\xE9m comentou ainda. Seja o primeiro!</p>';const n=$("#raCmN");n&&(n.textContent=list.length)},ago(t){const s=(Date.now()-t)/1e3;return isFinite(s)?s<60?"agora":s<3600?`${Math.floor(s/60)} min`:s<86400?`${Math.floor(s/3600)} h`:s<7*86400?`${Math.floor(s/86400)} d`:new Date(t).toLocaleDateString("pt-BR",{day:"2-digit",month:"short"}):""},composer(id,act,aid,quick=!0){return`<div class="composer">${quick?`<div class="cp-quick">${["\u{1F525} Que treino!","\u{1F44F} Parab\xE9ns!","\u{1F4AA} Monstro!","\u{1F680} Voando!"].map(q=>`<button class="cp-chip" data-act="cpQuick" data-t="${id}" data-v="${q}">${q}</button>`).join("")}</div>`:""}
+      <div class="cp-row">${this.avatar("sm")}<div class="cp-box"><textarea id="${id}" class="cp-in" rows="1" maxlength="500" placeholder="Adicione um coment\xE1rio\u2026"></textarea>
+      <button class="cp-send" ${act.startsWith("m:")?`data-m="${act.slice(2)}"`:`data-act="${act}" data-v="${aid}"`} aria-label="Enviar">${I("send")}</button></div></div></div>`},async commentsSheet(id){const list=await Cloud.comments(id),me=Cloud.user&&Cloud.user.id;return await FX.modal(`<h3>Coment\xE1rios</h3><div class="comments">${list.length?list.map(c=>{const p=c.profiles||{};return`<div class="ra-c">${this.avatarOf(p.name,p.frame,p.avatar,"sm",p.photo)}<div class="grow"><div class="ra-c-h"><b>${esc(p.name||"Atleta")}${UI.vb(c.user_id,p.username)}</b><small>${this.ago(Date.parse(c.created_at))}</small>${c.user_id!==me?`<button class="ra-c-rep" data-act="report" data-k="comment" data-v="${c.id}" data-u="${c.user_id}" aria-label="Denunciar coment\xE1rio">${I("flag","xs")}</button>`:""}</div><p>${esc(c.text)}</p></div></div>`}).join(""):'<div class="cm-empty">'+I("message")+"<b>Nenhum coment\xE1rio ainda</b><small>Seja o primeiro a dar os parab\xE9ns!</small></div>"}</div>
+      ${this.composer("cmText","m:send",id)}`)}});
