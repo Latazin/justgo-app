@@ -447,7 +447,7 @@ try { if ((navigator.deviceMemory && navigator.deviceMemory <= 4) || (navigator.
         const id = act.id;
         Cloud.withReactions([{ id }]).then(([a]) => {
           if (!a || App.tab !== 'detail' || $('.ms11') || (!a.likes && !a.comments)) return;
-          const anchor = $('.screen.summary .s-map-wrap') || $('.screen.summary .pool-art') || $('.screen.summary > section');
+          const anchor = $('.screen.summary .ra3-sub') || $('.screen.summary .sm12-stats') || $('.screen.summary .s-map-wrap') || $('.screen.summary > section');
           if (!anchor) return;
           const cm = a.lastCm && a.lastCm.text ? `<p class="ms11-cm"><b>${esc((a.lastCm.p || {}).name || 'Atleta')}</b> ${esc(a.lastCm.text.slice(0, 120))}</p>` : '';
           anchor.insertAdjacentHTML('afterend', `<section class="ms11 tap" data-act="raOpen" data-v="${esc(id)}" data-cm="1">

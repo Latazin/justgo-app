@@ -58,19 +58,17 @@
       ${this.retroCard()}
       ${this.v9Progress()}
 
-      <section class="v9-sec">
-        <header class="v9-h"><h2>Missões de hoje</h2><span class="num">${dDone}/${daily.length}</span></header>
-        <div class="list flat">${daily.map((m) => this.missionRow(m, 'd', 'day')).join('')}</div>
-        <button class="v9-more" data-act="sub" data-v="progress:missions">Ver todas as missões</button>
-      </section>
-
       ${plan ? `<section class="v9-sec tap" data-act="go" data-v="plans"><header class="v9-h"><h2>Plano de treino</h2></header><div class="v9-plan"><b>${plan.session ? `${esc(plan.session.type)} · ${Fmt.num(plan.session.km)} km` : plan.P.finished ? 'Plano concluído' : 'Semana completa'}</b><small>${esc(plan.def.name)}</small></div></section>` : ''}
 
       <section class="v9-sec v9-last">
         <header class="v9-h"><h2>Seu último treino</h2>${recent.length ? `<button data-act="go" data-v="history">Ver todos</button>` : ''}</header>
         ${recent.length ? this.postCard(recent[0], esc(D.profile.name)) : `<div class="v9-empty"><b>Seu primeiro treino começa aqui</b><p>Toque em Gravar, escolha o esporte e o GPS registra o percurso.</p><button class="btn primary" data-act="go" data-v="record">Gravar treino</button></div>`}
       </section>
-
+      <section class="v9-sec">
+        <header class="v9-h"><h2>Missões de hoje</h2><span class="num">${dDone}/${daily.length}</span></header>
+        <div class="list flat">${daily.map((m) => this.missionRow(m, 'd', 'day')).join('')}</div>
+        <button class="v9-more" data-act="sub" data-v="progress:missions">Ver todas as missões</button>
+      </section>
       ${Cloud.loggedIn() ? `<section class="v9-sec"><header class="v9-h"><h2>Da comunidade</h2><button data-act="go" data-v="social">Ver mais</button></header><div class="comm-strip" id="hComm"><div class="comm-card sk"></div><div class="comm-card sk"></div></div></section>` : ''}
 
       <section class="v9-sec v9-cal">${this.homeMonth()}</section>

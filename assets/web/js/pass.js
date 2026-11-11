@@ -712,7 +712,7 @@ const Pass = {
   const home = UI.home.bind(UI);
   UI.home = function (...a) {
     const r = home(...a);
-    try { const w = document.querySelector('.v9-week'); if (w && !document.querySelector('.rv-home')) w.insertAdjacentHTML('afterend', Pass.homeCard()); } catch (e) {}
+    try { const st = document.querySelector('.v9-strip'), w = (st && st.closest('section')) || document.querySelector('.v9-week'); if (w && !document.querySelector('.rv-home')) w.insertAdjacentHTML('afterend', Pass.homeCard()); } catch (e) {}
     if (!Pass._introT) Pass._introT = setTimeout(() => { try { if (App.tab === 'home' && Store.data.profile.onboarded) Pass.intro(); } catch (e) {} }, 2500);
     return r;
   };
