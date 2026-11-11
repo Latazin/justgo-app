@@ -109,17 +109,17 @@ Object.assign(UI, {
       user: (Cloud.me && Cloud.me.username) || '', city: (Cloud.me && Cloud.me.city) || P.city || (Store.data.lastCity || ''),
       sports: P.sports && P.sports.length ? [...P.sports] : ['run'], exp: P.experience || 'iniciante', goal: P.goalWeek || 10,
     });
-    const steps = ['Perfil', 'Esportes', 'Meta'], pct = ((step + 1) / steps.length) * 100;
+    const steps = ['Perfil', 'Esportes'], pct = ((Math.min(step, 1) + 1) / steps.length) * 100;
     const head = (k, t, p) => `<div class="su-head"><span class="su-kick">${k}</span><h1>${t}</h1><p>${p}</p></div>`;
     let body = '';
     if (step === 0) {
-      body = `${head('Passo 1 de 3', 'Como a galera vai te achar?', 'Seu nome e @ aparecem no feed, nos rankings e no mapa de territórios.')}
+      body = `${head('Passo 1 de 2', 'Como a galera vai te achar?', 'Seu nome e @ aparecem no feed, nos rankings e no mapa de territórios.')}
         <div class="su-av"><div class="su-av-c" id="suAv">${esc((S.name || 'J')[0].toUpperCase())}</div><small>Você coloca sua foto depois, no Perfil</small></div>
         <label class="su-field"><span>Nome</span><input id="suName" value="${esc(S.name)}" placeholder="Como você quer ser chamado" autocomplete="name" maxlength="40"></label>
         <label class="su-field"><span>Nome de usuário</span><div class="su-at"><b>@</b><input id="suUser" value="${esc(S.user)}" placeholder="ex.: lucas.corre" autocapitalize="off" autocomplete="off" maxlength="20"></div><small id="suUserMsg">Letras, números, ponto e _</small></label>
         <label class="su-field"><span>Cidade</span><div class="su-at"><b>${I('mapPin', 'xs')}</b><input id="suCity" value="${esc(S.city)}" placeholder="ex.: Vitória" maxlength="40"></div><small>Para o ranking e os territórios da sua região</small></label>`;
     } else if (step === 1) {
-      body = `${head('Passo 2 de 3', 'O que você pratica?', 'Escolha quantos quiser. As missões e o Início se ajustam a eles.')}
+      body = `${head('Passo 2 de 2', 'O que você pratica?', 'Escolha quantos quiser. As missões e o Início se ajustam a eles.')}
         <div class="su-sports">${Object.entries(CONFIG.sports).map(([k, s]) => `<button class="su-sp ${S.sports.includes(k) ? 'on' : ''}" style="--c:${s.color}" data-act="suSport" data-v="${k}"><span>${I(SPORT_IC[k])}</span><b>${s.name}</b><i>${I('check')}</i></button>`).join('')}</div>
         <div class="su-lab">Seu nível</div>
         <div class="su-exp">${[['iniciante', 'Iniciante', 'Estou começando'], ['intermediario', 'Intermediário', 'Treino toda semana'], ['avancado', 'Avançado', 'Provas e metas altas']].map(([k, n, d]) => `<button class="${S.exp === k ? 'on' : ''}" data-act="suExp" data-v="${k}"><b>${n}</b><small>${d}</small></button>`).join('')}</div>`;
@@ -131,9 +131,9 @@ Object.assign(UI, {
         <div class="su-sum">${I('sparkles')}<span>Com ${S.goal} km por semana você fecha cerca de <b>${Math.max(1, Math.round(S.goal * 4.3))} km por mês</b> e já começa com 3 missões valendo XP.</span></div>`;
     }
     this.render(`<main class="gate su">
-      <div class="su-top"><button class="ax-back dark" data-act="${step ? 'suStep' : 'gateLogout'}" data-v="${step - 1}" aria-label="Voltar">${I('chevronLeft')}</button><div class="su-prog"><i style="width:${pct}%"></i></div><span class="su-n">${step + 1}/3</span></div>
+      <div class="su-top"><button class="ax-back dark" data-act="${step ? 'suStep' : 'gateLogout'}" data-v="${step - 1}" aria-label="Voltar">${I('chevronLeft')}</button><div class="su-prog"><i style="width:${pct}%"></i></div><span class="su-n">${Math.min(step, 1) + 1}/2</span></div>
       <div class="su-body">${body}</div>
-      <div class="su-foot"><div class="auth-err" id="suErr" hidden></div><button class="btn su-next" id="suNext" data-act="suNext">${step < 2 ? 'Continuar' : 'Começar a treinar'} ${I('chevronRight')}</button></div>
+      <div class="su-foot"><div class="auth-err" id="suErr" hidden></div><button class="btn su-next" id="suNext" data-act="suNext">${step < 1 ? 'Continuar' : 'Começar a treinar'} ${I('chevronRight')}</button></div>
     </main>`, false);
     if (step === 0) {
       const n = $('#suName'), u = $('#suUser'), av = $('#suAv');

@@ -32,6 +32,7 @@ const Legal = {
 <ul>
 <li>Criar e manter a sua conta e sincronizar seus treinos entre aparelhos.</li>
 <li>Gravar treinos, mostrar estatísticas, mapas, missões, ligas, rankings e territórios.</li>
+<li>Contar, de forma anônima, quantas pessoas abrem o app, se cadastram e treinam (só um código aleatório do aparelho, sem nome, e-mail ou conta), para melhorar o app.</li>
 <li>Permitir o feed, as curtidas, os comentários e os amigos.</li>
 <li>Mostrar o clima do dia e mapas.</li>
 <li>Manter a segurança, evitar fraudes e corrigir erros.</li>

@@ -219,7 +219,7 @@ const App = {
   },
   onSplit(n, t) {
     const tr = this.tracker;
-    FX.vibrate([100]);
+    FX.vibrate([90, 60, 90]); // cada km: duas batidas
     if (Pref('voice') && !tr.stale && !(this.coach && !this.coach.done)) {
       const kmh = Math.min((tr.distance / Math.max(1, tr.moving / 1000)) * 3.6, (CONFIG.sports[tr.sport] || {}).maxKmh || 60);
       const pace = Fmt.isSpeed(tr.sport) ? `velocidade média de ${Math.round(kmh)} quilômetros por hora` : `ritmo do último quilômetro: ${FX.spokenTime(t)}`;
@@ -1127,14 +1127,14 @@ const App = {
         catch (e) { btn.disabled = false; return show(/duplicate|unique|23505/i.test(String(e.message || e.code || '')) || e.code === '23505' ? `@${S.user} já está em uso. Tente outro.` : Cloud.msg(e)); }
         return UI.setup(1);
       }
-      if (step === 1) return UI.setup(2);
+      if (step === 1 && !S.goalTouched) S.goal = S.exp === 'avancado' ? 50 : S.exp === 'intermediario' ? 25 : 10;
       const P = Store.data.profile;
       P.name = S.name || (Cloud.me && Cloud.me.name) || 'Atleta'; P.sports = S.sports.length ? S.sports : ['run']; P.experience = S.exp;
       P.goalWeek = S.goal; P.goalMonth = S.goal * 4; if (!(P.missionSports && P.missionSports.length)) P.missionSports = P.sports.slice(0, 2); if (S.city) P.city = S.city; P.onboarded = true; Store.save();
       try { Cloud.pushProfile(); } catch (e) {}
       App.sport = P.sports[0]; App.mode = 'free'; App.setupData = null; App.setupStep = 0;
       App.enterApp(true);
-      FX.modal(`<div class="unlock"><div class="lock-anim open">${I('sparkles')}</div><span class="eyebrow">Tudo pronto</span><h3>Bem-vindo ao JustGo, ${esc(P.name.split(' ')[0])}!</h3><p class="muted">Suas 3 missões de hoje já estão valendo XP. Grave o primeiro treino para começar a subir de nível.</p><button class="btn primary" data-m="ok">Bora!</button></div>`);
+      UI.firstRun(P);
     },
     obDone: () => {
       const P = Store.data.profile;

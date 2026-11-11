@@ -32,6 +32,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'billing.dart';
 import 'fcm.dart';
+import 'extras_native.dart';
 import 'notif.dart';
 
 const kBrand = Color(0xFF1F6BFF);
@@ -40,7 +41,7 @@ const kPort = 47621; // porta fixa: mantém os dados salvos entre aberturas
 // version.json direto do GitHub (sempre fresco) e os arquivos pela CDN jsDelivr
 const kRaw = 'https://raw.githubusercontent.com/Latazin/justgo-app/main/assets/web';
 const kCdn = 'https://cdn.jsdelivr.net/gh/Latazin/justgo-app@main/assets/web';
-const kNativeBuild = 38; // sobe quando o APK ganha recursos novos
+const kNativeBuild = 39; // sobe quando o APK ganha recursos novos
 // AdMob: um bloco de anúncio premiado para cada recompensa
 const kAdUnits = {
   'streak': 'ca-app-pub-4705801610677571/3371244610', // salvar ofensiva
@@ -455,6 +456,18 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         break;
       case 'adReward': // anúncio premiado: responde se a pessoa assistiu até o fim
         _reply(id, await Ads.show('${m['kind'] ?? 'xp'}'));
+        break;
+      case 'widget': // widget da tela inicial
+        _reply(id, await JgWidget.update(m));
+        break;
+      case 'hcState': // Health Connect (relógios)
+        _reply(id, await Hc.state());
+        break;
+      case 'hcAsk':
+        _reply(id, await Hc.ask());
+        break;
+      case 'hcRead':
+        _reply(id, await Hc.read(((m['days'] ?? 30) as num).toInt()));
         break;
       case 'version':
         _reply(id, {'native': kNativeBuild, 'web': WebFiles.current, 'remote': WebFiles.remoteBuild, 'status': WebFiles.lastStatus, 'ready': _updateReady});

@@ -19,3 +19,5 @@ in_app_purchase_android
 firebase_core
 firebase_messaging
 app_settings
+home_widget
+health
